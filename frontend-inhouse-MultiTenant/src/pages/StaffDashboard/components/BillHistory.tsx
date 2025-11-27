@@ -16,6 +16,7 @@ import type { ApiBill } from "../../../api/staff/bill.api";
 import { fetchBillById } from "../../../api/staff/bill.api";
 // Import the BillModalComponent for displaying detailed bill information
 import BillModalComponent from "./BillModalComponent";
+import { useTenant } from "../../../context/TenantContext";
 
 // Define the props type for the BillHistory component
 type Props = {
@@ -74,11 +75,11 @@ export default function BillHistory({
 
   // State to hold the currently selected bill for modal view
   const [selectedBill, setSelectedBill] = useState<ApiBill | null>(null);
-  // State to manage loading status when fetching a single bill's details
-  const [isBillLoading, setIsBillLoading] = useState(false);
 
   // Ref to track if the initial data fetch has occurred
   const hasFetchedOnce = useRef(false);
+
+  const { rid } = useTenant();
 
   /* -------------------------------------------
      Initial Auto Fetch
@@ -136,14 +137,12 @@ export default function BillHistory({
   ------------------------------------------- */
   // Handler for fetching and displaying a single bill's details in a modal
   const handleViewBill = async (billId: string) => {
+    if (!rid) return;
     try {
-      setIsBillLoading(true);
-      const bill = await fetchBillById(billId); // Fetch the bill by its ID
+      const bill = await fetchBillById(rid, billId); // Fetch the bill by its ID
       setSelectedBill(bill); // Set the fetched bill to be displayed in the modal
     } catch (err) {
       alert("Failed to load bill details"); // Show an alert on failure
-    } finally {
-      setIsBillLoading(false);
     }
   };
 
@@ -305,7 +304,7 @@ export default function BillHistory({
                   </span>
 
                   <span className="font-bold text-emerald-600">
-                    {formatINR(bill.totalAmount ?? 0)}
+                    {formatINR(bill.total ?? 0)}
                   </span>
 
                   <ChevronRight className="h-4 w-4 text-slate-500" />
@@ -371,9 +370,6 @@ export default function BillHistory({
           bill={selectedBill}
           onClose={() => setSelectedBill(null)}
           formatINR={formatINR}
-          // The isBillLoading prop was passed here, but the BillModalComponent does not accept it.
-          // This might be a remnant of previous code or a potential bug.
-          // For now, it's removed to align with the component's expected props.
         />
       )}
     </div>

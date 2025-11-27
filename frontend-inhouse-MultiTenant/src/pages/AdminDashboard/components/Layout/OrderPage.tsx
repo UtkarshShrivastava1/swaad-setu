@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getOrder } from "../../../../api/admin/order.api"; // Actual API path
+import { getOrder, type Order, type OrderItem } from "../../../../api/admin/order.api"; // Actual API path
 import { useTenant } from "../../../../context/TenantContext";
 import FooterNav from "./Footer";
 import OrderHeroSection from "./OrderHero";
@@ -22,7 +22,7 @@ const FILTERS = [
 export default function OrdersManagement() {
   const { rid } = useTenant();
   const [activeFilter, setActiveFilter] = useState("all");
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -30,7 +30,7 @@ export default function OrdersManagement() {
     async function fetchOrders() {
       setLoading(true);
       try {
-        const result = await getOrder(rid);
+        const result = await getOrder(rid!);
         setOrders(result || []);
       } catch (err) {
         console.error("Error fetching orders:", err);
@@ -113,16 +113,16 @@ export default function OrdersManagement() {
             <div className="grid gap-7">
               {filteredOrders.map((order) => (
                 <div
-                  key={order._id}
+                  key={order._id.$oid}
                   className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition p-0 overflow-hidden"
                 >
                   {/* BILL HEADER */}
                   <div className="bg-yellow-400 text-black px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="flex flex-col gap-1 text-sm sm:text-base">
-                      <div>Order ID: {order._id}</div>
+                      <div>Order ID: {order._id.$oid}</div>
                       <div>
                         Date:{" "}
-                        {new Date(order.createdAt).toLocaleString("en-IN", {
+                        {new Date(order.createdAt.$date).toLocaleString("en-IN", {
                           hour12: true,
                         })}
                       </div>
@@ -173,7 +173,7 @@ export default function OrdersManagement() {
                         </tr>
                       </thead>
                       <tbody>
-                        {order.items?.map((item, idx) => (
+                        {order.items?.map((item: OrderItem, idx: number) => (
                           <tr
                             key={idx}
                             className="border-b border-slate-100 hover:bg-gray-50 text-black"

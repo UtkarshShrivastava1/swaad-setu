@@ -18,7 +18,10 @@ export default function LandingModern() {
 
   const rid = ridFromUrl!;
   const [restaurantName, setRestaurantName] = useState(rid.toUpperCase());
-  setRid(rid); // ensure tenant context stays aligned
+  
+  useEffect(() => {
+    setRid(rid); // ensure tenant context stays aligned
+  }, [rid, setRid]);
 
   useEffect(() => {
     getRestaurantByRid(rid)

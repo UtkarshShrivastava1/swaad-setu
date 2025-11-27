@@ -90,7 +90,11 @@ const QRCodeModal: React.FC<QRCodeModalProps> = ({
   };
 
   return (
-    <ModalWrapper isOpen={isOpen} onClose={onClose}>
+    <ModalWrapper
+      title={`QR Code for Table ${table.tableNumber}`}
+      isOpen={isOpen}
+      onClose={onClose}
+    >
       <div className="bg-white rounded-lg p-6 w-full max-w-md mx-auto">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-xl font-semibold">

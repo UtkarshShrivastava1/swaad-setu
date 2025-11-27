@@ -3,9 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { getPublicBill } from "../../api/order.api"; // ✅ new API function
 import FooterNav from "../Layout/Footer";
 
+import { useTenant } from "../../context/TenantContext";
+
 export default function RunningBill() {
   const navigate = useNavigate();
-  const rid = import.meta.env.VITE_RID;
+  const { rid } = useTenant();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const tableNumber = sessionStorage.getItem("resto_table_number") || ""; 

@@ -8,19 +8,27 @@ import {
 import AddCategoryModal from "../modals/AddCategoryModal";
 import { useTenant } from "../../../../context/TenantContext";
 
-export default function CategoryManagement({ onBack }) {
+interface Category {
+  _id: string;
+  name: string;
+  itemCount?: number;
+  isMenuCombo?: boolean;
+  itemIds?: string[];
+}
+
+export default function CategoryManagement({ onBack }: { onBack: () => void }) {
   const { rid } = useTenant();
-  const [categories, setCategories] = useState([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
   const [openAddCategory, setOpenAddCategory] = useState(false);
-  const [editCategory, setEditCategory] = useState(null);
+  const [editCategory, setEditCategory] = useState<string | null>(null);
   const [editedName, setEditedName] = useState("");
 
   async function loadCategories() {
     if (!rid) return;
     try {
       setLoading(true);
-      const data = await fetchCategories(rid);
+      const data = (await fetchCategories(rid)) as any;
       setCategories(data.categories || []);
     } catch (err) {
       console.error("❌ Failed to fetch categories:", err);
@@ -29,24 +37,19 @@ export default function CategoryManagement({ onBack }) {
     }
   }
 
-  async function handleDelete(_id, catName) {
+  async function handleDelete(_id: string, catName: string) {
     if (!rid) return;
     if (!confirm(`Delete category "${catName}"?`)) return;
     try {
-      const category = categories.find((c) => c.name === catName);
-      if (!category || !category._id) {
-        alert("Invalid category reference.");
-        return;
-      }
-      await deleteCategory(rid, category._id, false);
-      setCategories((prev) => prev.filter((c) => c.name !== catName));
+      await deleteCategory(rid, _id, false);
+      setCategories((prev) => prev.filter((c) => c._id !== _id));
     } catch (err) {
       console.error("❌ Delete failed:", err);
       alert("Failed to delete category.");
     }
   }
 
-  async function handleUpdate(catId) {
+  async function handleUpdate(catId: string) {
     if (!rid) return;
     const category = categories.find((c) => c._id === catId);
     if (!category) return;
@@ -185,7 +188,7 @@ export default function CategoryManagement({ onBack }) {
           loadCategories(); // refresh after add
         }}
         rid={rid}
-        onCategoryAdded={(cat) => setCategories((prev) => [...prev, cat])}
+        onCategoryAdded={(newCat: Category) => setCategories((prev) => [...prev, newCat])}
       />
     </div>
   );

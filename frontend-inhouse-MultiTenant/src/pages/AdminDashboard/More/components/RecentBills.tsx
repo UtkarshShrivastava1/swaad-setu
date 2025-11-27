@@ -1,22 +1,34 @@
-
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { getRecentBills } from "../../../../api/admin/admin.api";
 import { CreditCard, Receipt, Clock, CheckCircle } from 'lucide-react';
+import { TenantContext } from "../../../../context/TenantContext";
+import type { ApiBill } from "../../../../api/staff/bill.api";
+
+interface FormattedBill {
+  billId: string;
+  orderType: string;
+  customer: string;
+  itemsSummary: (JSX.Element | null)[] | string;
+  totalAmount: string;
+  status: string;
+}
 
 export default function RecentBills() {
-  const [billList, setBillList] = useState([]);
-  const rid = import.meta.env.VITE_RID;
+  const [billList, setBillList] = useState<FormattedBill[]>([]);
+  const tenantContext = useContext(TenantContext);
+  const rid = tenantContext?.rid;
 
   const fetchRecentBills = async () => {
+    if (!rid) return;
     try {
-      const data = await getRecentBills(rid);
+      const data = (await getRecentBills(rid)) as ApiBill[];
       if (Array.isArray(data)) {
         // Map raw data into UI-friendly format
         const formattedBills = data.map((bill) => {
-          const itemsSummary = bill.items?.map((item, index) => {
+          const itemsSummary = bill.items?.map((item: any, index: number) => {
             let modNames = "";
             if (item.modifiers && item.modifiers.length) {
-              modNames = ` (+${item.modifiers.map((m) => m.name).join(", ")})`;
+              modNames = ` (+${item.modifiers.map((m: any) => m.name).join(", ")})`;
             }
             return (
               <div key={index}>
@@ -24,14 +36,14 @@ export default function RecentBills() {
                 {modNames}
               </div>
             );
-          }) || null;
+          });
 
           return {
             billId: bill._id,
-            orderType: bill.tableId ? `Table ${bill.tableId}` : "Takeaway",
+            orderType: bill.tableId ? `Table ${bill.tableNumber}` : "Takeaway",
             customer: bill.staffAlias || "Customer",
             itemsSummary: itemsSummary || "No items",
-            totalAmount: bill.totalAmount?.toFixed(2) || 0,
+            totalAmount: bill.total.toFixed(2),
             status: bill.status || "unknown",
           };
         });
@@ -47,9 +59,9 @@ export default function RecentBills() {
 
   useEffect(() => {
     fetchRecentBills();
-  }, []);
+  }, [rid]);
 
-  const handleProcessPayment = (billId) => {
+  const handleProcessPayment = (billId: string) => {
     alert(`Processing payment for bill ${billId}`);
   };
 

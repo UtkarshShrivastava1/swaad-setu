@@ -99,8 +99,9 @@ export default function Sidebar({ userRole, onLogout }: SidebarProps) {
             <li key={link.path}>
               <NavLink
                 to={link.path}
-                className={({ isActive }) => linkClass(isActive)}
-                aria-current={({ isActive }) => (isActive ? "page" : undefined)}
+                className={({ isActive }: { isActive: boolean }) =>
+                  linkClass(isActive)
+                }
               >
                 <span className="mr-3">{link.icon}</span>
                 <span>{link.name}</span>

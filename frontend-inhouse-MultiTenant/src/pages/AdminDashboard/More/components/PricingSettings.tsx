@@ -62,7 +62,10 @@ export default function PricingSettings() {
 
     try {
       setLoading(true);
-      const updatedAdmin = await createPricingConfig(rid, payload);
+      const updatedAdmin = (await createPricingConfig(
+        rid,
+        payload
+      )) as any;
       if (updatedAdmin && updatedAdmin.admin) {
         setAdmin(updatedAdmin.admin);
         setSuccessMessage("New pricing configuration created and activated!");

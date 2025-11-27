@@ -1,14 +1,20 @@
 import { useState } from "react";
 import ModalWrapper from "./ModalWrapper";
 
-export default function AddOrderModal({ isOpen, onClose }) {
+export default function AddOrderModal({
+  isOpen,
+  onClose,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+}) {
   const [formData, setFormData] = useState({
     customer: "",
     type: "",
     table: "",
   });
 
-  function handleSubmit(e) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     console.log("New Order Created:", formData);
     onClose();

@@ -51,6 +51,8 @@ export interface ApiOrder {
 
 export interface ApiTable {
   _id: string;
+  id?: string;
+  waiterCalled?: boolean;
   tableNumber: number;
   capacity: number;
   status: string;

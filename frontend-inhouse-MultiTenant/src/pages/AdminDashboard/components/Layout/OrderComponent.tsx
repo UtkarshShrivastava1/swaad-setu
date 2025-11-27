@@ -6,7 +6,8 @@ import {
   Receipt,
   Utensils,
 } from "lucide-react";
-import React from "react";
+import React, { useContext } from "react";
+import { TenantContext } from "../../../../context/TenantContext";
 
 /* ---------------------------------------------
    Local minimal types
@@ -215,6 +216,7 @@ export default function OrdersComponent({
   formatINR,
 }: Props) {
   const [loadingBillId, setLoadingBillId] = React.useState<string | null>(null);
+  const { tenant } = useContext(TenantContext);
 
   /* ---------------------------------------------
      Generate Bill if Not Exists → Then Show
@@ -222,10 +224,12 @@ export default function OrdersComponent({
   const handleBillViewWithGeneration = async (order: Order) => {
     const orderId = order.id;
     const apiBase = import.meta.env.VITE_API_BASE_URL;
-    const restaurantId =
-      import.meta.env.VITE_RID ||
-      import.meta.env.VITE_RESTAURANT_ID ||
-      "restro10";
+    const restaurantId = tenant?.restaurantId;
+
+    if (!restaurantId) {
+      console.error("Restaurant ID not found in tenant context");
+      return;
+    }
 
     let staffToken = localStorage.getItem("adminToken");
     if (staffToken) staffToken = staffToken.replace(/^"|"$/g, "");

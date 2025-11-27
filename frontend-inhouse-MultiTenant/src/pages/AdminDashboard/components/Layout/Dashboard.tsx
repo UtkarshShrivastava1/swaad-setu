@@ -5,7 +5,7 @@ import {
   TrendingUp,
   UtensilsCrossed,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -15,13 +15,13 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from "recharts";
-import { getOrder } from "../../../../api/admin/order.api";
-import { getTables } from "../../../../api/admin/table.api";
+import { getOrder, type Order } from "../../../../api/admin/order.api";
+import { getTables, type ApiTable } from "../../../../api/admin/table.api";
 import RecentActivity from "./RecentActivity";
 
 import { useTenant } from "../../../../context/TenantContext";
 
-function Dashboard({ setActiveTab }) {
+function Dashboard() {
   const { rid } = useTenant();
 
   // ====== Dashboard States ======
@@ -29,7 +29,7 @@ function Dashboard({ setActiveTab }) {
   const [todayOrders, setTodayOrders] = useState(0);
   const [tablesOccupied, setTablesOccupied] = useState(0);
   const [totalTables, setTotalTables] = useState(0);
-  const [lastRefreshed, setLastRefreshed] = useState(null);
+  const [lastRefreshed, setLastRefreshed] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Dummy line chart data for StatCards
@@ -45,14 +45,15 @@ function Dashboard({ setActiveTab }) {
 
   // ====== Data Fetchers ======
   async function fetchTodayOrders() {
+    if (!rid) return;
     try {
-      const orders = await getOrder(rid);
+      const orders = (await getOrder(rid)) as Order[];
       const now = new Date();
       let revenue = 0;
       let count = 0;
 
       orders?.forEach((order) => {
-        const created = new Date(order.createdAt);
+        const created = new Date(order.createdAt.$date);
         if (
           created.getDate() === now.getDate() &&
           created.getMonth() === now.getMonth() &&
@@ -71,8 +72,9 @@ function Dashboard({ setActiveTab }) {
   }
 
   async function fetchTableStats() {
+    if (!rid) return;
     try {
-      const data = await getTables(rid);
+      const data = (await getTables(rid)) as ApiTable[];
       const total = data?.length || 0;
       const occupied = data?.filter((t) => t.status === "occupied").length || 0;
 
@@ -99,7 +101,19 @@ function Dashboard({ setActiveTab }) {
   }, [rid]);
 
   // ====== Reusable StatCard ======
-  const StatCard = ({ icon: Icon, label, value, subtitle, children }) => (
+  const StatCard = ({
+    icon: Icon,
+    label,
+    value,
+    subtitle,
+    children,
+  }: {
+    icon: React.ElementType;
+    label: string;
+    value: string | number;
+    subtitle?: string;
+    children: React.ReactNode;
+  }) => (
     <motion.div
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
@@ -130,6 +144,7 @@ function Dashboard({ setActiveTab }) {
       icon={TrendingUp}
       label="Today's Revenue"
       value={`₹ ${todayRevenue.toLocaleString("en-IN")}`}
+      subtitle="Compared to yesterday"
     >
       <ResponsiveContainer width="100%" height={80}>
         <AreaChart data={revenueData}>
@@ -168,22 +183,11 @@ function Dashboard({ setActiveTab }) {
     }, [todayOrders]);
 
     return (
-      <StatCard icon={ClipboardList} label="Total Orders">
+      <StatCard icon={ClipboardList} label="Total Orders" value={todayOrders}>
         <div className="flex flex-col items-center justify-center h-24 relative">
-          {/* Animated number */}
-          <motion.span
-            style={{ opacity: spring }}
-            className="text-5xl font-extrabold text-blue-600 tracking-tight"
-          >
-            {display}
-          </motion.span>
-
-          {/* Subtitle */}
           <p className="text-xs text-gray-400 mt-1 font-medium">
             {todayOrders === 0 ? "No orders yet" : "Orders today"}
           </p>
-
-          {/* Glow pulse */}
           <motion.div
             key={todayOrders}
             initial={{ opacity: 0.2, scale: 1 }}
@@ -245,7 +249,6 @@ function Dashboard({ setActiveTab }) {
   // ====== UI ======
   return (
     <div className="relative overflow-hidden min-h-screen bg-gradient-to-br from-yellow-50 via-white to-orange-50">
-      {/* ===== Main Content ===== */}
       <motion.div
         initial={{ opacity: 0, y: 25 }}
         animate={{ opacity: 1, y: 0 }}

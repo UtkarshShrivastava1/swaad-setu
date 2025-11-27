@@ -1,7 +1,7 @@
 // src/api/admin/menu.api.ts
 import client from "./client";
 
-interface MenuItem {
+export interface MenuItem {
   itemId?: string;
   name: string;
   description?: string;

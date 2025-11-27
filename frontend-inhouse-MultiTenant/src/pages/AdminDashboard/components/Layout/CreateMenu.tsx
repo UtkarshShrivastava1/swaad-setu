@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import {
   addCategory,
   addMenuItem,
@@ -9,11 +9,28 @@ import {
   fetchMenu,
   restoreMenuItem,
 } from "../../../../api/admin/menu.api";
+import { TenantContext } from "../../../../context/TenantContext";
 
-export default function MenuBuilder({ onClose }) {
+interface MenuItem {
+  itemId: string;
+  name: string;
+  description: string;
+  price: number;
+  isVegetarian: boolean;
+  isActive: boolean;
+}
+
+interface Category {
+  _id: string;
+  name: string;
+  isMenuCombo: boolean;
+  itemIds: string[];
+}
+
+export default function MenuBuilder({ onClose }: { onClose: () => void }) {
   const [title, setTitle] = useState("");
-  const [items, setItems] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
+  const [items, setItems] = useState<MenuItem[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
   const [currentItem, setCurrentItem] = useState({
     name: "",
@@ -27,7 +44,8 @@ export default function MenuBuilder({ onClose }) {
     itemIds: [] as string[],
   });
 
-  const restaurantId = import.meta.env.VITE_RID || "";
+  const tenantContext = useContext(TenantContext);
+  const restaurantId = tenantContext?.rid || "";
 
   /* ---------------------------------------------------------------------- */
   // Load existing menu on mount
@@ -35,7 +53,7 @@ export default function MenuBuilder({ onClose }) {
     if (!restaurantId) return;
     (async () => {
       try {
-        const data = await fetchMenu(restaurantId);
+        const data = (await fetchMenu(restaurantId)) as any;
         if (data.menu) setItems(data.menu);
         if (data.categories) setCategories(data.categories);
         if (data.branding?.title) setTitle(data.branding.title);
@@ -56,7 +74,7 @@ export default function MenuBuilder({ onClose }) {
         price: parseFloat(currentItem.price),
       };
       setLoading(true);
-      const res = await addMenuItem(restaurantId, itemPayload);
+      const res = (await addMenuItem(restaurantId, itemPayload)) as any;
       setItems((prev) => [...prev, res.item]);
       setCurrentItem({
         name: "",
@@ -104,7 +122,7 @@ export default function MenuBuilder({ onClose }) {
   const handleAddCategory = async () => {
     if (!currentCategory.name) return alert("Enter category name");
     try {
-      const res = await addCategory(restaurantId, currentCategory);
+      const res = (await addCategory(restaurantId, currentCategory)) as any;
       setCategories((prev) => [...prev, res.category || currentCategory]);
       setCurrentCategory({ name: "", isMenuCombo: false, itemIds: [] });
     } catch (err) {

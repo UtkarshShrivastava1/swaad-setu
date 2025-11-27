@@ -31,12 +31,14 @@ interface Table {
   waiterCalled: boolean;
 }
 
+import { useTenant } from "../../context/TenantContext";
+
 export default function TableDashboard() {
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [showBillDetail, setShowBillDetail] = useState<Bill | null>(null);
   const [view, setView] = useState<"dashboard" | "billing">("dashboard");
   const [billData, setBillData] = useState<Bill[]>([]);
-  const rid = import.meta.env.VITE_RID || "restro10";
+  const { rid } = useTenant();
 
   const [tables, setTables] = useState<Table[]>([]);
 

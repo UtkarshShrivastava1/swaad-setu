@@ -7,6 +7,7 @@ export interface ApiTable {
     capacity: number;
     status: string;
     isActive: boolean;
+    waiterCalled?: boolean;
     currentSessionId?: string;
     staffAlias?: string;
     isDeleted?: boolean;

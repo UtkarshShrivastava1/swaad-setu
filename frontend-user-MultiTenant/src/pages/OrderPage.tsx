@@ -28,10 +28,12 @@ interface Order {
   paymentStatus: "unpaid" | "paid" | "partial" | string;
 }
 
+import { useTenant } from "../context/TenantContext";
+
 export default function OrderPage() {
   const { tableId, sessionId } = useTableFromUrl();
-  const rid = import.meta.env.VITE_RID || "restro10";
   const { orderId } = useParams();
+  const { rid } = useTenant();
   const navigate = useNavigate();
 
   const {

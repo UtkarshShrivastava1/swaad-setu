@@ -1,4 +1,5 @@
 // src/api/staff/order.api.ts
+import { client } from "../client";
 
 /**
  * Update an Order document when the Bill is finalized or paid.
@@ -34,27 +35,7 @@ export async function updateOrderFromBill(
   // On payment → close order
   if (type === "payment") {
     payload.paymentStatus = "paid";
-    payload.isOrderComplete = true; // src/api/admin/order.api.ts
-    import { client } from "../client";
-    import type { ApiOrder } from "../types/order.types"; // optional, remove if not needed
-
-    /**
-     * Fetch active (non-completed, non-cancelled) orders for Admin Dashboard
-     * Multi-tenant aware: requires rid (restaurantId)
-     */
-    export async function getOrder(rid: string): Promise<ApiOrder[]> {
-      if (!rid) throw new Error("rid is required for admin order fetch");
-
-      return client.get(`/api/${rid}/orders/active`, {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: localStorage.getItem(`adminToken_${rid}`)
-            ? `Bearer ${localStorage.getItem(`adminToken_${rid}`)}`
-            : "",
-        },
-      });
-    }
-
+    payload.isOrderComplete = true;
     payload.status = "billed";
   }
 

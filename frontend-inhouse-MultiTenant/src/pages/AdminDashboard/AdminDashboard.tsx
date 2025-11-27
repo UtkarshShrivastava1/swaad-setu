@@ -27,10 +27,18 @@ export default function AdminDashboard() {
     }
   }, [ridFromUrl, setRid]);
 
+  if (!rid) {
+    return (
+      <div className="w-full h-screen flex items-center justify-center">
+        <p className="text-lg text-gray-600">Loading restaurant...</p>
+      </div>
+    );
+  }
+
   const tokenKey = `adminToken_${rid}`;
 
   const [activeTab, setActiveTab] = useState<
-    "dashboard" | "menu" | "categories" | "orders" | "tables" | "more"
+    "dashboard" | "menu" | "categories" | "orders" | "tables" | "more" | "notifications"
   >("dashboard");
 
   const [view, setView] = useState<"list" | "edit" | "create">("list");

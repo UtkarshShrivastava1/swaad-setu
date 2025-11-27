@@ -3,7 +3,7 @@ import client from "../client";
 
 export async function loginAsAdmin(rid: string, pin: string) {
   try {
-    const res = await client.post<{ token: string }>(
+    const res = await client.post<{ token: string; admin: any }>(
       `/api/${rid}/admin/login`,
       { pin }
     );

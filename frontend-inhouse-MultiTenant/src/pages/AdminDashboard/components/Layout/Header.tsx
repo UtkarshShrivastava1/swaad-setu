@@ -1,10 +1,14 @@
-import { Bell, LogOut, PlusCircle } from "lucide-react";
+import { Bell, LogOut, PlusCircle, Search } from "lucide-react";
 
 export default function Header({
+  searchQuery,
+  setSearchQuery,
   onOpenNotifications,
   onLogout,
   waiterCallCount,
 }: {
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
   onOpenNotifications: () => void;
   onLogout: () => void;
   waiterCallCount: number;
@@ -28,6 +32,22 @@ export default function Header({
               <span className="text-xs sm:text-sm text-[#051224]/70 tracking-wide">
                 Admin Dashboard
               </span>
+            </div>
+          </div>
+
+          {/* ---------- CENTER: Search ---------- */}
+          <div className="hidden md:flex flex-1 justify-center px-8">
+            <div className="relative w-full max-w-md">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search..."
+                className="block w-full bg-white/20 border-transparent rounded-xl py-2.5 pl-10 pr-4 text-[#051224] placeholder:text-[#051224]/60 focus:outline-none focus:bg-white/50 focus:ring-2 focus:ring-[#051224] transition-all"
+              />
             </div>
           </div>
 

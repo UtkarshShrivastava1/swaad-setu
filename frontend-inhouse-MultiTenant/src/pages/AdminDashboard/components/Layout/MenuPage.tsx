@@ -5,28 +5,22 @@ import {
   deleteMenuItem,
   fetchMenu,
   restoreMenuItem,
-  updateMenuItem, // Import updateMenuItem
 } from "../../../../api/admin/menu.api";
-import AddMenuItemModal from "../modals/AddMenuItemModal";
 import CreateMenu from "./CreateMenu";
 import FooterNav from "./Footer";
 // import HeroSection from "./MenuHero";
-import EditMenuItemModal from "../modals/EditMenuItemModal";
 // Import PBM.webp correctly as a direct path from public folder
 // import PBM from "/PBM.webp"; // Corrected path
 
 import { useTenant } from "../../../../context/TenantContext";
 
-export default function MenuManagement({ setActiveTab }) {
+export default function MenuManagement({ setActiveTab, onEdit, onCreate }) {
   const { rid } = useTenant();
   const [activeFilter, setActiveFilter] = useState("all");
-  const [openAddItem, setOpenAddItem] = useState(false);
   const [menuData, setMenuData] = useState([]);
   const [categories, setCategories] = useState([]);
   const [showCreateMenu, setShowCreateMenu] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [editItem, setEditItem] = useState(null); // item data to edit
-  const [openEditModal, setOpenEditModal] = useState(false);
 
   /* ---------------------------------------------------------------------- */
   // Fetch menu from backend
@@ -99,27 +93,6 @@ export default function MenuManagement({ setActiveTab }) {
     }
   };
 
-  // Save edited item
-  const handleSaveEdit = async (itemId, updatedItemData, imageFile) => {
-    if (!rid) return;
-    try {
-      // Call the updated updateMenuItem API
-      const result = await updateMenuItem(rid, itemId, updatedItemData, imageFile);
-      
-      // Update local state with the updated item
-      setMenuData((prev) =>
-        prev.map((it) =>
-          it.itemId === result.itemId ? { ...it, ...result } : it
-        )
-      );
-      setOpenEditModal(false);
-      setEditItem(null);
-    } catch (err) {
-      console.error("Failed to update item:", err);
-      alert("Failed to update item.");
-    }
-  };
-
   // Restore hidden item
   const handleRestore = async (itemId) => {
     if (!rid) return;
@@ -140,8 +113,7 @@ export default function MenuManagement({ setActiveTab }) {
   const handleEdit = (itemId) => {
     const item = menuData.find((i) => i.itemId === itemId);
     if (item) {
-      setEditItem(item);
-      setOpenEditModal(true);
+      onEdit(item);
     }
   };
 
@@ -157,12 +129,6 @@ export default function MenuManagement({ setActiveTab }) {
   // Render
   return (
     <div className="w-full flex flex-col items-center py-4 min-h-screen bg-gradient-to-br from-yellow-50 via-white to-orange-50">
-      <EditMenuItemModal
-        isOpen={openEditModal}
-        item={editItem}
-        onClose={() => setOpenEditModal(false)}
-        onSave={handleSaveEdit}
-      />
       <div className="w-full max-w-7xl px-3 md:px-6">
         {/* Hero Section */}
         {/* <HeroSection /> */}
@@ -177,7 +143,7 @@ export default function MenuManagement({ setActiveTab }) {
             <div className="flex flex-wrap gap-3">
               <button
                 className="px-6 py-3 rounded-full bg-gradient-to-br from-yellow-400 via-yellow-500 to-orange-400 shadow-lg font-bold text-black text-lg hover:scale-105 transition-transform cursor-pointer"
-                onClick={() => setOpenAddItem(true)}
+                onClick={onCreate}
               >
                 + Add Item
               </button>
@@ -304,20 +270,6 @@ export default function MenuManagement({ setActiveTab }) {
           </div>
         </div>
       </div>
-
-      {/* Add Menu Item Modal */}
-      <AddMenuItemModal
-        isOpen={openAddItem}
-        onClose={() => {
-          setOpenAddItem(false);
-          loadMenu(); // refresh after adding
-        }}
-        rid={rid}
-        onItemAdded={(newItem) => {
-          setMenuData((prev) => [...prev, newItem]);
-        }}
-      />
-
       {/* Footer */}
       <FooterNav activeTab="menu" />
     </div>

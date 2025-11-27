@@ -24,6 +24,7 @@ export function useHistory(rid: string) {
       limit?: number;
       page?: number;
     }) => {
+      if (!rid) return;
       setIsHistoryLoading(true);
       setHistoryError(null);
       try {
@@ -32,14 +33,8 @@ export function useHistory(rid: string) {
           params
         );
 
-        const res = await getBillsHistory(params || {});
-        const data = Array.isArray(res)
-          ? res
-          : Array.isArray(res?.data)
-          ? res.data
-          : Array.isArray(res?.bills)
-          ? res.bills
-          : [];
+        const res = await getBillsHistory(rid, params || {});
+        const data = res.bills;
 
         // ✅ Filter: Only include finalized, completed, or paid bills
         const filtered = data.filter(
@@ -65,6 +60,7 @@ export function useHistory(rid: string) {
    * Initial auto-fetch
    */
   useEffect(() => {
+    if (!rid) return;
     console.log("🟢 [useHistory] Initial auto-fetch for rid:", rid);
     fetchBillHistory({ limit: 50 }).catch((err) =>
       console.error("❌ [useHistory] Auto-fetch failed:", err)

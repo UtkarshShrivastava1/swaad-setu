@@ -38,6 +38,7 @@ export interface ApiTable {
 }
 
 export interface Table {
+  _id?: string;
   id: string;
   tableNumber: number;
   waiterCalled: boolean;
@@ -73,6 +74,7 @@ export interface Bill {
 }
 
 export interface Order {
+  _id?: string;
   id: string;
   serverId: string;
   tableId: string;

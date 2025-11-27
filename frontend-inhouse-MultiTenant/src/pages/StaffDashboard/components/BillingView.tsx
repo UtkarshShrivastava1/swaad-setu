@@ -23,48 +23,14 @@ import BillModalComponent from "./BillModalComponent";
 import ConfirmModal from "./ConfirmModal";
 import EditBillModal from "./EditBillModal";
 import PaymentModal from "./PaymentModal";
+import type { Order } from "../types";
 
 // Constants
 const AUTO_REFRESH_MS = 15000; // 15s auto-refresh interval
 
-// Interface for the Order data structure
-interface OrderType {
-  _id?: string;
-  id?: string;
-  serverId?: string;
-  restaurantId?: string;
-  tableNumber?: string | number;
-  staffAlias?: string;
-  status?: string;
-  items?: Array<{
-    price?: number;
-    qty?: number;
-    priceAtOrder?: number;
-    name?: string;
-    notes?: string;
-  }>;
-  appliedDiscountPercent?: number;
-  appliedServiceChargePercent?: number;
-  customerName?: string;
-  customerPhone?: string;
-  customerEmail?: string;
-  customerNotes?: string;
-  tableId?: string;
-  sessionId?: string;
-  orderNumberForDay?: number;
-  paymentStatus?: string;
-  order?: { sessionId?: string };
-  table?: { tableNumber?: string | number };
-  customerContact?: string;
-  contactNumber?: string;
-}
-
 // Props for the BillingViewCompact component
 interface BillViewProps {
-  showBillDetail: {
-    order?: OrderType;
-    bill?: ApiBill;
-  } & OrderType;
+  showBillDetail: Order;
   handleUpdateOrderStatus: (
     orderId: string,
     newStatus: string
@@ -90,7 +56,7 @@ export default function BillingViewCompact({
   apiBase = import.meta.env.VITE_API_BASE_URL,
 }: BillViewProps) {
   // ===== Base entities =====
-  const order = showBillDetail.order ?? (showBillDetail as OrderType);
+  const order = showBillDetail;
 
   // Get restaurant ID from URL params or tenant context for multi-tenancy
   const { rid: ridFromUrl } = useParams();
@@ -102,7 +68,7 @@ export default function BillingViewCompact({
     "";
 
   // Final restaurant ID used for API calls
-  const restaurantId = rid || order?.restaurantId;
+  const restaurantId = rid;
   if (!restaurantId) {
     console.error("❌ Missing restaurantId");
     return;
@@ -111,13 +77,9 @@ export default function BillingViewCompact({
   const orderId = order?._id || order?.id || order?.serverId;
 
   // ===== State =====
-  const [bill, setBill] = useState<ApiBill | null>(
-    showBillDetail?.bill || null
-  );
+  const [bill, setBill] = useState<ApiBill | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [closing, setClosing] = useState(false);
   const [rejecting, setRejecting] = useState(false);
   const [waiters, setWaiters] = useState<string[]>([]);
   const [selectedWaiter, setSelectedWaiter] = useState<string>(
@@ -138,74 +100,6 @@ export default function BillingViewCompact({
   const [aliasInput, setAliasInput] = useState<string>("");
   const [isAliasSaving, setIsAliasSaving] = useState(false);
 
-  // ===== Helpers =====
-  /**
-   * Calculates the discount amount based on subtotal and discount percentage.
-   * @param subtotal - The subtotal amount.
-   * @param discountPercent - The discount percentage.
-   * @returns The calculated discount amount.
-   */
-  const calculateDiscountAmount = (subtotal: number, discountPercent: number) =>
-    (subtotal * discountPercent) / 100;
-
-  /**
-   * Calculates the service charge amount.
-   * @param subtotal - The subtotal amount.
-   * @param serviceChargePercent - The service charge percentage.
-   * @returns The calculated service charge amount.
-   */
-  const calculateServiceChargeAmount = (
-    subtotal: number,
-    serviceChargePercent: number
-  ) => (subtotal * serviceChargePercent) / 100;
-
-  /**
-   * Generates a new bill for the order.
-   * @returns A promise that resolves with the generated bill data.
-   */
-  const generateBill = async () => {
-    const initialSubtotal =
-      order.items?.reduce(
-        (sum, item) => sum + (item.price || 0) * (item.qty || 1),
-        0
-      ) || 0;
-
-    const discountAmount = calculateDiscountAmount(
-      initialSubtotal,
-      order.appliedDiscountPercent || 0
-    );
-
-    const serviceChargeAmount = calculateServiceChargeAmount(
-      initialSubtotal,
-      order.appliedServiceChargePercent || 0
-    );
-
-    const res = await fetch(
-      `${apiBase}/api/${restaurantId}/orders/${orderId}/bill`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${staffToken}`,
-        },
-        body: JSON.stringify({
-          staffAlias: order.staffAlias || "Waiter",
-          extras: [],
-          subtotal: initialSubtotal,
-          discountPercent: order.appliedDiscountPercent || 0,
-          discountAmount,
-          serviceChargePercent: order.appliedServiceChargePercent || 0,
-          serviceChargeAmount,
-        }),
-      }
-    );
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      throw new Error(data.error || "Bill generation failed");
-    }
-    return res.json();
-  };
-
   /**
    * Fetches the bill details for the current order.
    * @param opts - Options for fetching, such as `silent` to prevent loading indicators.
@@ -223,42 +117,6 @@ export default function BillingViewCompact({
 
       // Fetches bill using a multi-tenant aware API call
       const fresh = await getBillByOrderId(restaurantId, orderId);
-
-      // Sync metadata if the bill is in draft status
-      if (fresh.status === "draft" && fresh._id) {
-        const updates: Record<string, any> = {};
-        let needsUpdate = false;
-        if (!fresh.tableNumber && order?.tableNumber) {
-          updates.tableNumber = String(order.tableNumber);
-          needsUpdate = true;
-        }
-        if (!fresh.staffAlias && order?.staffAlias) {
-          updates.staffAlias = order.staffAlias;
-          needsUpdate = true;
-        }
-        if (needsUpdate && fresh._id) {
-          try {
-            const res = await fetch(
-              `${apiBase}/api/${restaurantId}/bills/${fresh._id}`,
-              {
-                method: "PATCH",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: `Bearer ${staffToken}`,
-                },
-                body: JSON.stringify({ billId: fresh._id, ...updates }),
-              }
-            );
-            if (res.ok) {
-              const updated = await res.json();
-              fresh.tableNumber = updated.tableNumber;
-              fresh.staffAlias = updated.staffAlias;
-            }
-          } catch (e) {
-            // non-blocking
-          }
-        }
-      }
 
       setBill(fresh);
       setLastUpdated(new Date());
@@ -384,17 +242,14 @@ export default function BillingViewCompact({
    */
   async function handleStatusClick(newStatus: string) {
     try {
-      setLoading(true);
       if (!orderId) throw new Error("Order ID missing");
       await handleUpdateOrderStatus(orderId, newStatus);
-      order.status = newStatus;
+      order.status = newStatus as any;
       setSuccess(`Order marked as ${newStatus}`);
       setTimeout(() => setSuccess(null), 1200);
       await fetchBill({ silent: true });
     } catch (err: any) {
       setError(err?.message || "Failed to update order status");
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -439,43 +294,29 @@ export default function BillingViewCompact({
     );
     setPendingAction(() => async () => {
       try {
-        setClosing(true);
-        setError(null);
-        setSuccess(null);
         if (!orderId) throw new Error("Order ID missing");
         await handleUpdateOrderStatus(orderId, "done");
         setSuccess("✅ Order closed successfully");
         setTimeout(goBack, 1000);
       } catch (err: any) {
         setError(err?.message || "Failed to close order");
-      } finally {
-        setClosing(false);
       }
     });
     setConfirmModalOpen(true);
   }
 
   // ===== Derived values for display =====
-  const sessionId =
-    bill?.sessionId ?? order.sessionId ?? order.order?.sessionId ?? "—";
+  const sessionId = bill?.sessionId ?? order.sessionId ?? "—";
   const tableDisplay =
     bill?.tableNumber ??
     order.tableNumber ??
-    order.table?.tableNumber ??
     (order.tableId ? `#${String(order.tableId).slice(-4)}` : "-");
   const paymentStatus = bill?.paymentStatus ?? order?.paymentStatus ?? "unpaid";
-  const orderNumberForDay =
-    bill?.orderNumberForDay ?? order.orderNumberForDay ?? undefined;
+  const orderNumberForDay = bill?.orderNumberForDay ?? undefined;
   const customerName = bill?.customerName ?? order.customerName ?? "Guest";
   const customerContact =
-    bill?.customerContact ??
-    order?.customerPhone ??
-    order?.customerContact ??
-    order?.contactNumber ??
-    bill?.customerEmail ??
-    order?.customerEmail ??
-    "—";
-  const customerEmail = bill?.customerEmail ?? order?.customerEmail ?? null;
+    bill?.customerContact ?? order?.customerContact ?? "—";
+  const customerEmail = bill?.customerEmail ?? null;
   const appliedDiscountPercent = bill?.appliedDiscountPercent ?? 0;
   const appliedServiceChargePercent = bill?.appliedServiceChargePercent ?? 0;
   const customerNotes = bill?.customerNotes ?? null;
@@ -555,7 +396,7 @@ export default function BillingViewCompact({
         <div className="ml-auto inline-flex items-center gap-2">
           <button
             onClick={() => fetchBill()}
-            disabled={isRefreshing || loading}
+            disabled={isRefreshing}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-slate-800 text-white hover:bg-slate-900 transition shadow disabled:opacity-50"
           >
             <RefreshCw
@@ -566,7 +407,7 @@ export default function BillingViewCompact({
           {bill && (
             <button
               onClick={() => setBillModalOpen(true)}
-              disabled={!bill || loading}
+              disabled={!bill}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 transition disabled:opacity-50"
             >
               <Receipt className="h-4 w-4" />
@@ -979,7 +820,7 @@ export default function BillingViewCompact({
                 </div>
               ) : (
                 <div className="px-4 py-6 text-slate-500 text-sm text-center">
-                  {loading ? "Loading bill details..." : "No bill found."}
+                  {isRefreshing ? "Loading bill details..." : "No bill found."}
                 </div>
               )}
             </div>

@@ -2,11 +2,30 @@ import { useState } from "react";
 import { fetchMenu, updateMenu } from "../../../../api/admin/menu.api";
 import ModalWrapper from "./ModalWrapper";
 
+interface Category {
+  _id?: string;
+  name: string;
+  itemIds: string[];
+  isMenuCombo: boolean;
+  comboMeta?: {
+    originalPrice: number;
+    discountedPrice: number;
+    saveAmount: number;
+    description: string;
+    image: string;
+  };
+}
+
 export default function AddCategoryModal({
   isOpen,
   onClose,
   rid,
   onCategoryAdded,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  rid: string;
+  onCategoryAdded: (category: Category) => void;
 }) {
   const [name, setName] = useState("");
   const [isMenuCombo, setIsMenuCombo] = useState(false);
@@ -21,7 +40,7 @@ export default function AddCategoryModal({
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
-  async function handleSubmit(e) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return alert("Please enter category name");
 
@@ -30,11 +49,11 @@ export default function AddCategoryModal({
 
     try {
       // 1️⃣ Fetch current menu
-      const existing = await fetchMenu(rid);
+      const existing = (await fetchMenu(rid)) as any;
       if (!existing || !existing.categories) throw new Error("Menu not found");
 
       // 2️⃣ Append new category
-      const newCategory = {
+      const newCategory: Category = {
         name,
         itemIds: [],
         isMenuCombo,
@@ -63,16 +82,16 @@ export default function AddCategoryModal({
 
       // 3️⃣ Update backend
       const result = await updateMenu(rid, updatedMenu);
-      console.log(result)
+      console.log(result);
 
       if (onCategoryAdded) onCategoryAdded(newCategory);
       setSuccess(true);
 
-      setTimeout(() => { 
+      setTimeout(() => {
         setSuccess(false);
         onClose();
       }, 1200);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
       setError(err.message || "Failed to add category");
     } finally {

@@ -1,10 +1,12 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { Bell, FileText, Home, User, Utensils } from "lucide-react";
 
+type TabId = "dashboard" | "menu" | "orders" | "tables" | "more";
+
 type FooterNavProps = {
   activeTab?: string;
   ordersCount?: number; // 👈 dynamic order count
-  onTabChange?: (tabId: string) => void;
+  onTabChange?: (tabId: TabId) => void;
 };
 
 export default function FooterNav({
@@ -18,9 +20,9 @@ export default function FooterNav({
     { id: "orders", label: "Orders", icon: FileText, href: "/orders" },
     { id: "tables", label: "Tables", icon: Bell, href: "/tables" },
     { id: "more", label: "More", icon: User, href: "/more" },
-  ];
+  ] as const;
 
-  const handleClick = (id: string, e: React.MouseEvent) => {
+  const handleClick = (id: TabId, e: React.MouseEvent) => {
     e.preventDefault();
     onTabChange?.(id);
   };

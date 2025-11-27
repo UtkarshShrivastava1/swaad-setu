@@ -1,24 +1,26 @@
 import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { getOrder, type Order } from "../../../../api/admin/order.api";
+import { TenantContext } from "../../../../context/TenantContext";
 
 export default function RecentActivity() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const rid = import.meta.env.VITE_RID || "restro10";
+  const tenantContext = useContext(TenantContext);
+  const rid = tenantContext?.rid;
 
   useEffect(() => {
     async function fetchOrders() {
+      if (!rid) return;
       try {
         setLoading(true);
-        const sessionId = sessionStorage.getItem("resto_session_id") || "";
-        const result = await getOrder(rid, sessionId);
+        const result = await getOrder(rid);
         // Sort orders by createdAt (most recent first)
         const sorted = [...result].sort(
           (a, b) =>
-            new Date(b.createdAt || "").getTime() -
-            new Date(a.createdAt || "").getTime()
+            new Date(b.createdAt?.$date || "").getTime() -
+            new Date(a.createdAt?.$date || "").getTime()
         );
         setOrders(sorted.slice(0, 6)); // Show latest 6
         setError("");
@@ -88,9 +90,9 @@ export default function RecentActivity() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {orders.map((order, idx) => (
+          {orders.map((order) => (
             <motion.div
-              key={order._id}
+              key={order._id.$oid}
               whileHover={{ scale: 1.02, y: -2 }}
               transition={{ duration: 0.2 }}
               className="bg-white border border-gray-100 shadow-sm hover:shadow-md rounded-xl p-4 flex items-center justify-between"
@@ -121,7 +123,7 @@ export default function RecentActivity() {
                       : "Order Updated"}
                   </div>
                   <div className="text-xs text-gray-500">
-                    #{order._id.slice(-6).toUpperCase()} ·{" "}
+                    #{order._id.$oid.slice(-6).toUpperCase()} ·{" "}
                     {order.customerName || "Guest"}
                   </div>
                 </div>
@@ -129,7 +131,7 @@ export default function RecentActivity() {
 
               {/* Time */}
               <span className="text-[11px] text-gray-400 ml-3 whitespace-nowrap">
-                {new Date(order.createdAt || "").toLocaleTimeString([], {
+                {new Date(order.createdAt?.$date || "").toLocaleTimeString([], {
                   hour: "2-digit",
                   minute: "2-digit",
                 })}

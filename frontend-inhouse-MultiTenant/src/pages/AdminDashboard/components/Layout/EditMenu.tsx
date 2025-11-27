@@ -1,23 +1,18 @@
 import { FiEdit2, FiHelpCircle, FiSave, FiXCircle } from "react-icons/fi";
-import { useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
-import { updateMenu, fetchMenu } from "../../../../api/admin/menu.api";
-import Header from "../../components/Layout/Header";
+import { addMenuItem, updateMenuItem } from "../../../../api/admin/menu.api";
 import MenuLayout from "../../MenuLayout";
 import { useTenant } from "../../../../context/TenantContext";
-// import { FiSave, FiXCircle, FiEdit2, FiHelpCircle } from "react-icons/fi";
 
-export default function EditMenu() {
-  const { state } = useLocation();
-  const navigate = useNavigate();
+export default function EditMenu({ item, onBack, isNew }) {
   const { rid } = useTenant();
 
   const [form, setForm] = useState({
-    name: state?.item?.name || "",
-    price: state?.item?.price || 0,
-    description: state?.item?.description || "",
-    category: state?.item?.category || "Main Course",
-    isAvailable: state?.item?.isAvailable ?? true,
+    name: item?.name || "",
+    price: item?.price || 0,
+    description: item?.description || "",
+    category: item?.category || "Main Course",
+    isActive: item?.isActive ?? true,
   });
 
   const [loading, setLoading] = useState(false);
@@ -33,17 +28,14 @@ export default function EditMenu() {
     setLoading(true);
     setError("");
     try {
-      const existingMenu = await fetchMenu(rid);
-      const updatedMenu = {
-        ...existingMenu,
-        menu: existingMenu.menu.map((m) =>
-          m._id === state.item._id ? { ...m, ...form } : m
-        ),
-      };
-      await updateMenu(rid, updatedMenu);
-      navigate(`/t/${rid}/admin-dashboard`);
+      if (isNew) {
+        await addMenuItem(rid, form);
+      } else {
+        await updateMenuItem(rid, item.itemId, form);
+      }
+      onBack();
     } catch {
-      setError("Error updating menu. Please try again.");
+      setError("Error saving item. Please try again.");
     }
     setLoading(false);
   };
@@ -55,7 +47,7 @@ export default function EditMenu() {
           <div className="flex flex-row items-center mb-7 gap-2">
             <FiEdit2 className="text-yellow-600 text-2xl" />
             <h2 className="text-3xl font-extrabold text-center text-gray-700">
-              Edit Dish
+              {isNew ? "Create Dish" : "Edit Dish"}
             </h2>
           </div>
 
@@ -136,8 +128,8 @@ export default function EditMenu() {
                 <label className="inline-flex relative items-center cursor-pointer">
                   <input
                     type="checkbox"
-                    name="isAvailable"
-                    checked={form.isAvailable}
+                    name="isActive"
+                    checked={form.isActive}
                     onChange={handleChange}
                     className="sr-only peer"
                   />
@@ -145,7 +137,7 @@ export default function EditMenu() {
                   <div className="absolute left-1 top-1 w-5 h-5 bg-white rounded-full shadow-md peer-checked:translate-x-5 transition-transform duration-300"></div>
                 </label>
                 <span className="text-xs text-gray-400 absolute left-16 top-1">
-                  {form.isAvailable ? "Available" : "Unavailable"}
+                  {form.isActive ? "Available" : "Unavailable"}
                 </span>
               </div>
             </div>
@@ -160,7 +152,7 @@ export default function EditMenu() {
           <div className="flex flex-row gap-6 justify-between pt-7">
             <button
               className="flex items-center justify-center w-1/2 gap-2 px-6 py-3 rounded-2xl bg-[#eef2f6] shadow-lg font-semibold text-gray-700 hover:bg-yellow-300 hover:text-black transition-all text-base"
-              onClick={() => navigate(`/t/${rid}/admin-dashboard`)}
+              onClick={onBack}
               disabled={loading}
             >
               <FiXCircle className="text-xs" />

@@ -1,9 +1,18 @@
-import { createContext, ReactNode, useContext, useState } from "react";
+import { createContext, useContext, useState, type ReactNode } from "react";
+
+export interface PricingConfig {
+  version: number;
+  active: boolean;
+  globalDiscountPercent: number;
+  serviceChargePercent: number;
+  taxes: { name: string; percent: number }[];
+  createdAt: string;
+}
 
 export interface Admin {
   _id: string;
   restaurantId: string;
-  pricingConfigs: any[]; // TODO: strongly type later
+  pricingConfigs: PricingConfig[];
   username: string;
 }
 

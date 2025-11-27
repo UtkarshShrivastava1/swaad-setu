@@ -1,7 +1,10 @@
-import { useState } from "react";
+import { useContext, useState } from "react";
+import { MenuItem } from "../../../../api/admin/menu.api";
+import { ApiTable } from "../../../../api/admin/table.api";
 import AddMenuItemModal from "../modals/AddMenuItemModal";
 import AddOrderModal from "../modals/AddOrderModal";
 import AddTableModal from "../modals/AddTableModal";
+import { TenantContext } from "../../../../context/TenantContext";
 
 type QuickActionsProps = {
   onTabChange: (tabId: string) => void;
@@ -9,7 +12,8 @@ type QuickActionsProps = {
 
 function QuickActions({ onTabChange }: QuickActionsProps) {
   const [modalType, setModalType] = useState<string | null>(null);
-  const rid = import.meta.env.VITE_RID;
+  const tenantContext = useContext(TenantContext);
+  const rid = tenantContext?.rid;
 
   return (
     <div className="flex flex-col xl:flex-row gap-3 w-full mb-5">
@@ -42,13 +46,17 @@ function QuickActions({ onTabChange }: QuickActionsProps) {
         isOpen={modalType === "menu"}
         onClose={() => setModalType(null)}
         rid={rid}
-        onItemAdded={(newItem) => console.log("Created MenuItem!", newItem)}
+        onItemAdded={(newItem: MenuItem) =>
+          console.log("Created MenuItem!", newItem)
+        }
       />
       <AddTableModal
         isOpen={modalType === "table"}
         onClose={() => setModalType(null)}
         rid={rid}
-        onTableCreated={(table) => console.log("Created Table!", table)}
+        onTableCreated={(table: ApiTable) =>
+          console.log("Created Table!", table)
+        }
       />
     </div>
   );

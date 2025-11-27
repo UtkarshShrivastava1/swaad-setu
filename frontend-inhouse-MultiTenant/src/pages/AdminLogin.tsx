@@ -188,7 +188,9 @@ export default function AdminLogin() {
               {digits.map((d, i) => (
                 <input
                   key={i}
-                  ref={(el) => (inputsRef.current[i] = el)}
+                  ref={(el) => {
+                    inputsRef.current[i] = el;
+                  }}
                   type="password"
                   maxLength={1}
                   inputMode="numeric"

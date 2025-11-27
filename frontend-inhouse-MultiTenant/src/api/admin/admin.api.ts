@@ -17,7 +17,7 @@ export const loginAsAdmin = async (
   const response = await nonAdminClient.post(`/api/${rid}/admin/login`, {
     pin,
   });
-  return response;
+  return response.data;
 };
 
 export const getAdmin = async (rid: string) => {

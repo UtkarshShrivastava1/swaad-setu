@@ -7,9 +7,11 @@ import MenuPage from "../pages/MenuPage";
 
 import { createCall } from "../api/call.api";
 
+import { useTenant } from "../context/TenantContext";
+
 export default function UserDashboard() {
   const navigate = useNavigate();
-  const rid = (import.meta.env.VITE_RID as string) || "restro10";
+  const { rid } = useTenant();
 
   const tableNumber = sessionStorage.getItem("resto_table_number") || "";
   const tableId = sessionStorage.getItem("resto_table_id") || "";

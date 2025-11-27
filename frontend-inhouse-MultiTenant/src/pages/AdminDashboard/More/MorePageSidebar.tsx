@@ -1,8 +1,16 @@
-
 import { Users, BarChart, Settings, Clock } from "lucide-react";
+import React from "react";
 
-export default function MorePageSidebar({ activeTab, setActiveTab }) {
-  const menuItems = [
+type MoreTab = "staff" | "bills" | "settings" | "recent_bills";
+
+export default function MorePageSidebar({
+  activeTab,
+  setActiveTab,
+}: {
+  activeTab: MoreTab;
+  setActiveTab: React.Dispatch<React.SetStateAction<MoreTab>>;
+}) {
+  const menuItems: { id: MoreTab; label: string; icon: React.ElementType }[] = [
     { id: "staff", label: "Waiter Management", icon: Users },
     { id: "bills", label: "Bills Overview", icon: BarChart },
     { id: "settings", label: "System Settings", icon: Settings },

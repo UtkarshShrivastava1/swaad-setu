@@ -31,6 +31,14 @@ export type Order = {
   createdAt: { $date: string };
   updatedAt: { $date: string };
   __v: number;
+  discountAmount?: number;
+  serviceChargeAmount?: number;
+  appliedTaxes?: {
+    _id: string;
+    name: string;
+    percent: number;
+    amount: number;
+  }[];
 };
 
 export async function createOrder(rid: string, payload: object) {

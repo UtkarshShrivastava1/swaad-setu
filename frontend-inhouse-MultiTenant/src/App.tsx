@@ -23,23 +23,6 @@ const StaffDashboard = lazy(
   () => import("./pages/StaffDashboard/StaffDashboard")
 );
 
-// Admin Subpages
-const MenuManagement = lazy(
-  () => import("./pages/AdminDashboard/components/Layout/MenuPage")
-);
-const OrdersManagement = lazy(
-  () => import("./pages/AdminDashboard/components/Layout/OrderPage")
-);
-const TableManagementPage = lazy(
-  () => import("./pages/AdminDashboard/components/Layout/TableManagement")
-);
-const CreateMenu = lazy(
-  () => import("./pages/AdminDashboard/components/Layout/CreateMenu")
-);
-const EditMenu = lazy(
-  () => import("./pages/AdminDashboard/components/Layout/EditMenu")
-);
-
 // Loader
 const LoadingScreen = () => (
   <div className="w-full h-screen flex items-center justify-center text-lg font-semibold text-gray-600">
@@ -84,13 +67,6 @@ function App() {
 
             {/* 🧭 Admin Dashboard */}
             <Route path="admin-dashboard" element={<AdminDashboard />} />
-
-            {/* Admin Subpages */}
-            <Route path="menu" element={<MenuManagement />} />
-            <Route path="menu/create" element={<CreateMenu />} />
-            <Route path="menu/edit" element={<EditMenu />} />
-            <Route path="orders" element={<OrdersManagement />} />
-            <Route path="tables" element={<TableManagementPage />} />
 
             {/* 👨‍🍳 Staff Dashboard */}
             <Route path="staff-dashboard" element={<StaffDashboard />} />

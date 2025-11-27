@@ -40,7 +40,7 @@ export default function RootPage() {
                 type="text"
                 value={rid}
                 onChange={(e) => setRid(e.target.value)}
-                placeholder="e.g., restro10"
+                placeholder="Enter restaurant ID"
                 className="w-full px-4 py-3 bg-black/50 text-white rounded-lg border border-yellow-400/30 focus:outline-none focus:ring-2 focus:ring-yellow-400/80 placeholder-gray-400"
               />
             </div>

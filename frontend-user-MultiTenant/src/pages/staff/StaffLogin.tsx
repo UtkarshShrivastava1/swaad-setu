@@ -2,11 +2,14 @@ import React, { useState } from 'react';
 import {  Briefcase } from 'lucide-react';
 import axios from "axios";
 import { staffLogin } from '../../api/staff.login';
+import { useTenant } from '../../context/TenantContext';
+
 export default function PinLogin() {
   const [userType, setUserType] = useState<'customer' | 'staff'>('customer');
   const [pin, setPin] = useState('');
   const [showForgotPin, setShowForgotPin] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
+  const { rid } = useTenant();
 
   const handlePinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/\D/g, '').slice(0, 4);
@@ -22,10 +25,9 @@ export default function PinLogin() {
 
 const handleLogin = async () => {
   if (pin.length !== 4) return;
+  if (!rid) return;
 
   try {
-      const rid = import.meta.env.VITE_RID || "restro10"; // <-- IMPORTANT: Use actual restaurantId
-
     const res = await staffLogin(pin, userType, rid);
 
     alert("Login Successful!");

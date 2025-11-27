@@ -1,7 +1,3 @@
-import QRCodeModal from "../AdminDashboard/components/modals/QRCodeModal";
-// -----------------------------
-// StaffDashboard (Multi-Tenant)
-// -----------------------------
 import { AlertCircle, Bell, History, Receipt, Utensils } from "lucide-react";
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -11,15 +7,12 @@ import Header from "./components/Header";
 import OrdersComponent from "./components/OrdersComponent";
 import TableDetail from "./components/TableDetail";
 import TablesComponent from "./components/TablesComponent";
-
+import QRCodeModal from "../AdminDashboard/components/modals/QRCodeModal";
 import BillHistory from "./components/BillHistory";
 import NotificationsView from "./components/NotificationsView";
 import { formatINR } from "./utils/formatters";
 
-import {
-  getBillByOrderId,
-  getOrdersByTable,
-} from "../../api/staff/staff.operations.api";
+import { getBillByOrderId } from "../../api/staff/staff.operations.api";
 import { useTenant } from "../../context/TenantContext";
 
 import { useBilling } from "./hooks/useBilling";
@@ -30,18 +23,18 @@ import { usePendingTracker } from "./hooks/usePendingTracker";
 import { useTables } from "./hooks/useTables";
 import { useWaiters } from "./hooks/useWaiters";
 
-import type { Order, Table } from "./types";
-import type { ICall } from "../../api/staff/call.api";
+import type { Order, Table, ApiTable } from "./types";
 
 export default function StaffDashboard() {
   const navigate = useNavigate();
   const { rid: ridFromUrl } = useParams();
   const { rid: ridFromContext, admin, setRid } = useTenant();
-  
-  // Stabilize the tenant object with useMemo
-  const tenant = useMemo(() => ({ rid: ridFromContext, admin }), [ridFromContext, admin]);
 
-  // 🔑 Resolve final RID from URL → context
+  const tenant = useMemo(
+    () => ({ rid: ridFromContext, admin }),
+    [ridFromContext, admin]
+  );
+
   const rid = ridFromUrl || ridFromContext || "";
 
   useEffect(() => {
@@ -50,9 +43,6 @@ export default function StaffDashboard() {
     }
   }, [ridFromUrl, ridFromContext, setRid]);
 
-  // -----------------------------
-  // Local UI state
-  // -----------------------------
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [showBillDetail, setShowBillDetail] = useState<Order | null>(null);
   const [view, setView] = useState<"dashboard" | "table" | "billing">(
@@ -64,19 +54,13 @@ export default function StaffDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [billLoadingId, setBillLoadingId] = useState(null);
+  const [billLoadingId, setBillLoadingId] = useState<string | null>(null);
   const [newCall, setNewCall] = useState(false);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [selectedTableForQr, setSelectedTableForQr] = useState<Table | null>(
     null
   );
 
-
-  // -----------------------------
-  // Hooks (data)
-  // -----------------------------
-
-  // Tables
   const {
     tables,
     setTables,
@@ -85,24 +69,20 @@ export default function StaffDashboard() {
     tableError,
   } = useTables(rid);
 
-  // Orders (uses rid internally, via params/context)
   const {
     activeOrders,
     orderHistory,
     fetchActiveOrders,
-    fetchOrderHistory,
     isLoading: ordersLoading,
     isHistoryLoading,
     error: ordersError,
     historyError,
     setActiveOrders,
-  } = useOrders(fetchTables, setTables);
+  } = useOrders(fetchTables as () => Promise<Table[]>, setTables);
 
-  // Waiters (same usage as old single-tenant, just rid-aware under the hood)
   const { waiterNames, waitersLoading, waitersError, fetchWaiters } =
     useWaiters(rid);
 
-  // Calls
   const {
     calls,
     fetchCalls,
@@ -111,21 +91,17 @@ export default function StaffDashboard() {
     error: callsError,
   } = useCalls(tenant);
 
-  // Calls to tables sync effect
   useEffect(() => {
-    // Only proceed if calls have finished loading
     if (callsLoading) {
       return;
     }
 
-    setTables(currentTables => {
+    setTables((currentTables) => {
       let changed = false;
-      // Create a set of normalized call table IDs
       const callTableIdSet = new Set(calls.map((call) => String(call.tableId)));
 
       const updatedTables = currentTables.map((table) => {
-        // Normalize the current table's ID for comparison
-        const normalizedTableId = String(table._id || table.id); // Use _id first, then id
+        const normalizedTableId = String(table._id || table.id);
 
         const newWaiterCalled = callTableIdSet.has(normalizedTableId);
 
@@ -141,21 +117,19 @@ export default function StaffDashboard() {
       }
       return currentTables;
     });
-  }, [calls, setTables, callsLoading]); // Add callsLoading to dependencies
-
+  }, [calls, setTables, callsLoading]);
 
   useEffect(() => {
     const previousCalls = JSON.parse(sessionStorage.getItem("calls") || "[]");
     if (calls.length > previousCalls.length) {
       setNewCall(true);
-      setTimeout(() => setNewCall(false), 3000); // Animation duration
+      setTimeout(() => setNewCall(false), 3000);
     }
     sessionStorage.setItem("calls", JSON.stringify(calls));
   }, [calls]);
 
   const { isPending } = usePendingTracker();
 
-  // Billing logic
   const {
     onRefresh,
     onFinalize,
@@ -172,7 +146,6 @@ export default function StaffDashboard() {
     setActiveOrders
   );
 
-  // Bill history
   const {
     billHistory,
     fetchBillHistory,
@@ -182,9 +155,6 @@ export default function StaffDashboard() {
 
   const loading = tablesLoading || ordersLoading;
 
-  // -----------------------------
-  // Lifecycle
-  // -----------------------------
   useEffect(() => {
     if (!rid) return;
 
@@ -212,17 +182,12 @@ export default function StaffDashboard() {
     return () => clearInterval(interval);
   }, [navigate, view, rid, fetchActiveOrders, fetchWaiters, fetchCalls]);
 
-  // ❗ We no longer do a second merge here – useOrders already
-  // keeps tables in sync via setTables(mergeOrdersIntoTables(...))
-
-  // Auto-fetch bill history when tab becomes "history"
   useEffect(() => {
     if (activeTab === "history") {
       fetchBillHistory({ limit: 50 });
     }
   }, [activeTab, fetchBillHistory]);
 
-  // Listen for "go back to tables" event from payment modal
   useEffect(() => {
     const fn = () => {
       setView("dashboard");
@@ -236,9 +201,6 @@ export default function StaffDashboard() {
     return () => window.removeEventListener("staff:gotoTablesTab", fn);
   }, [fetchActiveOrders]);
 
-  // -----------------------------
-  // Handlers
-  // -----------------------------
   const handleLogout = () => {
     if (rid) {
       localStorage.removeItem(`staffToken_${rid}`);
@@ -259,14 +221,8 @@ export default function StaffDashboard() {
     setBillLoadingId(orderId);
 
     try {
-      console.log("🧾 [StaffDashboard] Fetching bill for order:", {
-        rid,
-        orderId,
-      });
-
       let billData;
 
-      // Try fetch first
       try {
         billData = await getBillByOrderId(rid, orderId);
         if (!billData || !billData._id) throw new Error("Bill missing id");
@@ -300,8 +256,6 @@ export default function StaffDashboard() {
         throw new Error("Bill creation succeeded but no bill ID returned.");
       }
 
-      console.log("🧾 [StaffDashboard] Bill ready → opening modal", billData);
-
       handleBillView(orderId, billData);
     } catch (err: any) {
       console.error("💥 Bill fetch/create error:", err);
@@ -317,7 +271,7 @@ export default function StaffDashboard() {
     } else {
       const found =
         tables.find((t) => String(t.id) === String(table.id)) || table;
-      setSelectedTable(found);
+      setSelectedTable(found as Table);
       setView("table");
     }
   };
@@ -362,12 +316,8 @@ export default function StaffDashboard() {
     );
   });
 
-  // Bubble up any core data errors into the UI banner
   const topError = error || tableError || ordersError || waitersError || callsError;
 
-  // -----------------------------
-  // Render
-  // -----------------------------
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
       <Header
@@ -377,12 +327,9 @@ export default function StaffDashboard() {
         onOpenNotifications={() => setActiveTab("notifications")}
         onLogout={handleLogout}
         waiterCallCount={calls.length}
-        // (optional) you could pass waiterNames here if Header supports it
-        // waiterNames={waiterNames}
       />
 
       <main className="max-w-7xl mx-auto px-4 py-6">
-        {/* 🔴 Error Banner */}
         {topError && (
           <div className="mb-4 bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-lg flex items-start gap-3">
             <AlertCircle className="h-5 w-5 mt-0.5" />
@@ -392,7 +339,6 @@ export default function StaffDashboard() {
             <button
               onClick={() => {
                 setError(null);
-                // you could also clear table/order/waiter errors if needed
               }}
               className="font-bold text-xl cursor-pointer hover:text-rose-900"
             >
@@ -401,10 +347,8 @@ export default function StaffDashboard() {
           </div>
         )}
 
-        {/* DASHBOARD VIEW */}
         {view === "dashboard" && (
           <section>
-            {/* Tabs */}
             <div className="flex gap-2 mb-6 flex-wrap">
               {[
                 {
@@ -443,7 +387,6 @@ export default function StaffDashboard() {
               ))}
             </div>
 
-            {/* Content */}
             {loading ? (
               <div className="h-64 flex items-center justify-center">
                 <div className="animate-spin h-10 w-10 border-t-2 border-indigo-600 rounded-full" />
@@ -452,7 +395,7 @@ export default function StaffDashboard() {
               <>
                 {activeTab === "tables" && (
                   <TablesComponent
-                    tables={tables}
+                    tables={tables as Table[]}
                     activeOrders={activeOrders}
                     isLoading={loading}
                     onTableSelect={handleTableSelect}
@@ -476,7 +419,7 @@ export default function StaffDashboard() {
                     error={callsError}
                     fetchCalls={fetchCalls}
                     handleUpdateCallStatus={handleUpdateCallStatus}
-                    tables={tables}
+                    tables={tables as Table[]}
                     waiterNames={waiterNames}
                     waiterLoading={waitersLoading}
                     waiterError={waitersError}
@@ -497,7 +440,6 @@ export default function StaffDashboard() {
           </section>
         )}
 
-        {/* TABLE VIEW */}
         {view === "table" && selectedTable && (
           <TableDetail
             key={selectedTable.id}
@@ -506,13 +448,11 @@ export default function StaffDashboard() {
             onBack={handleBackToDashboard}
             handleGenerateAndOpenBill={handleGenerateAndOpenBill}
             billLoadingId={billLoadingId}
-            onTableReset={fetchTables} // Pass fetchTables as onTableReset
+            onTableReset={fetchTables}
             onOpenQrModal={handleOpenQrModal}
-            // restaurantId={rid} // keep or remove based on your TableDetail props
           />
         )}
 
-        {/* BILLING VIEW */}
         {view === "billing" && showBillDetail && (
           <BillingView
             showBillDetail={showBillDetail}

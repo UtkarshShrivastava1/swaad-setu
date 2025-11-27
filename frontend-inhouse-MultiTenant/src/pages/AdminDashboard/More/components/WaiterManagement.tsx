@@ -12,7 +12,7 @@ export default function WaiterManagement() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedWaiter, setSelectedWaiter] = useState<string | null>(null);
-  const [waiterList, setWaiterList] = useState([]);
+  const [waiterList, setWaiterList] = useState<string[]>([]);
   const { rid } = useTenant();
 
   const [waiterToDelete, setWaiterToDelete] = useState<string | null>(null);
@@ -26,7 +26,7 @@ export default function WaiterManagement() {
 
   const fetchWaiterList = async () => {
     try {
-      const data = await getWaiters(rid);
+      const data = (await getWaiters(rid)) as any;
       setWaiterList(data.waiterNames || []);
     } catch (error) {
       console.error("Error fetching waiter list:", error);

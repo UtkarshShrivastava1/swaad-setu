@@ -8,16 +8,12 @@ import {
   User,
   X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import { client } from "../../../api/client";
-import type { ApiBill } from "../../../api/staff/bill.api";
-import { useTenant } from "../../../context/TenantContext";
 import {
   filterServiceTax,
   getGSTRate,
   getTaxTotal,
 } from "../../../utils/tax.utils";
+import type { ApiBill } from "../../../api/staff/bill.api";
 
 /* ===========================================
    Bill Modal Component
@@ -36,14 +32,7 @@ export default function BillModalComponent({
   bill,
   onClose,
   formatINR,
-  staffToken,
 }: BillModalProps) {
-  const { rid: ridFromUrl } = useParams();
-  const { rid: ridFromContext } = useTenant();
-  const RID = ridFromUrl || ridFromContext || "";
-
-  const [waiters, setWaiters] = useState<string[]>([]);
-
   if (!bill) return null;
 
   // -----------------------------
@@ -64,27 +53,10 @@ export default function BillModalComponent({
     discountAmount = 0,
     appliedServiceChargePercent = 0,
     serviceChargeAmount = 0,
-    taxAmount = 0,
     taxes = [],
     extras = [],
     items = [],
   } = bill;
-
-  /* -------------------------------
-     Fetch available waiters (names)
-     for optional display
-  ------------------------------- */
-  useEffect(() => {
-    if (!RID) return;
-    client
-      .get(`/api/${RID}/orders/waiters`, {
-        headers: { Authorization: `Bearer ${staffToken}` },
-      })
-      .then((res: any) => {
-        if (res?.waiterNames?.length) setWaiters(res.waiterNames);
-      })
-      .catch(() => {});
-  }, [staffToken]);
 
   /* ---------------------------------------------
      💰 Safe computed fallbacks for missing values
@@ -99,10 +71,6 @@ export default function BillModalComponent({
     serviceChargeAmount && serviceChargeAmount > 0
       ? serviceChargeAmount
       : (subtotal * (appliedServiceChargePercent || 0)) / 100;
-
-  // Get canonical tax rate from backend
-  const gstRate = getGSTRate(bill.taxes);
-  const displayTaxes = filterServiceTax(bill.taxes);
 
   // Use server tax total
   const computedTaxTotal = getTaxTotal(bill);
@@ -423,7 +391,7 @@ export default function BillModalComponent({
       </div>
 
       {/* Fade animation */}
-      <style jsx>{`
+      <style>{`
         @keyframes fadeIn {
           from {
             opacity: 0;

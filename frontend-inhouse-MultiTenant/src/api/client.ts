@@ -1,5 +1,4 @@
-// src/api/client.ts
-import axios from "axios";
+import axios, { type AxiosRequestConfig } from "axios";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
 
@@ -28,11 +27,14 @@ client.interceptors.response.use(
 // - Our new client is axios-based but callable.
 // Let's export aliases to avoid breaking anything.
 export const api = {
-  get: (...args: any[]) => client.get(...args),
-  post: (...args: any[]) => client.post(...args),
-  patch: (...args: any[]) => client.patch(...args),
-  put: (...args: any[]) => client.put(...args),
-  delete: (...args: any[]) => client.delete(...args),
+  get: (...args: [string, AxiosRequestConfig?]) => client.get(...args),
+  post: (...args: [string, any?, AxiosRequestConfig?]) =>
+    client.post(...args),
+  patch: (...args: [string, any?, AxiosRequestConfig?]) =>
+    client.patch(...args),
+  put: (...args: [string, any?, AxiosRequestConfig?]) => client.put(...args),
+  delete: (...args: [string, AxiosRequestConfig?]) =>
+    client.delete(...args),
 };
 
 export default client;
