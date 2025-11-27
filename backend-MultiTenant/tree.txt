@@ -1,0 +1,76 @@
+2025-11-18 13:31:56.729Z   Project tree (root: D:\UTKARSH\Live Projects\Vercel-live-Website\swaad-setu(Multi-Tenant)\backend)
+Exclude: node_modules, uploads, .git, .next; MaxDepth: 5
+
+├── .vscode
+│   ├── settings.json
+├── common
+│   ├── libs
+│   │   ├── helpers.js
+│   │   ├── jwt.js
+│   │   ├── logger.js
+│   │   ├── pricingHelper.js
+│   ├── middlewares
+│   │   ├── auth.middleware.js
+│   │   ├── rateLimit.middleware.js
+│   │   ├── role.middleware.js
+│   │   ├── subscription.middleware.js
+│   │   ├── validate.middleware.js
+├── config
+│   ├── index.js
+│   ├── subscriptions.js
+├── controllers
+│   ├── admin.controller.js
+│   ├── bill.controller.js
+│   ├── call.controller.js
+│   ├── order.controller.js
+│   ├── table.controller.js
+│   ├── tenant.controller.js
+├── db
+│   ├── mongoose.js
+│   ├── redis.js
+├── models
+│   ├── admin.model.js
+│   ├── bill.model.js
+│   ├── call.model.js
+│   ├── combo.model.js
+│   ├── menu.model.js
+│   ├── order.model.js
+│   ├── table.model.js
+├── routes
+│   ├── admin.route.js
+│   ├── bill.route.js
+│   ├── call.route.js
+│   ├── order.route.js
+│   ├── table.route.js
+│   ├── tenant.route.js
+├── scripts
+│   ├── README.md
+│   ├── backfill_table_numbers.js
+│   ├── checkAdmin.js
+│   ├── fix-duplicate-index.js
+│   ├── migrate-admin-menu-to-menu.js
+│   ├── registerRestaurant.js
+│   ├── resetAdminPins.js
+│   ├── test-migration.js
+│   ├── testOrderCreate.js
+├── seeders
+│   ├── adminSeeder.js
+├── services
+│   ├── socket.service.js
+├── utils
+│   ├── computeTotalsFromConfig.js
+├── .env
+├── CONTEXT.md
+├── SUBSCRIPTION_PATCHES.md
+├── Swad Setu - Full API.postman_collection.json
+├── app.js
+├── debug-db.js
+├── package-lock.json
+├── package.json
+├── routes.md
+├── server.js
+├── tree.js
+├── tree.txt
+├── upsertMenu.js
+
+Finished writing tree to tree.txt

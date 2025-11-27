@@ -1,0 +1,87 @@
+Tree generated on 2025-11-26 05:26:11.191 
+Project root: D:\UTKARSH\Live Projects\Vercel-live-Website\swaad-setu(Multi-Tenant)\frontend-user(Multi-Tenant)
+Max Depth: 5; Exclude: node_modules, uploads, .git, .next
+--------------------------------------------------
+D:\UTKARSH\Live Projects\Vercel-live-Website\swaad-setu(Multi-Tenant)\frontend-user(Multi-Tenant)
+├── .vscode
+│   └── settings.json
+├── public
+│   └── vite.svg
+├── src
+│   ├── api
+│   │   ├── bill.api.ts
+│   │   ├── call.api.ts
+│   │   ├── client.ts
+│   │   ├── menu.api.ts
+│   │   ├── order.api.ts
+│   │   ├── staff.login.ts
+│   │   └── table.api.ts
+│   ├── assets
+│   │   ├── Hero.jpg
+│   │   └── react.svg
+│   ├── cartContext
+│   │   └── Context.tsx
+│   ├── components
+│   │   ├── Call
+│   │   ├── Cart
+│   │   │   ├── CartDrawer.tsx
+│   │   │   ├── CartItem.tsx
+│   │   │   └── NewCartItem.tsx
+│   │   ├── combos
+│   │   │   └── combo.tsx
+│   │   ├── Layout
+│   │   │   ├── Bell.tsx
+│   │   │   ├── Callwaiter.tsx
+│   │   │   ├── FlaotingButton.tsx
+│   │   │   ├── Footer.tsx
+│   │   │   └── Header.tsx
+│   │   ├── Menu
+│   │   │   ├── MenuCard.tsx
+│   │   │   └── MenuGrid.tsx
+│   │   ├── offers
+│   │   │   └── Offer.tsx
+│   │   ├── Order
+│   │   │   ├── OrderView.tsx
+│   │   │   └── RunningBill.tsx
+│   │   ├── staffBilling
+│   │   │   └── BillingComponent.tsx
+│   │   └── TableSelect
+│   │   │   ├── TablePickerModal.tsx
+│   │   │   └── TableSelect.tsx
+│   ├── hooks
+│   │   ├── useCart.ts
+│   │   ├── useSocket.ts
+│   │   └── useTable.ts
+│   ├── pages
+│   │   ├── staff
+│   │   │   ├── EditableBill.tsx
+│   │   │   ├── StaffLogin.tsx
+│   │   │   └── TableDashboard.tsx
+│   │   ├── MenuPage.tsx
+│   │   ├── OrderPage.tsx
+│   │   ├── TableLanding.tsx
+│   │   └── UserDashboard.tsx
+│   ├── stores
+│   │   └── cart.store.ts
+│   ├── types
+│   │   └── types.ts
+│   ├── App.css
+│   ├── App.tsx
+│   ├── index.css
+│   └── main.tsx
+├── .env
+├── .gitignore
+├── CONTEXT.md
+├── eslint.config.js
+├── index.html
+├── MULTI_TENANCY_PLAN.md
+├── package-lock.json
+├── package.json
+├── README.md
+├── tree.js
+├── tsconfig.app.json
+├── tsconfig.json
+├── tsconfig.node.json
+└── vite.config.ts
+--------------------------------------------------
+Finished writing tree to tree.txt

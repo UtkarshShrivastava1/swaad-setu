@@ -1,0 +1,127 @@
+Tree generated on 2025-11-26 07:46:37.940 
+Project root: D:\UTKARSH\Live Projects\Vercel-live-Website\swaad-setu(Multi-Tenant)\frontend-inhouse(Multi-Tenant)
+Max Depth: 5; Exclude: node_modules, uploads, .git, .next
+--------------------------------------------------
+D:\UTKARSH\Live Projects\Vercel-live-Website\swaad-setu(Multi-Tenant)\frontend-inhouse(Multi-Tenant)
+├── .vscode
+│   └── settings.json
+├── public
+│   ├── PBM.webp
+│   └── vite.svg
+├── src
+│   ├── api
+│   │   ├── admin
+│   │   │   ├── add.waiter.ts
+│   │   │   ├── admin.api.ts
+│   │   │   ├── admin.login.ts
+│   │   │   ├── bill.api.ts
+│   │   │   ├── client.ts
+│   │   │   ├── menu.api.ts
+│   │   │   ├── order.api.ts
+│   │   │   ├── pricing.api.ts
+│   │   │   ├── table.api.ts
+│   │   │   └── waiter.api.ts
+│   │   ├── staff
+│   │   │   ├── bill.api.ts
+│   │   │   ├── call.api.ts
+│   │   │   ├── order.api.ts
+│   │   │   ├── staff.login.ts
+│   │   │   └── staff.operations.api.ts
+│   │   ├── client.ts
+│   │   └── restaurant.api.ts
+│   ├── assets
+│   │   ├── BOwl.png
+│   │   ├── order.png
+│   │   └── Table.png
+│   ├── components
+│   │   └── TenantGuard.tsx
+│   ├── context
+│   │   └── TenantContext.tsx
+│   ├── pages
+│   │   ├── AdminDashboard
+│   │   │   ├── components
+│   │   │   │   ├── Layout
+│   │   │   │   ├── modals
+│   │   │   │   ├── Header.tsx
+│   │   │   │   └── Sidebar.tsx
+│   │   │   ├── hooks
+│   │   │   │   ├── useBilling.ts
+│   │   │   │   ├── useHistory.ts
+│   │   │   │   ├── useOrders.ts
+│   │   │   │   ├── usePendingTracker.ts
+│   │   │   │   ├── useTables.ts
+│   │   │   │   └── useWaiters.ts
+│   │   │   ├── More
+│   │   │   │   ├── components
+│   │   │   │   ├── MorePage.tsx
+│   │   │   │   └── MorePageSidebar.tsx
+│   │   │   ├── AdminDashboard.tsx
+│   │   │   └── MenuLayout.tsx
+│   │   ├── StaffDashboard
+│   │   │   ├── components
+│   │   │   │   ├── BillHistory.tsx
+│   │   │   │   ├── BillingView.tsx
+│   │   │   │   ├── BillModalComponent.tsx
+│   │   │   │   ├── ConfirmModal.tsx
+│   │   │   │   ├── EditBillModal.tsx
+│   │   │   │   ├── Header.tsx
+│   │   │   │   ├── NotificationsView.tsx
+│   │   │   │   ├── OrdersComponent.tsx
+│   │   │   │   ├── PaymentModal.tsx
+│   │   │   │   ├── StaffDashboard - Shortcut.lnk
+│   │   │   │   ├── TableDetail.tsx
+│   │   │   │   ├── TablesComponent.tsx
+│   │   │   │   ├── temp_BillingView.tsx
+│   │   │   │   └── UPIPaymentQR.tsx
+│   │   │   ├── hooks
+│   │   │   │   ├── useBilling.ts
+│   │   │   │   ├── useCalls.ts
+│   │   │   │   ├── useHistory.ts
+│   │   │   │   ├── useOrders.ts
+│   │   │   │   ├── usePendingTracker.ts
+│   │   │   │   ├── useTables.ts
+│   │   │   │   └── useWaiters.ts
+│   │   │   ├── types
+│   │   │   │   └── index.ts
+│   │   │   ├── utils
+│   │   │   │   ├── extractors.ts
+│   │   │   │   ├── formatters.ts
+│   │   │   │   ├── mergeHelpers.ts
+│   │   │   │   ├── mergeOrdersIntoTables.ts
+│   │   │   │   └── normalize.ts
+│   │   │   ├── views
+│   │   │   │   ├── BillingViewWrapper.tsx
+│   │   │   │   ├── DashboardView.tsx
+│   │   │   │   ├── NotificationsView.tsx
+│   │   │   │   └── TableView.tsx
+│   │   │   └── StaffDashboard.tsx
+│   │   ├── AdminLogin.tsx
+│   │   ├── HomePage.tsx
+│   │   ├── RestaurantRegistration.tsx
+│   │   ├── RestaurantSelector.tsx
+│   │   └── StaffLogin.tsx
+│   ├── utils
+│   │   ├── tax.utils.ts
+│   │   ├── tenant.utils.ts
+│   │   └── tenantStore.ts
+│   ├── App.css
+│   ├── App.tsx
+│   ├── index.css
+│   └── main.tsx
+├── .env
+├── .gitignore
+├── eslint.config.js
+├── FRONTEND_MIGRATION_PLAN.md
+├── index.html
+├── package-lock.json
+├── package.json
+├── README.md
+├── Task_Context.md
+├── tree.js
+├── tree.txt
+├── tsconfig.app.json
+├── tsconfig.json
+├── tsconfig.node.json
+└── vite.config.ts
+--------------------------------------------------
+Finished writing tree to tree.txt

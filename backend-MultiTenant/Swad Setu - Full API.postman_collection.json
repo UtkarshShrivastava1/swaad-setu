@@ -1,0 +1,2257 @@
+{
+	"info": {
+		"_postman_id": "f78d23e3-659e-45e3-ac97-f84637f647a2",
+		"name": "Swad Setu - Full API Collection (Automated)",
+		"description": "Complete, automated Postman collection for Swad Setu backend. Structured URLs, token capture, ID capture, and basic tests.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "31980038"
+	},
+	"item": [
+		{
+			"name": "Admin",
+			"item": [
+				{
+					"name": "Admin Login (get JWT)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"console.log(\"=== Admin Login Post-request Script (Persisting Mode) ===\");",
+									"",
+									"try {",
+									"    const { token } = pm.response.json();",
+									"",
+									"    if (!token) {",
+									"        console.error(\"❌ No token in response!\");",
+									"        pm.test(\"Token missing\", () => pm.expect.fail(\"No token found in response JSON\"));",
+									"        return;",
+									"    }",
+									"",
+									"    // ✅ Environment write (guaranteed to persist if pre-declared)",
+									"    pm.environment.set(\"token\", token);",
+									"    console.log(\"✅ token updated in Environment:\", token);",
+									"",
+									"    // ✅ Optional Global write (backup)",
+									"    pm.globals.set(\"token\", token);",
+									"    console.log(\"✅ token updated in Globals:\", token);",
+									"",
+									"    // ✅ Verification test",
+									"    pm.test(\"token stored successfully\", () => {",
+									"        pm.expect(pm.environment.get(\"token\")).to.eql(token);",
+									"    });",
+									"} catch (err) {",
+									"    console.error(\"❌ Error parsing admin login response:\", err);",
+									"    pm.test(\"Script failed\", () => pm.expect.fail(err.message));",
+									"}",
+									"",
+									"console.log(\"=== Script End ===\");",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"pin\": \"1111\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{rid}}/admin/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{rid}}",
+								"admin",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get public Menu",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/{{rid}}/admin/menu",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{rid}}",
+								"admin",
+								"menu"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create/Update Menu (protected)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('menu update status 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+									"console.log('Menu update response:', pm.response.text());"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"menu\": [\n    {\n      \"itemId\": \"m1\",\n      \"name\": \"Paneer Tikka\",\n      \"description\": \"Grilled cottage cheese cubes marinated in spices and yogurt, cooked in tandoor.\",\n      \"price\": 280,\n      \"currency\": \"INR\",\n      \"isVegetarian\": true,\n      \"preparationTime\": 20,\n      \"image\": \"https://example.com/images/paneer-tikka.jpg\"\n    },\n    {\n      \"itemId\": \"m2\",\n      \"name\": \"Veg Manchurian (Dry)\",\n      \"description\": \"Crispy vegetable balls tossed in a tangy Indo-Chinese sauce.\",\n      \"price\": 240,\n      \"currency\": \"INR\",\n      \"isVegetarian\": true,\n      \"preparationTime\": 15,\n      \"image\": \"https://example.com/images/veg-manchurian.jpg\"\n    },\n    {\n      \"itemId\": \"m3\",\n      \"name\": \"Chicken Tandoori (Half)\",\n      \"description\": \"Juicy chicken marinated overnight in tandoori spices, roasted to perfection.\",\n      \"price\": 320,\n      \"currency\": \"INR\",\n      \"isVegetarian\": false,\n      \"preparationTime\": 25,\n      \"image\": \"https://example.com/images/chicken-tandoori.jpg\"\n    },\n    {\n      \"itemId\": \"m4\",\n      \"name\": \"Butter Chicken\",\n      \"description\": \"Creamy tomato-based curry with tender chicken chunks, mildly spiced.\",\n      \"price\": 350,\n      \"currency\": \"INR\",\n      \"isVegetarian\": false,\n      \"preparationTime\": 25,\n      \"image\": \"https://example.com/images/butter-chicken.jpg\"\n    },\n    {\n      \"itemId\": \"m5\",\n      \"name\": \"Paneer Butter Masala\",\n      \"description\": \"Soft paneer cubes in a buttery, rich tomato gravy with cream.\",\n      \"price\": 290,\n      \"currency\": \"INR\",\n      \"isVegetarian\": true,\n      \"preparationTime\": 20,\n      \"image\": \"https://example.com/images/paneer-butter-masala.jpg\"\n    },\n    {\n      \"itemId\": \"m6\",\n      \"name\": \"Dal Tadka\",\n      \"description\": \"Yellow lentils cooked with spices and finished with a ghee tempering.\",\n      \"price\": 190,\n      \"currency\": \"INR\",\n      \"isVegetarian\": true,\n      \"preparationTime\": 15,\n      \"image\": \"https://example.com/images/dal-tadka.jpg\"\n    },\n    {\n      \"itemId\": \"m7\",\n      \"name\": \"Jeera Rice\",\n      \"description\": \"Basmati rice cooked with cumin seeds and mild spices.\",\n      \"price\": 160,\n      \"currency\": \"INR\",\n      \"isVegetarian\": true,\n      \"preparationTime\": 10,\n      \"image\": \"https://example.com/images/jeera-rice.jpg\"\n    },\n    {\n      \"itemId\": \"m8\",\n      \"name\": \"Garlic Naan\",\n      \"description\": \"Soft tandoori naan topped with minced garlic and butter.\",\n      \"price\": 60,\n      \"currency\": \"INR\",\n      \"isVegetarian\": true,\n      \"preparationTime\": 5,\n      \"image\": \"https://example.com/images/garlic-naan.jpg\"\n    },\n    {\n      \"itemId\": \"m9\",\n      \"name\": \"Butter Roti\",\n      \"description\": \"Whole wheat roti brushed with butter.\",\n      \"price\": 35,\n      \"currency\": \"INR\",\n      \"isVegetarian\": true,\n      \"preparationTime\": 5,\n      \"image\": \"https://example.com/images/butter-roti.jpg\"\n    },\n    {\n      \"itemId\": \"m10\",\n      \"name\": \"Masala Chaas\",\n      \"description\": \"Refreshing spiced buttermilk with cumin and coriander.\",\n      \"price\": 70,\n      \"currency\": \"INR\",\n      \"isVegetarian\": true,\n      \"preparationTime\": 2,\n      \"image\": \"https://example.com/images/masala-chaas.jpg\"\n    },\n    {\n      \"itemId\": \"m11\",\n      \"name\": \"Sweet Lassi\",\n      \"description\": \"Sweetened yogurt-based drink served chilled.\",\n      \"price\": 90,\n      \"currency\": \"INR\",\n      \"isVegetarian\": true,\n      \"preparationTime\": 3,\n      \"image\": \"https://example.com/images/sweet-lassi.jpg\"\n    },\n    {\n      \"itemId\": \"m12\",\n      \"name\": \"Gulab Jamun (2 pcs)\",\n      \"description\": \"Soft fried milk balls soaked in sugar syrup.\",\n      \"price\": 100,\n      \"currency\": \"INR\",\n      \"isVegetarian\": true,\n      \"preparationTime\": 5,\n      \"image\": \"https://example.com/images/gulab-jamun.jpg\"\n    },\n    {\n      \"itemId\": \"m13\",\n      \"name\": \"Rasmalai (2 pcs)\",\n      \"description\": \"Soft paneer patties soaked in saffron-flavored milk.\",\n      \"price\": 130,\n      \"currency\": \"INR\",\n      \"isVegetarian\": true,\n      \"preparationTime\": 5,\n      \"image\": \"https://example.com/images/rasmalai.jpg\"\n    },\n    {\n      \"itemId\": \"m14\",\n      \"name\": \"Brownie with Ice Cream\",\n      \"description\": \"Warm chocolate brownie served with vanilla ice cream.\",\n      \"price\": 180,\n      \"currency\": \"INR\",\n      \"isVegetarian\": true,\n      \"preparationTime\": 7,\n      \"image\": \"https://example.com/images/brownie-icecream.jpg\"\n    },\n    {\n      \"itemId\": \"m15\",\n      \"name\": \"Mineral Water 1L\",\n      \"description\": \"Packaged drinking water.\",\n      \"price\": 40,\n      \"currency\": \"INR\",\n      \"isVegetarian\": true,\n      \"preparationTime\": 1,\n      \"image\": \"https://example.com/images/mineral-water.jpg\"\n    }\n  ],\n\n  \"categories\": [\n    { \"name\": \"Starters\", \"itemIds\": [\"m1\", \"m2\", \"m3\"] },\n    { \"name\": \"Main Course\", \"itemIds\": [\"m4\", \"m5\", \"m6\", \"m7\"] },\n    { \"name\": \"Breads\", \"itemIds\": [\"m8\", \"m9\"] },\n    { \"name\": \"Beverages\", \"itemIds\": [\"m10\", \"m11\", \"m15\"] },\n    { \"name\": \"Desserts\", \"itemIds\": [\"m12\", \"m13\", \"m14\"] },\n\n    {\n      \"name\": \"Veg Feast Combo\",\n      \"itemIds\": [\"m1\", \"m5\", \"m7\", \"m8\", \"m12\"],\n      \"isMenuCombo\": true,\n      \"comboMeta\": {\n        \"originalPrice\": 930,\n        \"discountedPrice\": 750,\n        \"description\": \"Paneer Tikka + Paneer Butter Masala + Jeera Rice + Garlic Naan + Gulab Jamun\",\n        \"image\": \"https://example.com/images/veg-feast-combo.jpg\"\n      }\n    },\n    {\n      \"name\": \"Royal Non-Veg Combo\",\n      \"itemIds\": [\"m3\", \"m4\", \"m7\", \"m9\", \"m14\"],\n      \"isMenuCombo\": true,\n      \"comboMeta\": {\n        \"originalPrice\": 1045,\n        \"discountedPrice\": 880,\n        \"description\": \"Tandoori Chicken + Butter Chicken + Jeera Rice + Butter Roti + Brownie with Ice Cream\",\n        \"image\": \"https://example.com/images/royal-nonveg-combo.jpg\"\n      }\n    }\n  ],\n\n  \"taxes\": [\n    { \"name\": \"GST\", \"percent\": 5 },\n    { \"name\": \"Service Tax\", \"percent\": 2 }\n  ],\n\n  \"serviceCharge\": 10,\n\n  \"branding\": {\n    \"title\": \"Swad Setu – Authentic Indian Flavours\",\n    \"tagline\": \"Where every bite feels like home\",\n    \"themeColor\": \"#FFC107\",\n    \"accentColor\": \"#3E2723\",\n    \"logoUrl\": \"https://example.com/images/swadsetu-logo.png\"\n  }\n}\n"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{rid}}/admin/menu",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{rid}}",
+								"admin",
+								"menu"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Add Menu Item (protected)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('add menu item status 201 or 200', function () { pm.expect(pm.response.code).to.be.oneOf([200,201]); });",
+									"console.log('Add menu item response:', pm.response.text());",
+									"try {",
+									"  const json = pm.response.json();",
+									"  // item may be returned as body itself or nested",
+									"  const item = (json && json.item) || json || null;",
+									"  if (item) {",
+									"    const id = item.itemId || item.id || item._id || null;",
+									"    if (id) { pm.environment.set('menu_item_id', id); pm.globals.set('menu_item_id', id); pm.test('menu_item_id saved', () => true); console.log('Saved menu_item_id:', id); }",
+									"  }",
+									"} catch (e) { console.warn('could not parse add menu item response', e); }"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"item\": {\n    \"itemId\": \"m1\",\n    \"name\": \"Paneer Tikka\",\n    \"price\": 299,\n    \"description\": \"Grilled cottage cheese with spices\",\n    \"category\": \"Appetizers\",\n    \"image\": \"https://example.com/paneer-tikka.jpg\",\n    \"isVegetarian\": true,\n    \"preparationTime\": 20\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{rid}}/admin/menu/items",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{rid}}",
+								"admin",
+								"menu",
+								"items"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Add Waiter Name",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"status 201 or 200\", () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+									"const j = pm.response.json();",
+									"pm.test(\"waiter present\", () => pm.expect(j.waiterNames || j.waiterNames).to.include(\"Ramesh\"));",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Ramesh\"\n}\n"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{rid}}/admin/waiters",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{rid}}",
+								"admin",
+								"waiters"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "POST Create Pricing Config",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status is 201 or 400\", function () {",
+									"  pm.expect(pm.response.code).to.be.oneOf([201, 400]);",
+									"});",
+									"",
+									"if (pm.response.code === 201) {",
+									"  const json = pm.response.json();",
+									"  pm.test(\"Has admin.pricingConfigs array\", function () {",
+									"    pm.expect(json).to.have.property(\"admin\");",
+									"    pm.expect(json.admin).to.have.property(\"pricingConfigs\");",
+									"  });",
+									"",
+									"  // set version variable for next request",
+									"  const configs = json.admin.pricingConfigs;",
+									"  if (configs && configs.length > 0) {",
+									"    const last = configs[configs.length - 1];",
+									"    pm.environment.set(\"version\", last.version);",
+									"    console.log(\"Saved version:\", last.version);",
+									"  }",
+									"}",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"taxes\": [\n    { \"name\": \"GST\", \"percent\": 5, \"code\": \"GST\", \"inclusive\": false },\n    { \"name\": \"Service Tax\", \"percent\": 2.5, \"code\": \"SVCTAX\" }\n  ],\n  \"globalDiscountPercent\": 10,\n  \"serviceChargePercent\": 5,\n  \"createdBy\": \"manager\",\n  \"reason\": \"Festive Offer\",\n  \"effectiveFrom\": \"2025-10-15T00:00:00Z\",\n  \"activate\": true\n}\n"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{rid}}/admin/pricing",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{rid}}",
+								"admin",
+								"pricing"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Waiter Name",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"status 200 or 204\", () => pm.expect(pm.response.code).to.be.oneOf([200,204]));",
+									"const j = pm.response.json();",
+									"pm.test(\"name removed\", () => pm.expect(j.waiterNames || j.waiterNames).to.not.include(\"Ramu\"));",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Ramu\"\n}\n"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{rid}}/admin/waiters",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{rid}}",
+								"admin",
+								"waiters"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Generate Override Token (PIN)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"pin\": \"1111\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{rid}}/admin/overrides",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{rid}}",
+								"admin",
+								"overrides"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Analytics (protected)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('analytics status 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+									"console.log('Analytics response:', pm.response.text());",
+									"try {",
+									"  const json = pm.response.json();",
+									"  pm.test('analytics keys present', function () {",
+									"    pm.expect(json).to.have.property('period');",
+									"    pm.expect(json).to.have.property('totalRevenue');",
+									"    pm.expect(json).to.have.property('orderCount');",
+									"    pm.expect(json).to.have.property('topItems');",
+									"    pm.expect(json).to.have.property('peakHours');",
+									"    pm.expect(json).to.have.property('unpaidBills');",
+									"    pm.expect(json).to.have.property('voidedBills');",
+									"  });",
+									"} catch (e) { console.warn('could not parse analytics response', e); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/{{rid}}/admin/analytics?period=daily",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{rid}}",
+								"admin",
+								"analytics"
+							],
+							"query": [
+								{
+									"key": "period",
+									"value": "daily"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GET Pricing (active + history)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status is 200 or 404\", function () {",
+									"  pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
+									"});",
+									"",
+									"if (pm.response.code === 200) {",
+									"  const json = pm.response.json();",
+									"  pm.test(\"Response has active and history keys\", function () {",
+									"    pm.expect(json).to.have.property(\"active\");",
+									"    pm.expect(json).to.have.property(\"history\");",
+									"  });",
+									"}",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"packages": {},
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/{{rid}}/admin/pricing",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{rid}}",
+								"admin",
+								"pricing"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Waiter Names",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('analytics status 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+									"console.log('Analytics response:', pm.response.text());",
+									"try {",
+									"  const json = pm.response.json();",
+									"  pm.test('analytics keys present', function () {",
+									"    pm.expect(json).to.have.property('period');",
+									"    pm.expect(json).to.have.property('totalRevenue');",
+									"    pm.expect(json).to.have.property('orderCount');",
+									"    pm.expect(json).to.have.property('topItems');",
+									"    pm.expect(json).to.have.property('peakHours');",
+									"    pm.expect(json).to.have.property('unpaidBills');",
+									"    pm.expect(json).to.have.property('voidedBills');",
+									"  });",
+									"} catch (e) { console.warn('could not parse analytics response', e); }"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/{{rid}}/admin/waiters",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{rid}}",
+								"admin",
+								"waiters"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Export Report (protected)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{ \"format\": \"csv\", \"period\": \"monthly\" }"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{rid}}/admin/export",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{rid}}",
+								"admin",
+								"export"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Admin: Update Table Config (protected)",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{ \"capacity\": 6, \"isActive\": true }"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{rid}}/admin/tables/68db624c2a4a51aa41cbc9a1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{rid}}",
+								"admin",
+								"tables",
+								"68db624c2a4a51aa41cbc9a1"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "PATCH Activate Pricing Version",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status is 200 or 400\", function () {\r",
+									"  pm.expect(pm.response.code).to.be.oneOf([200, 400]);\r",
+									"});\r",
+									"\r",
+									"if (pm.response.code === 200) {\r",
+									"  const json = pm.response.json();\r",
+									"  pm.test(\"Active config matches requested version\", function () {\r",
+									"    const ver = Number(pm.environment.get(\"version\"));\r",
+									"    const active = json.pricingConfigs.find(c => c.active);\r",
+									"    pm.expect(active.version).to.eql(ver);\r",
+									"  });\r",
+									"}\r",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{rid}}/admin/pricing/{{version}}/activate",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{rid}}",
+								"admin",
+								"pricing",
+								"{{version}}",
+								"activate"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Admin: Update Waiter Name",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"oldName\": \"Ramesh\",\r\n  \"newName\": \"Ramu\"\r\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{rid}}/admin/waiters",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{rid}}",
+								"admin",
+								"waiters"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Admin: Update PIN (protected)",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{ \"currentPin\": \"1111\", \"newPin\": \"2222\" }"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{rid}}/admin/pin",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{rid}}",
+								"admin",
+								"pin"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Admin: Update Staff Aliases (protected)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('status 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+									"try {",
+									"  const json = pm.response.json();",
+									"  pm.test('staffAliases present', function () {",
+									"    pm.expect(json).to.have.property('staffAliases');",
+									"  });",
+									"} catch (e) { console.warn('could not parse staff aliases response', e); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{ \"staffAliases\": [\"Manager\",\"Waiter\",\"Chef\"] }"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{rid}}/admin/staff-aliases",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{rid}}",
+								"admin",
+								"staff-aliases"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Admin: Update Pricing Config (protected)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('status 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+									"try {",
+									"  const json = pm.response.json();",
+									"  pm.test('config updated', function () {",
+									"    pm.expect(json).to.have.property('settings');",
+									"  });",
+									"} catch (e) { console.warn('could not parse config response', e); }"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{ \"taxPercent\": 5, \"globalDiscountPercent\": 10, \"serviceCharge\": 15 }"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{rid}}/admin/config",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{rid}}",
+								"admin",
+								"config"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Admin: Create Table (protected)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('create table 200/201', function () { pm.expect(pm.response.code).to.be.oneOf([200,201]); });",
+									"try { const json = pm.response.json(); const id = json && (json._id || json.id || json.tableId); if (id) { pm.environment.set('table_id', id); pm.globals.set('table_id', id); console.log('Saved table_id:', id); } } catch (e) { console.warn('Could not parse create table response', e); }"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{ \"tableNumber\": 9, \"capacity\": 8, \"isActive\": true }"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{rid}}/tables",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{rid}}",
+								"tables"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "User",
+			"item": [
+				{
+					"name": "User: GET Menu (public)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('menu status 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+									"try {",
+									"  const json = pm.response.json();",
+									"  pm.test('menu keys present', function () {",
+									"    pm.expect(json).to.have.property('menu');",
+									"    pm.expect(json).to.have.property('categories');",
+									"    pm.expect(json).to.have.property('taxes');",
+									"    pm.expect(json).to.have.property('serviceCharge');",
+									"    pm.expect(json).to.have.property('branding');",
+									"  });",
+									"} catch (e) { console.warn('could not parse menu response', e); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/{{rid}}/admin/menu",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{rid}}",
+								"admin",
+								"menu"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "User: POST Order (with customerName)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"console.log(\"=== Order Creation Test Script ===\");",
+									"",
+									"try {",
+									"    const jsonData = pm.response.json();",
+									"",
+									"    if (jsonData && jsonData.order && jsonData.order._id) {",
+									"        const orderId = jsonData.order._id;",
+									"",
+									"        // ✅ Set to environment variable",
+									"        pm.environment.set(\"order_id\", orderId);",
+									"        console.log(\"✅ order_id set to:\", orderId);",
+									"",
+									"        // Optional confirmation test",
+									"        pm.test(\"Order ID extracted successfully\", function () {",
+									"            pm.expect(orderId).to.not.be.empty;",
+									"        });",
+									"    } else {",
+									"        console.error(\"❌ Order ID not found in response:\", jsonData);",
+									"        pm.test(\"Order ID missing\", function () {",
+									"            pm.expect.fail(\"No order_id found in response\");",
+									"        });",
+									"    }",
+									"} catch (e) {",
+									"    console.error(\"❌ Failed to parse JSON or set variable:\", e);",
+									"    pm.test(\"Response parsing failed\", function () {",
+									"        pm.expect.fail(\"Invalid JSON response\");",
+									"    });",
+									"}",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"tableId\": \"{{table_id7}}\",\n  \"sessionId\": \"sess_001_swadhouse\",\n  \"customerName\": \"John Wayne\",\n  \"customerContact\": \"+91-9876543210\",\n  \"isCustomerOrder\": true,\n  \"staffAlias\": \"(Waiter)\",\n  \"notes\": \"spicy on Butter Chicken; serve Jeera Rice hot.\",\n  \"extras\": [\n    { \"name\": \"Corkage\", \"amount\": 50 }\n  ],\n  \"items\": [\n    {\n      \"menuItemId\": \"68e8bce79b42eb659fddfd22\",\n      \"name\": \"Paneer Tikka\",\n      \"quantity\": 1,\n      \"notes\": \"\"\n    },\n    {\n      \"menuItemId\": \"68e8bce79b42eb659fddfd23\",\n      \"name\": \"Veg Manchurian (Dry)\",\n      \"quantity\": 1,\n      \"notes\": \"\"\n    },\n    {\n      \"menuItemId\": \"68e8bce79b42eb659fddfd25\",\n      \"name\": \"Butter Chicken\",\n      \"quantity\": 1,\n      \"notes\": \"Less spicy\"\n    },\n    {\n      \"menuItemId\": \"68e8bce79b42eb659fddfd26\",\n      \"name\": \"Paneer Butter Masala\",\n      \"quantity\": 1,\n      \"notes\": \"\"\n    },\n    {\n      \"menuItemId\": \"68e8bce79b42eb659fddfd27\",\n      \"name\": \"Dal Tadka\",\n      \"quantity\": 1,\n      \"notes\": \"\"\n    },\n    {\n      \"menuItemId\": \"68e8bce79b42eb659fddfd28\",\n      \"name\": \"Jeera Rice\",\n      \"quantity\": 1,\n      \"notes\": \"Serve hot\"\n    },\n    {\n      \"menuItemId\": \"68e8bce79b42eb659fddfd29\",\n      \"name\": \"Garlic Naan\",\n      \"quantity\": 2,\n      \"notes\": \"\"\n    },\n    {\n      \"menuItemId\": \"68e8bce79b42eb659fddfd2b\",\n      \"name\": \"Masala Chaas\",\n      \"quantity\": 2,\n      \"notes\": \"\"\n    },\n    {\n      \"menuItemId\": \"68e8bce79b42eb659fddfd2d\",\n      \"name\": \"Gulab Jamun (2 pcs)\",\n      \"quantity\": 1,\n      \"notes\": \"\"\n    }\n  ]\n}\n"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{rid}}/orders",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{rid}}",
+								"orders"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "User: GET Order History",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('order history status 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+									"try {",
+									"  const json = pm.response.json();",
+									"  pm.test('order history is array', function () {",
+									"    pm.expect(json).to.be.an('array');",
+									"  });",
+									"} catch (e) { console.warn('could not parse order history response', e); }"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{staff_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/{{rid}}/orders/history?sessionId=sess_abc",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{rid}}",
+								"orders",
+								"history"
+							],
+							"query": [
+								{
+									"key": "sessionId",
+									"value": "sess_abc"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Staff",
+			"item": [
+				{
+					"name": "Billing",
+					"item": [
+						{
+							"name": "Staff: Create Bill From Order",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											""
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{staff_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"staffAlias\": \"Waiter\",\n  \"extras\": [\n    { \"name\": \"Corkage\", \"amount\": 50 }\n  ]\n}\n"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/{{rid}}/orders/{{order_id}}/bill",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"{{rid}}",
+										"orders",
+										"{{order_id}}",
+										"bill"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Staff: Edit Draft Bill",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test('update bill status 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+											"try {",
+											"  const json = pm.response.json();",
+											"  pm.test('bill updated', function () {",
+											"    pm.expect(json).to.have.property('status', 'draft');",
+											"  });",
+											"} catch (e) { console.warn('could not parse update bill response', e); }"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								}
+							],
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{staff_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"items\": [\n    { \"itemId\": \"68e749b03cd0072f7a434335\", \"name\": \"Paneer Tikka\", \"qty\": 2, \"price\": 280 },\n    { \"itemId\": \"68e749b03cd0072f7a434338\", \"name\": \"Butter Chicken\", \"qty\": 1, \"price\": 350 },\n    { \"itemId\": \"68e749b03cd0072f7a43433c\", \"name\": \"Garlic Naan\", \"qty\": 1, \"price\": 60 }\n  ],\n  \"extras\": [{ \"name\": \"Corkage\", \"amount\": 50 }],\n  \"discountPercent\": 5,\n  \"notes\": \"Customer requested less spicy for Butter Chicken\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/{{rid}}/bills/68e8b1c1275774ecaa734e44",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"{{rid}}",
+										"bills",
+										"68e8b1c1275774ecaa734e44"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Staff: Finalize Bill",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test('finalize bill status 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+											"try {",
+											"  const json = pm.response.json();",
+											"  pm.test('bill finalized', function () {",
+											"    pm.expect(json).to.have.property('status', 'finalized');",
+											"  });",
+											"} catch (e) { console.warn('could not parse finalize bill response', e); }"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{staff_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"staffAlias\": \"Waiter\",\r\n  \"printReceipt\": true\r\n}\r\n"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/{{rid}}/bills/68e8b1c1275774ecaa734e44/finalize",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"{{rid}}",
+										"bills",
+										"68e8b1c1275774ecaa734e44",
+										"finalize"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Staff: Mark Bill Paid",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test('mark bill paid status 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+											"try {",
+											"  const json = pm.response.json();",
+											"  pm.test('bill marked paid', function () {",
+											"    pm.expect(json).to.have.property('paymentStatus', 'paid');",
+											"  });",
+											"} catch (e) { console.warn('could not parse mark bill paid response', e); }"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{staff_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"method\": \"UPI\",\r\n  \"amount\": 1071,\r\n  \"txnId\": \"UPI-12345\",\r\n  \"paidBy\": \"Ravi\",\r\n  \"tip\": 0,\r\n  \"staffAlias\": \"Waiter\"\r\n}\r\n"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/{{rid}}/bills/68e8b1c1275774ecaa734e44/mark-paid",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"{{rid}}",
+										"bills",
+										"68e8b1c1275774ecaa734e44",
+										"mark-paid"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Staff: Increment Bill Item",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test('mark bill paid status 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+											"try {",
+											"  const json = pm.response.json();",
+											"  pm.test('bill marked paid', function () {",
+											"    pm.expect(json).to.have.property('paymentStatus', 'paid');",
+											"  });",
+											"} catch (e) { console.warn('could not parse mark bill paid response', e); }"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{staff_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"staffAlias\": \"staff_01\"\r\n}\r\n"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/{{rid}}/bills/{{bill_id}}/items/{{itemId}}/increment",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"{{rid}}",
+										"bills",
+										"{{bill_id}}",
+										"items",
+										"{{itemId}}",
+										"increment"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Staff: Decrement Bill Item",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test('mark bill paid status 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+											"try {",
+											"  const json = pm.response.json();",
+											"  pm.test('bill marked paid', function () {",
+											"    pm.expect(json).to.have.property('paymentStatus', 'paid');",
+											"  });",
+											"} catch (e) { console.warn('could not parse mark bill paid response', e); }"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{staff_token}}"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"staffAlias\": \"staff_01\"\r\n}\r\n"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/{{rid}}/bills/{{bill_id}}/items/{{itemId}}/decrement",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"{{rid}}",
+										"bills",
+										"{{bill_id}}",
+										"items",
+										"{{itemId}}",
+										"decrement"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Staff: GET Active Bills",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test('active orders status 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+											"try {",
+											"  const json = pm.response.json();",
+											"  pm.test('active orders is array', function () {",
+											"    pm.expect(json).to.be.an('array');",
+											"  });",
+											"} catch (e) { console.warn('could not parse active orders response', e); }"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								}
+							],
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{staff_token}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/api/{{rid}}/bills/active",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"{{rid}}",
+										"bills",
+										"active"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Staff: GET Bills History",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test('active orders status 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+											"try {",
+											"  const json = pm.response.json();",
+											"  pm.test('active orders is array', function () {",
+											"    pm.expect(json).to.be.an('array');",
+											"  });",
+											"} catch (e) { console.warn('could not parse active orders response', e); }"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								}
+							],
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{staff_token}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/api/{{rid}}/bills/history",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"{{rid}}",
+										"bills",
+										"history"
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Staff: GET Active Orders",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('active orders status 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+									"try {",
+									"  const json = pm.response.json();",
+									"  pm.test('active orders is array', function () {",
+									"    pm.expect(json).to.be.an('array');",
+									"  });",
+									"} catch (e) { console.warn('could not parse active orders response', e); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{staff_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/{{rid}}/orders/active",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{rid}}",
+								"orders",
+								"active"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Staff: GET Bill by OrderID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('active orders status 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+									"try {",
+									"  const json = pm.response.json();",
+									"  pm.test('active orders is array', function () {",
+									"    pm.expect(json).to.be.an('array');",
+									"  });",
+									"} catch (e) { console.warn('could not parse active orders response', e); }"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{staff_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/{{rid}}/orders/bill/{{order_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{rid}}",
+								"orders",
+								"bill",
+								"{{order_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Staff: GET Orders By Table",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('active orders status 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+									"try {",
+									"  const json = pm.response.json();",
+									"  pm.test('active orders is array', function () {",
+									"    pm.expect(json).to.be.an('array');",
+									"  });",
+									"} catch (e) { console.warn('could not parse active orders response', e); }"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{staff_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/{{rid}}/orders/table/{{table_id2}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{rid}}",
+								"orders",
+								"table",
+								"{{table_id2}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Staff: GET  Waiter Names",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('active orders status 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+									"try {",
+									"  const json = pm.response.json();",
+									"  pm.test('active orders is array', function () {",
+									"    pm.expect(json).to.be.an('array');",
+									"  });",
+									"} catch (e) { console.warn('could not parse active orders response', e); }"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{staff_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/{{rid}}/orders/waiters",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{rid}}",
+								"orders",
+								"waiters"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Staff: PATCH Order Status",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('update order status 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+									"try {",
+									"  const json = pm.response.json();",
+									"  pm.test('order status updated', function () {",
+									"    pm.expect(json).to.have.property('status', 'preparing');",
+									"  });",
+									"} catch (e) { console.warn('could not parse update order status response', e); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{staff_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{ \"status\": \"preparing\", \"version\": 1 }"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{rid}}/orders/{{order_id}}/status",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{rid}}",
+								"orders",
+								"{{order_id}}",
+								"status"
+							],
+							"variable": [
+								{
+									"key": "order_id",
+									"value": "{{order_id}}"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Staff Login (get JWT)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"console.log(\"=== Staff Login Post-request Script (Final) ===\");",
+									"",
+									"try {",
+									"    const body = pm.response.text();",
+									"    console.log(\"Raw response body:\", body);",
+									"",
+									"    const json = pm.response.json();",
+									"    const token = json?.token;",
+									"",
+									"    if (!token) {",
+									"        console.error(\"❌ No token found in response:\", json);",
+									"        pm.test(\"Token missing\", () => pm.expect.fail(\"No token in response\"));",
+									"    } else {",
+									"        // ✅ 1. Runtime variable (always accessible to next requests)",
+									"        pm.variables.set(\"staff_token\", token);",
+									"        console.log(\"✅ staff_token set via pm.variables.set():\", token);",
+									"",
+									"        // ✅ 2. Force-write to environment (if supported)",
+									"        try {",
+									"            pm.environment.set(\"staff_token\", token);",
+									"            console.log(\"✅ staff_token saved to environment:\", token);",
+									"        } catch (envErr) {",
+									"            console.warn(\"⚠️ env.set failed:\", envErr);",
+									"        }",
+									"",
+									"        // ✅ 3. Force-write to globals (backup)",
+									"        try {",
+									"            pm.globals.set(\"staff_token\", token);",
+									"            console.log(\"✅ staff_token saved to globals:\", token);",
+									"        } catch (globErr) {",
+									"            console.warn(\"⚠️ globals.set failed:\", globErr);",
+									"        }",
+									"",
+									"        // Test verification",
+									"        pm.test(\"Token stored successfully\", () => {",
+									"            const stored =",
+									"                pm.variables.get(\"staff_token\") ||",
+									"                pm.environment.get(\"staff_token\") ||",
+									"                pm.globals.get(\"staff_token\");",
+									"            pm.expect(stored).to.eql(token);",
+									"        });",
+									"    }",
+									"} catch (err) {",
+									"    console.error(\"❌ Error in staff-login script:\", err);",
+									"    pm.test(\"Post-request script error\", () => {",
+									"        pm.expect.fail(err.message);",
+									"    });",
+									"}",
+									"",
+									"console.log(\"=== Staff Login Post-request Script End ===\");",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"pin\": \"1111\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{rid}}/auth/staff-login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{rid}}",
+								"auth",
+								"staff-login"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Analytics",
+			"item": [
+				{
+					"name": "Analytics: GET Analytics",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('analytics status 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+									"try {",
+									"  const json = pm.response.json();",
+									"  pm.test('analytics keys present', function () {",
+									"    pm.expect(json).to.have.property('period');",
+									"    pm.expect(json).to.have.property('totalRevenue');",
+									"    pm.expect(json).to.have.property('orderCount');",
+									"    pm.expect(json).to.have.property('topItems');",
+									"    pm.expect(json).to.have.property('peakHours');",
+									"    pm.expect(json).to.have.property('unpaidBills');",
+									"    pm.expect(json).to.have.property('voidedBills');",
+									"  });",
+									"} catch (e) { console.warn('could not parse analytics response', e); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/{{rid}}/admin/analytics?period=daily",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{rid}}",
+								"admin",
+								"analytics"
+							],
+							"query": [
+								{
+									"key": "period",
+									"value": "daily"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Tables",
+			"item": [
+				{
+					"name": "Create Table (admin)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('create table 200/201', function () { pm.expect(pm.response.code).to.be.oneOf([200,201]); });",
+									"try { const json = pm.response.json(); const id = json && (json._id || json.id || json.tableId); if (id) { pm.environment.set('table_id', id); pm.globals.set('table_id', id); console.log('Saved table_id:', id); } } catch (e) { console.warn('Could not parse create table response', e); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{ \"tableNumber\": 5, \"capacity\": 4, \"isActive\": true }"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{rid}}/tables",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{rid}}",
+								"tables"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Tables",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/{{rid}}/tables",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{rid}}",
+								"tables"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Table By ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/{{rid}}/tables/{{table_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{rid}}",
+								"tables",
+								"{{table_id}}"
+							],
+							"variable": [
+								{
+									"key": "table_id",
+									"value": "{{table_id}}"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Table Status (protected)",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{ \"isActive\": false }"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{rid}}/tables/{{table_id}}/status",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{rid}}",
+								"tables",
+								"{{table_id}}",
+								"status"
+							],
+							"variable": [
+								{
+									"key": "table_id",
+									"value": "{{table_id}}"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Assign Session to Table (protected)",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{staff_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{ \"sessionId\": \"sess_abc\", \"staffAlias\": \"Waiter\" }"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{rid}}/tables/{{table_id}}/session",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{rid}}",
+								"tables",
+								"{{table_id}}",
+								"session"
+							],
+							"variable": [
+								{
+									"key": "table_id",
+									"value": "{{table_id}}"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Staff Alias for Table (protected)",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{staff_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{ \"staffAlias\": \"Waiter\" }"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{rid}}/tables/{{table_id}}/staff",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{rid}}",
+								"tables",
+								"{{table_id}}",
+								"staff"
+							],
+							"variable": [
+								{
+									"key": "table_id",
+									"value": "{{table_id}}"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Table (admin)",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/{{rid}}/tables/{{table_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{rid}}",
+								"tables",
+								"{{table_id}}"
+							],
+							"variable": [
+								{
+									"key": "table_id",
+									"value": "{{table_id}}"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Health & Utilities",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/health",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"health"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Active Socket Rooms (debug) - optional",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/{{rid}}/debug/sockets",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{rid}}",
+								"debug",
+								"sockets"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:5000"
+		},
+		{
+			"key": "rid",
+			"value": "restro10"
+		},
+		{
+			"key": "token",
+			"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyZXN0YXVyYW50SWQiOiJyZXN0cm8xMCIsInJvbGUiOiJzdGFmZiIsImlhdCI6MTc2MDE3NzMyNywiZXhwIjoxNzYwMjA2MTI3fQ.Ot38Z2vrTHqGWtGujVe6bsx2mf_cbPjMJ3zIaKfHwY8"
+		},
+		{
+			"key": "staff_token",
+			"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyZXN0YXVyYW50SWQiOiJyZXN0cm8xMCIsInJvbGUiOiJzdGFmZiIsImlhdCI6MTc2MDI0NTQzNSwiZXhwIjoxNzYwMjc0MjM1fQ.Vh91-AzplUbIzge-MXUsFxewmDQ4gTm2HNNWUlNPPHk"
+		},
+		{
+			"key": "table_id",
+			"value": "68e748f93cd0072f7a43431a"
+		},
+		{
+			"key": "order_id",
+			"value": "68e8a3fb83573f00b9878504"
+		},
+		{
+			"key": "bill_id",
+			"value": ""
+		},
+		{
+			"key": "call_id",
+			"value": ""
+		},
+		{
+			"key": "menu_item_id",
+			"value": "68db82186ae9ed96b5cf3a28"
+		},
+		{
+			"key": "version",
+			"value": ""
+		},
+		{
+			"key": "itemId",
+			"value": ""
+		}
+	]
+}
