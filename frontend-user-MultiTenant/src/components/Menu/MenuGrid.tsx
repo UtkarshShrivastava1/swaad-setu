@@ -169,7 +169,6 @@ export default function RestaurantMenuApp({
                 value={vegFilter}
                 onChange={(e) => setVegFilter(e.target.value)}
                 className="bg-base-100 text-[11px] sm:text-xs font-medium text-[#ffbe00] focus:outline-none"
-                defaultValue="all"
               >
                 <option value="all">All</option>
                 <option value="veg">Veg</option>

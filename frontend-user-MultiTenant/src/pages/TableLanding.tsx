@@ -15,7 +15,7 @@ export default function TableLanding() {
   const [loading, setLoading] = useState(true);
 
   const { rid } = useTenant();
-  const { setTableId } = useTable();
+  const { setTable } = useTable();
 
   const baseUrl = import.meta.env.VITE_API_BASE_URL;
 
@@ -42,7 +42,7 @@ export default function TableLanding() {
     const table = tables.find((t) => t._id === selectedTable);
     if (!table) return alert("Invalid table selected");
 
-    setTableId(table._id);
+    setTable(table);
     navigate(`/t/${rid}/menu`);
   };
 

@@ -3,9 +3,10 @@ import { fetchMenu } from "../api/menu.api";
 import { useCart } from "../stores/cart.store";
 import RestaurantMenuApp from "../components/Menu/MenuGrid";
 import { useTenant } from "../context/TenantContext";
+import { useTable } from "../context/TableContext";
 
 export default function MenuPage() {
-  const tNumber = sessionStorage.getItem("resto_table_number");
+  const { table } = useTable();
   const { rid } = useTenant();
 
   const {
@@ -29,11 +30,6 @@ export default function MenuPage() {
     staleTime: 1000 * 60 * 2,
     retry: 1,
   });
-
-
-
-
-
 
   const add = useCart((s) => s.addItem);
 
@@ -60,16 +56,10 @@ export default function MenuPage() {
             </div>
           )}
 
-        {/* {menu && (
-          <MenuGrid
-            items={menu.items.filter((i:MenuItem) => i.isActive !== false)}
-            onAdd={handleAdd}
-          />
-        )} */}
         {menu && (
   <RestaurantMenuApp 
     menuData={menu}
-    tableId={tNumber}
+    tableId={table?.tableNumber}
     onAddToCart={handleAdd}
   />
 )}

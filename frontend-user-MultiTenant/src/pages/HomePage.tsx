@@ -12,16 +12,17 @@ import { useTenant } from "../context/TenantContext";
 import { useCart } from "../stores/cart.store";
 
 export default function HomePage() {
-  const { tableId } = useTable();
+  const { table } = useTable();
   const { rid } = useTenant();
   const location = useLocation();
 
-
-
   const { items: cartItems } = useCart();
-  const totalCartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+  const totalCartCount = cartItems.reduce(
+    (sum, item) => sum + item.quantity,
+    0
+  );
 
-  const tableNumber = tableId || "";
+  const tableNumber = table?.tableNumber || "";
 
   const renderPage = () => {
     const pathSegments = location.pathname.split("/").filter(Boolean);
@@ -50,7 +51,13 @@ export default function HomePage() {
 
   return (
     <div className="relative min-h-screen flex flex-col">
-      <Header variant="other" pageTitle="Swad Setu" tableNumber={tableNumber} waitTime="30-40 mins" />
+      <Header
+        variant="other"
+        pageTitle="Swad Setu"
+        tableNumber={tableNumber.toString()}
+        waitTime="30-40 mins"
+        table={table}
+      />
       <main className="flex-grow">{renderPage()}</main>
       <FooterNav cartCount={totalCartCount} />
     </div>

@@ -92,7 +92,7 @@ export default function RecentActivity() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {orders.map((order) => (
             <motion.div
-              key={order._id.$oid}
+              key={order._id?.$oid}
               whileHover={{ scale: 1.02, y: -2 }}
               transition={{ duration: 0.2 }}
               className="bg-white border border-gray-100 shadow-sm hover:shadow-md rounded-xl p-4 flex items-center justify-between"
@@ -123,7 +123,7 @@ export default function RecentActivity() {
                       : "Order Updated"}
                   </div>
                   <div className="text-xs text-gray-500">
-                    #{order._id.$oid.slice(-6).toUpperCase()} ·{" "}
+                    #{(order._id?.$oid || "").slice(-6).toUpperCase()} · 
                     {order.customerName || "Guest"}
                   </div>
                 </div>

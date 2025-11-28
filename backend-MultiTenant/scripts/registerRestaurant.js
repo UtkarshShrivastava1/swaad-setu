@@ -33,6 +33,14 @@ async function seedRestaurant({
   restaurantName,
   ownerName,
   phone,
+  email = null, // New parameter for email
+  address = {
+    street: null,
+    city: null,
+    state: null,
+    zip: null,
+    country: null,
+  }, // New parameter for address
   seedTables = true, // Option to seed default tables
   seedMenu = true, // Option to seed a default menu
 }) {
@@ -60,12 +68,26 @@ async function seedRestaurant({
       restaurantName,
       ownerName,
       phone,
+      email,
+      address,
       hashedPin,
-      settings: {
-        taxPercent: 0,
-        serviceCharge: 0,
-        globalDiscountPercent: 0,
-      },
+      staffHashedPin: "", // Added default staffHashedPin
+      pricingConfigs: [
+        {
+          version: 1,
+          active: true,
+          effectiveFrom: new Date(),
+          globalDiscountPercent: 0,
+          serviceChargePercent: 0,
+          taxes: [
+            { name: "GST", percent: 0, code: "GSTIN", inclusive: false }, // Default tax
+          ],
+          createdBy: "system",
+          reason: "Initial setup",
+          createdAt: new Date(),
+          offers: [],
+        },
+      ],
     };
 
     // Create the admin record in the database
@@ -146,8 +168,16 @@ async function seedRestaurant({
 // -------------------------------------------------------
 seedRestaurant({
   restaurantName: "Dominos",
-  ownerName: "Harish",
+  ownerName: "John",
   phone: "9876543210",
+  email: "John@dominos.com", // Example email added
+  address: {
+    street: "123 Main St",
+    city: "Someville",
+    state: "SomeState",
+    zip: "12345",
+    country: "USA",
+  }, // Example address added
   seedTables: true, // Set to false to skip creating tables
   seedMenu: true, // Set to false to skip creating a menu
 });

@@ -131,6 +131,14 @@ const AdminSchema = new Schema({
   phone: { type: String, default: null },
   email: { type: String, default: null },
 
+  address: {
+    street: { type: String, default: null },
+    city: { type: String, default: null },
+    state: { type: String, default: null },
+    zip: { type: String, default: null },
+    country: { type: String, default: null },
+  },
+
   /* ---------------------
         AUTH SYSTEM
   ----------------------*/

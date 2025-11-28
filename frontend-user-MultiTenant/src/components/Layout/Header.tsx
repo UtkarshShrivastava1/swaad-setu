@@ -15,12 +15,14 @@ export default function Header({
   searchBar,
   filterSelect,
   categoryTabs,
+  table,
 }) {
   const navigate = useNavigate();
-  const { tableId } = useTable(); // Access tableId from useTable
   const { rid } = useTenant(); // Access rid from useTenant
   const [callActive, setCallActive] = useState(false);
   const [toast, setToast] = useState<null | { type: "success" | "error"; message: string }>(null);
+
+  const tableId = table?._id;
 
   const handleCallWaiterClick = async () => {
     if (typeof onCallWaiter === "function") {

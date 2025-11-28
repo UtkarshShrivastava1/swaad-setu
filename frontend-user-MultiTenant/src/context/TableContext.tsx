@@ -1,10 +1,19 @@
 
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import React, { createContext, useContext, useState, ReactNode } from 'react';
+
+export type Table = {
+  _id: string;
+  tableNumber: number;
+  capacity: number;
+  isActive: boolean;
+  isDeleted: boolean;
+};
 
 interface TableContextType {
-  tableId: string | null;
-  setTableId: (id: string | null) => void;
+  table: Table | null;
+  setTable: (table: Table | null) => void;
   clearTable: () => void;
+  tableId: string | null;
 }
 
 const TableContext = createContext<TableContextType | undefined>(undefined);
@@ -22,27 +31,32 @@ interface TableProviderProps {
 }
 
 export const TableProvider: React.FC<TableProviderProps> = ({ children }) => {
-  const [tableId, setTableIdState] = useState<string | null>(() => {
-    return sessionStorage.getItem('resto_table_number');
+  const [table, setTableState] = useState<Table | null>(() => {
+    const storedTable = sessionStorage.getItem('resto_table');
+    return storedTable ? JSON.parse(storedTable) : null;
   });
 
-  const setTableId = (id: string | null) => {
-    if (id) {
-      sessionStorage.setItem('resto_table_number', id);
-      setTableIdState(id);
+  const setTable = (table: Table | null) => {
+    console.log("Setting table:", table);
+    if (table) {
+      sessionStorage.setItem('resto_table', JSON.stringify(table));
+      setTableState(table);
     } else {
-      sessionStorage.removeItem('resto_table_number');
-      setTableIdState(null);
+      sessionStorage.removeItem('resto_table');
+      setTableState(null);
     }
   };
 
   const clearTable = () => {
-    sessionStorage.removeItem('resto_table_number');
-    setTableIdState(null);
+    console.log("Clearing table");
+    sessionStorage.removeItem('resto_table');
+    setTableState(null);
   };
 
+  const tableId = table ? table._id : null;
+
   return (
-    <TableContext.Provider value={{ tableId, setTableId, clearTable }}>
+    <TableContext.Provider value={{ table, setTable, clearTable, tableId }}>
       {children}
     </TableContext.Provider>
   );
