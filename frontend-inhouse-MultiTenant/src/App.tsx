@@ -12,9 +12,11 @@ import RestaurantRegistration from "./pages/RestaurantRegistration";
 import RestaurantSelector from "./pages/RestaurantSelector";
 
 // Lazy load tenant pages
-const Landing = lazy(() => import("./pages/HomePage"));
+const TenantDashboardHomePage = lazy(() => import("./pages/HomePage"));
 const AdminLogin = lazy(() => import("./pages/AdminLogin"));
 const StaffLogin = lazy(() => import("./pages/StaffLogin"));
+const WebPageHomePage = lazy(() => import("./pages/webpage/pages/HomePage"));
+const SwaadsetuLanding = lazy(() => import("./pages/webpage/pages/swaadsetu-landing"));
 
 const AdminDashboard = lazy(
   () => import("./pages/AdminDashboard/AdminDashboard")
@@ -47,7 +49,7 @@ function App() {
           {/* -------------------------------------------------- */}
           {/* PUBLIC ROUTES */}
           {/* -------------------------------------------------- */}
-          <Route path="/" element={<RestaurantSelector />} />
+          <Route path="/" element={<SwaadsetuLanding />} />
           <Route path="/select-restaurant" element={<RestaurantSelector />} />
           <Route
             path="/register-restaurant"
@@ -59,7 +61,7 @@ function App() {
           {/* -------------------------------------------------- */}
           <Route path="/t/:rid" element={<TenantLayout />}>
             {/* 👋 Landing inside tenant */}
-            <Route index element={<Landing />} />
+            <Route index element={<TenantDashboardHomePage />} />
 
             {/* 🔑 Login Pages */}
             <Route path="admin-login" element={<AdminLogin />} />
