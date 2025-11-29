@@ -1,6 +1,6 @@
 # 🔄 Frontend Migration Plan: Single-Tenant → Multi-Tenant
 
-**Project:** Swad Setu Frontend (In-House)  
+**Project:** Swaad Setu Frontend (In-House)  
 **Date:** November 2025  
 **Status:** Migration Required
 

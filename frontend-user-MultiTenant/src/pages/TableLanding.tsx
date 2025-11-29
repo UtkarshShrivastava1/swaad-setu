@@ -65,7 +65,7 @@ export default function TableLanding() {
             <FaUtensils className="text-4xl text-yellow-400" />
           </div>
           <h1 className="text-5xl font-extrabold tracking-wide drop-shadow-lg">
-            Swad Setu
+            swaad Setu
           </h1>
           <p className="text-lg text-gray-200 mt-2 italic">
             “Flavors that tell a story”
@@ -75,7 +75,7 @@ export default function TableLanding() {
         <div className="max-w-xl mx-auto bg-white/10 backdrop-blur-md rounded-3xl shadow-2xl p-8 border border-yellow-400/30">
           <p className="text-sm text-gray-200 mb-4">
             Welcome to{" "}
-            <span className="font-semibold text-yellow-300">Swad Setu</span> —
+            <span className="font-semibold text-yellow-300">swaad Setu</span> —
             indulge in our signature dishes crafted with authentic spices and a
             touch of love.
           </p>
@@ -121,7 +121,7 @@ export default function TableLanding() {
         </div>
 
         <div className="mt-10 text-sm text-gray-300 italic">
-          © 2025 Swad Setu • Taste the Tradition
+          © 2025 swaad Setu • Taste the Tradition
         </div>
       </div>
 

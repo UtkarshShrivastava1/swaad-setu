@@ -60,7 +60,7 @@ export default function LandingModern() {
       <main className="w-full max-w-5xl mx-auto flex flex-col items-center gap-10">
         <header className="text-center px-2">
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-black">
-            {restaurantName} — Swad Setu
+            {restaurantName} — Swaad Setu
           </h1>
           <p className="text-xs sm:text-sm text-gray-800 mt-2">
             Quick access for Admin, Staff, and Orders
@@ -92,7 +92,7 @@ export default function LandingModern() {
         </section>
 
         <footer className="text-xs text-gray-600 mt-4">
-          © {new Date().getFullYear()} Swad Setu • Zager Digital Services
+          © {new Date().getFullYear()} Swaad Setu • Zager Digital Services
         </footer>
       </main>
     </div>

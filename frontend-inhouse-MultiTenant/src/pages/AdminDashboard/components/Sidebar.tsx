@@ -1,15 +1,15 @@
+import {
+    Bell,
+    LayoutDashboard,
+    LogOut,
+    Receipt,
+    Settings,
+    Table as TableIcon,
+    Users,
+    Utensils,
+} from "lucide-react";
 import React from "react";
 import { NavLink } from "react-router-dom";
-import {
-  LayoutDashboard,
-  Users,
-  Utensils,
-  Receipt,
-  Settings,
-  LogOut,
-  Bell,
-  Table as TableIcon,
-} from "lucide-react";
 
 interface SidebarProps {
   userRole: "admin" | "staff";
@@ -87,7 +87,7 @@ export default function Sidebar({ userRole, onLogout }: SidebarProps) {
   return (
     <aside className="h-screen bg-gray-900 text-white w-64 flex flex-col">
       <div className="p-5">
-        <h1 className="text-2xl font-bold">Swad Setu</h1>
+        <h1 className="text-2xl font-bold">Swaad Setu</h1>
         <p className="text-gray-400 text-sm mt-1">
           {userRole === "admin" ? "Admin Panel" : "Staff Panel"}
         </p>

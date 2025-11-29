@@ -5,7 +5,7 @@
 //       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-auto p-6">
 //         {/* Header */}
 //         <div className="text-center mb-4">
-//           <h3 className="text-2xl font-bold text-yellow-500">🍛 Swad Setu Admin Access.</h3>
+//           <h3 className="text-2xl font-bold text-yellow-500">🍛 Swaad Setu Admin Access.</h3>
 //         </div>
 
 //         {/* Subheading */}
@@ -56,7 +56,7 @@
 // export default LonginPage
 
   
-import React, { useState } from "react";
+import { useState } from "react";
 // Import your API helper
 import { adminLogin } from "../api/admin.login"; // Update this path as required
 
@@ -92,7 +92,7 @@ const LoginPage = ({ rid, onSuccess }) => {
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-auto p-6 transition-all">
         {/* Header */}
         <div className="text-center mb-4">
-          <h3 className="text-2xl font-bold text-yellow-500">🍛 Swad Setu Admin Access.</h3>
+          <h3 className="text-2xl font-bold text-yellow-500">🍛 Swaad Setu Admin Access.</h3>
         </div>
         {/* Subheading */}
         <div className="text-center mb-6">

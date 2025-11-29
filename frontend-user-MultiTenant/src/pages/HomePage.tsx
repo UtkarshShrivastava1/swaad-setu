@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import FooterNav from "../components/Layout/Footer";
@@ -53,7 +52,7 @@ export default function HomePage() {
     <div className="relative min-h-screen flex flex-col">
       <Header
         variant="other"
-        pageTitle="Swad Setu"
+        pageTitle="swaad Setu"
         tableNumber={tableNumber.toString()}
         waitTime="30-40 mins"
         table={table}

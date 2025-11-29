@@ -8,7 +8,7 @@ This is exactly the kind of file teams keep in their repo for clarity.
 
 ---
 
-# 📘 **CONTEXT.md — Swad Setu: Single-Tenant → Multi-Tenant Migration + Subscription System**
+# 📘 **CONTEXT.md — swaad Setu: Single-Tenant → Multi-Tenant Migration + Subscription System**
 
 \*Last updated: **Nov 2025\***
 
@@ -16,11 +16,11 @@ This is exactly the kind of file teams keep in their repo for clarity.
 
 # 📌 1. INTRODUCTION
 
-SwadSetu originally started as a **single-restaurant backend**, where all data (orders, bills, tables, menu, staff) belonged to **one business instance**.
+swaadSetu originally started as a **single-restaurant backend**, where all data (orders, bills, tables, menu, staff) belonged to **one business instance**.
 
 But over time, the goal expanded:
 
-- Offer SwadSetu to **many restaurants**
+- Offer swaadSetu to **many restaurants**
 - Each restaurant must have **isolated data**
 - One server + one DB must support **100+ tenants**
 - Provide **separate admin/staff login per tenant**
@@ -85,7 +85,7 @@ No concept of _which_ restaurant the token belongs to.
 
 # 📌 3. WHAT WE HAVE NOW (Multi-Tenant Engine)
 
-SwadSetu now runs as a true SaaS backend.
+swaadSetu now runs as a true SaaS backend.
 
 ---
 
@@ -255,7 +255,6 @@ Contains:
 - feature flags
 - limit values
 - helper functions:
-
   - `isFeatureAllowed`
   - `getLimit`
   - `getPlan`
@@ -424,7 +423,7 @@ Exclude: node_modules, uploads, .git, .next; MaxDepth: 5
 ├── .env
 ├── CONTEXT.md
 ├── SUBSCRIPTION_PATCHES.md
-├── Swad Setu - Full API.postman_collection.json
+├── swaad Setu - Full API.postman_collection.json
 ├── app.js
 ├── debug-db.js
 ├── package-lock.json
