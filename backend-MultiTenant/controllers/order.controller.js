@@ -276,7 +276,7 @@ async function createOrder(req, res, next) {
         restaurantId: rid,
         tableId,
         sessionId,
-        status: { $in: ["placed", "pending", "open"] },
+        status: { $nin: ["completed", "cancelled"] },
       });
     }
 
@@ -368,6 +368,7 @@ async function createOrder(req, res, next) {
       existingOrder.serviceChargeAmount = totals.serviceChargeAmount;
       existingOrder.discountAmount = totals.discountAmount;
       existingOrder.totalAmount = totals.total;
+      existingOrder.status = "placed";
       existingOrder.updatedAt = new Date();
 
       await existingOrder.save();

@@ -418,7 +418,7 @@ export default function RestaurantMenuApp({
                   addItem(newItem);
                   setModalOpen(false);
                   setShowSuccessPop(true);
-                  setTimeout(() => setShowSuccessPop(false), 1500);
+                  setTimeout(() => setShowSuccessPop(false), 500);
                 }}
                 className="flex-1 py-2 rounded-lg bg-yellow-600 text-white hover:bg-yellow-700 font-bold"
               >

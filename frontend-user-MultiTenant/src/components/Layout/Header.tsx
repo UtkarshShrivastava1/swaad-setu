@@ -1,4 +1,4 @@
-import { ArrowLeft, Clock, MapPin, BellRing, CheckCircle2, AlertCircle } from "lucide-react";
+import { ArrowLeft, Clock, MapPin, BellRing, CheckCircle2, AlertCircle, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { createCall } from "../../api/call.api";
@@ -60,7 +60,7 @@ export default function Header({
     if (confirm("Are you sure you want to logout?")) {
       sessionStorage.clear();
       localStorage.clear();
-      navigate("/"); // Go back to homepage
+      navigate(`/t/${rid}`); // Go back to tenant's landing page
     }
   };
 
@@ -104,6 +104,13 @@ export default function Header({
             {callActive && (
               <span className="ml-1 bg-green-600 text-white rounded-full px-2 py-0.5 text-[10px]">Active</span>
             )}
+             <button
+            onClick={handleLogout}
+            title="Logout"
+            className="bg-black/80 hover:bg-black/10 text-[#ffbe00] px-3 py-1.5 rounded-md flex items-center gap-1 text-xs sm:text-sm font-medium transition"
+          >
+            <LogOut size={14} className="text-[#ffbe00]" />
+          </button>
           </div>
         </div>
 
@@ -173,7 +180,7 @@ export default function Header({
             title="Logout"
             className="bg-black/80 hover:bg-black/10 text-[#ffbe00] px-3 py-1.5 rounded-md flex items-center gap-1 text-xs sm:text-sm font-medium transition"
           >
-            Logout
+            <LogOut size={14} className="text-[#ffbe00]" />
           </button>
         </div>
       </div>

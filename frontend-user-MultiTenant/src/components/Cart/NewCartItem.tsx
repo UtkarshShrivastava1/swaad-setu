@@ -1,7 +1,7 @@
 import { ArrowLeft, Minus, Phone, Plus, Trash } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { createOrder, type Order } from "../../api/order.api";
+import { createOrder } from "../../api/order.api";
 import { useTable } from "../../context/TableContext";
 import { useTenant } from "../../context/TenantContext";
 import { useCart } from "../../stores/cart.store"; // Import useCart from Zustand
@@ -46,7 +46,7 @@ const safeParse = <T,>(json: string | null, fallback: T): T => {
 const getOrderId = (res: ApiOrder): string | null =>
   res?.order?._id || res?.data?.order?._id || res?._id || null;
 
-const NewCartItem = () => {
+const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
   const { items: cartItems, clear, updateQty, removeItem } = useCart();
   const [cartCount, setCartCount] = useState(0); // Still need this for display, derived from Zustand
   const [showSuccessPop, setShowSuccessPop] = useState(false);
@@ -56,9 +56,6 @@ const NewCartItem = () => {
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerContact, setCustomerContact] = useState("");
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
-  const [activeOrderForTable, setActiveOrderForTable] = useState<Order | null>(
-    null
-  ); // New state for active order
   const navigate = useNavigate();
   const { rid } = useTenant();
   const { tableId } = useTable();
@@ -78,32 +75,7 @@ const NewCartItem = () => {
     );
   }, [cartItems]);
 
-  // Check for existing active order on mount or tableId/sessionId change
-  useEffect(() => {
-    const storedOngoingOrders = safeParse<ApiOrder[]>(
-      sessionStorage.getItem("ongoingOrders"),
-      []
-    );
-    const currentSessionId = sessionStorage.getItem("resto_session_id");
-
-    const foundOrder = storedOngoingOrders.find((order) => {
-      const orderSessionId = order.order?.sessionId || order.data?.order?.sessionId;
-      const orderTableId = order.order?.tableId || order.data?.order?.tableId; // Assuming tableId might be stored within the order object
-
-      // Match by sessionId and optionally by tableId if available
-      return orderSessionId === currentSessionId && (!tableId || orderTableId === tableId);
-    });
-
-    if (foundOrder) {
-      setActiveOrderForTable(foundOrder);
-      setOrderExists(true);
-    } else {
-      setActiveOrderForTable(null);
-      setOrderExists(false);
-    }
-  }, [tableId, sessionId, rid]); // Re-run if tableId or sessionId changes
-
-  const [orderExists, setOrderExists] = useState(false);
+  const orderExists = !!activeOrder;
 
   const totalAmount = cartItems.reduce(
     (sum, item) => sum + item.price * item.quantity,
@@ -130,24 +102,24 @@ const NewCartItem = () => {
     setShowCustomerModal(false);
     setIsPlacingOrder(true);
 
-          const payload = {
-            sessionId,
-            customerName,
-            customerContact: cleanedContact,
-            customerEmail,
-            isCustomerOrder: true,
-            ...(activeOrderForTable && { orderId: activeOrderForTable._id }), // Conditionally add orderId
-            items: cartItems.map((item) => ({
-              menuItemId: item.itemId || item._id,
-              name: item.name,
-              quantity: item.quantity,
-              notes: item.notes || "",
-            })),
-          };
-      
-          try {
-            const res: ApiOrder = await createOrder(rid, tableId!, payload);
-            console.log("✅ Order created/merged:", res);
+    const payload = {
+      sessionId,
+      customerName,
+      customerContact: cleanedContact,
+      customerEmail,
+      isCustomerOrder: true,
+      ...(activeOrder?.order?._id && { orderId: activeOrder.order._id }), // Conditionally add orderId
+      items: cartItems.map((item) => ({
+        menuItemId: item.itemId || item._id,
+        name: item.name,
+        quantity: item.quantity,
+        notes: item.notes || "",
+      })),
+    };
+
+    try {
+      const res: ApiOrder = await createOrder(rid, tableId!, payload);
+      console.log("✅ Order created/merged:", res);
       clear();
       setShowSuccessPop(true);
 
@@ -209,7 +181,7 @@ const NewCartItem = () => {
       customerContact: cleanedContact,
       customerEmail: email,
       isCustomerOrder: true,
-      ...(activeOrderForTable && { orderId: activeOrderForTable._id }), // Conditionally add orderId
+      ...(activeOrder?.order?._id && { orderId: activeOrder.order._id }), // Conditionally add orderId
       items: cartItems.map((item) => ({
         menuItemId: item.itemId || item._id,
         name: item.name,
@@ -433,7 +405,7 @@ const NewCartItem = () => {
 
             <input
               type="email"
-              placeholder="Your Email"
+              placeholder="Your Email for billing"
               value={customerEmail}
               onChange={(e) => setCustomerEmail(e.target.value)}
               className="w-full border px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-400"

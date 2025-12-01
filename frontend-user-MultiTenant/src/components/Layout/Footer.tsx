@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { FileText, ShoppingCart, Utensils } from "lucide-react";
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useTenant } from "../../context/TenantContext";
 
@@ -8,19 +8,17 @@ type FooterNavProps = {
   cartCount?: number;
 };
 
-export default function FooterNav({
-  cartCount = 0,
-}: FooterNavProps) {
+export default function FooterNav({ cartCount = 0 }: FooterNavProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { rid } = useTenant();
 
   const activeTab = useMemo(() => {
     const path = location.pathname.split("/").pop();
+    if (location.pathname.includes("/order/")) return "myorder";
     switch (path) {
       case "menu":
         return "menu";
-      case "order":
       case "bill":
         return "myorder";
       case "viewcart":
@@ -30,28 +28,51 @@ export default function FooterNav({
     }
   }, [location.pathname]);
 
-  const lastOrderHref = useMemo(() => {
-    try {
-      const storedOrdersString =
-        sessionStorage.getItem("ongoingOrders") ||
-        localStorage.getItem("ongoingOrders");
-      if (!storedOrdersString) return `/t/${rid}/bill`;
+  const handleMyOrderClick = () => {
+    const ongoingRaw = sessionStorage.getItem("ongoingOrders");
 
-      const parsed = JSON.parse(storedOrdersString);
-      const orders = Array.isArray(parsed) ? parsed : [parsed];
-      const latest = orders[orders.length - 1];
-      const orderId = latest?.order?._id || latest?._id;
-      return orderId ? `/t/${rid}/order/${orderId}` : `/t/${rid}/bill`;
-    } catch (e) {
-      console.error("⚠️ Failed to read ongoingOrders:", e);
-      return `/t/${rid}/bill`;
+    if (!ongoingRaw) {
+      alert("No active order found.");
+      return navigate(`/t/${rid}/menu`);
     }
-  }, [rid]);
+
+    try {
+      const ongoing = JSON.parse(ongoingRaw);
+
+      const activeOrderId = ongoing?.[0]?.order?._id;
+
+      if (activeOrderId) {
+        navigate(`/t/${rid}/order/${activeOrderId}`);
+      } else {
+        alert("No active order found.");
+        navigate(`/t/${rid}/menu`);
+      }
+    } catch (err) {
+      console.error("Invalid ongoingOrders data", err);
+      alert("Order data corrupted.");
+      navigate(`/t/${rid}/menu`);
+    }
+  };
 
   const tabs = [
-    { id: "menu", label: "Menu", icon: Utensils, href: `/t/${rid}/menu` },
-    { id: "cart", label: "Cart", icon: ShoppingCart, href: `/t/${rid}/viewcart` },
-    { id: "myorder", label: "My Order", icon: FileText, href: lastOrderHref },
+    {
+      id: "menu",
+      label: "Menu",
+      icon: Utensils,
+      action: () => navigate(`/t/${rid}/menu`),
+    },
+    {
+      id: "cart",
+      label: "Cart",
+      icon: ShoppingCart,
+      action: () => navigate(`/t/${rid}/viewcart`),
+    },
+    {
+      id: "myorder",
+      label: "My Order",
+      icon: FileText,
+      action: handleMyOrderClick,
+    },
   ];
 
   return (
@@ -73,13 +94,9 @@ export default function FooterNav({
           const isActive = activeTab === tab.id;
 
           return (
-            <a
+            <button
               key={tab.id}
-              href={tab.href}
-              onClick={(e) => {
-                e.preventDefault();
-                navigate(tab.href);
-              }}
+              onClick={tab.action}
               className={`relative flex flex-col items-center justify-center transition-all duration-300 ${
                 isActive
                   ? "text-yellow-500 scale-105"
@@ -134,7 +151,7 @@ export default function FooterNav({
               {isActive && (
                 <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-[3px] rounded-full bg-gradient-to-r from-yellow-400 to-amber-300 shadow-sm" />
               )}
-            </a>
+            </button>
           );
         })}
       </div>

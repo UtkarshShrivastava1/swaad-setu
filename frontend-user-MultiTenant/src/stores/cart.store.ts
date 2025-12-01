@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { persist, createJSONStorage } from "zustand/middleware";
 import type { CartItem } from "../types/types";
 
 type State = {
@@ -40,6 +40,9 @@ export const useCart = create<State>()(
       clear: () => set({ items: [] }),
       subtotal: () => get().items.reduce((s, i) => s + i.price * i.quantity, 0),
     }),
-    { name: "resto_cart_v1" }
+    {
+      name: "resto_cart_v1",
+      storage: createJSONStorage(() => sessionStorage),
+    }
   )
 );

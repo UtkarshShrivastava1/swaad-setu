@@ -10,8 +10,8 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Order } from "../../api/order.api";
 import { getOrderById } from "../../api/order.api";
-import { useTenant } from "../../context/TenantContext";
 import { useTable } from "../../context/TableContext";
+import { useTenant } from "../../context/TenantContext";
 
 export default function OrderView({ orderId }: { orderId: string }) {
   const [order, setOrder] = useState<Order | null>(null);
@@ -22,31 +22,12 @@ export default function OrderView({ orderId }: { orderId: string }) {
   const { tableId } = useTable(); // Access tableId from useTable
   const sessionId = sessionStorage.getItem("resto_session_id");
 
-  // Effect to handle order status completion
-  useEffect(() => {
-    if (order?.status === "served") { // Assuming "served" means done for customer side
-      // Clear session storage relevant to the order and table
-      sessionStorage.removeItem("resto_session_id");
-      if (order.tableId) { // Use order.tableId for specific order context
-        sessionStorage.removeItem(`customerInfo_${order.tableId}`);
-      }
-      // Remove this order from ongoing orders
-      const storedOngoingOrders = JSON.parse(sessionStorage.getItem("ongoingOrders") || "[]");
-      const updatedOngoingOrders = storedOngoingOrders.filter((o: any) => o._id !== orderId);
-      sessionStorage.setItem("ongoingOrders", JSON.stringify(updatedOngoingOrders));
-
-      // Navigate back to the landing page/homepage
-      navigate(`/t/${rid}`);
-    }
-  }, [order, navigate, rid, orderId]);
-
   // --------------------- Fetch ---------------------
   const fetchOrder = async () => {
     if (!orderId || !rid) return;
     try {
       setLoading(true);
-      const res = await getOrderById(rid, orderId, sessionId!);
-      console.log(res)
+            const res = await getOrderById(rid, orderId, sessionId!);
       setOrder(res.order);
       setError(null);
     } catch (err) {
@@ -62,6 +43,14 @@ export default function OrderView({ orderId }: { orderId: string }) {
     const interval = setInterval(fetchOrder, 15000);
     return () => clearInterval(interval);
   }, [orderId, rid]);
+
+  // Navigate to root page if order is completed and paid
+  useEffect(() => {
+    if (order && order.status === "completed" && order.paymentStatus === "paid") {
+      console.log("Order completed and paid, navigating to root.");
+      navigate(`/t/${rid}`);
+    }
+  }, [order, rid, navigate]);
 
   // --------------------- Loading / Error States ---------------------
   if (loading) {
@@ -119,10 +108,15 @@ export default function OrderView({ orderId }: { orderId: string }) {
       <div className="inline-block bg-[#ffbe00] border-b border-[#051224]/20 shadow-lg sticky top-0 z-20">
         <div className="flex items-center justify-between gap-3 px-4 py-3">
           <div className="flex items-center gap-2">
-            <button onClick={() => navigate(`/t/${rid}/menu`)} className="p-1.5 sm:p-2 rounded-full hover:bg-white/30 transition-colors">
+            <button
+              onClick={() => navigate(`/t/${rid}/menu`)}
+              className="p-1.5 sm:p-2 rounded-full hover:bg-white/30 transition-colors"
+            >
               <span className="text-white">←</span>
             </button>
-            <span className="text-white font-bold text-base sm:text-lg">Your Order</span>
+            <span className="text-white font-bold text-base sm:text-lg">
+              Your Order
+            </span>
           </div>
         </div>
       </div>

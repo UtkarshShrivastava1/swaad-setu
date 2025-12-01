@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+import { Phone } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createOrder, getOrder } from "../../api/order.api";
 import { useTable } from "../../context/TableContext";
 import { useTenant } from "../../context/TenantContext";
 import { useCart } from "../../stores/cart.store";
 import TablePickerModal from "../TableSelect/TablePickerModal";
-import { Phone } from "lucide-react";
 
 type ApiOrder =
   | {
@@ -13,7 +13,7 @@ type ApiOrder =
         _id?: string;
         sessionId?: string;
       };
-      data?: { order?: { _id?: string; sessionId?: string } };
+      data?: { _id?: string; order?: { _id?: string; sessionId?: string } };
       _id?: string;
     }
   | any;
@@ -27,7 +27,11 @@ const safeParse = <T,>(json: string | null, fallback: T): T => {
 };
 
 const getOrderId = (res: ApiOrder): string | null =>
-  res?.order?._id || res?.data?.order?._id || res?._id || null;
+  res?.order?._id ||
+  res?.data?.order?._id ||
+  res?._id ||
+  res?.data?._id ||
+  null;
 
 export default function CartDrawer() {
   const items = useCart((s) => s.items);
@@ -84,7 +88,13 @@ export default function CartDrawer() {
     // Check for existing active order
     try {
       setLoading(true);
-      const existingOrders = await getOrder(rid, sessionId);
+      const ordersResponse = await getOrder(rid, sessionId);
+      const existingOrders = Array.isArray(ordersResponse)
+        ? ordersResponse
+        : ordersResponse
+          ? [ordersResponse]
+          : [];
+
       const activeOrder = existingOrders.find(
         (o) => o.status !== "completed" && o.status !== "cancelled"
       );
@@ -94,16 +104,19 @@ export default function CartDrawer() {
           activeOrder.customerName,
           activeOrder.customerContact || "",
           activeOrder.customerEmail,
-          false
+          false,
+          activeOrder
         );
         return;
       }
     } catch (error) {
-      console.warn("No existing order found or failed to fetch, proceeding to new order flow:", error);
+      console.warn(
+        "No existing order found or failed to fetch, proceeding to new order flow:",
+        error
+      );
     } finally {
       setLoading(false);
     }
-
 
     const savedInfo = sessionStorage.getItem(`customerInfo_${tableId}`);
     if (savedInfo) {
@@ -137,7 +150,12 @@ export default function CartDrawer() {
     }
 
     setShowCustomerModal(false);
-    await placeOrderWithDetails(customerName, cleanedContact, customerEmail, true);
+    await placeOrderWithDetails(
+      customerName,
+      cleanedContact,
+      customerEmail,
+      true
+    );
   };
 
   const handleConfirmOrderWithSavedInfo = async (
@@ -152,7 +170,8 @@ export default function CartDrawer() {
     name: string,
     contact: string,
     email: string,
-    isNewCustomer: boolean
+    isNewCustomer: boolean,
+    activeOrder: ApiOrder | null = null
   ) => {
     const payload = {
       sessionId,
@@ -160,6 +179,7 @@ export default function CartDrawer() {
       customerContact: contact,
       customerEmail: email,
       isCustomerOrder: true,
+      ...(activeOrder?.order?._id && { orderId: activeOrder.order._id }), // Conditionally add orderId
       items: items.map((i) => ({
         menuItemId: i.itemId,
         name: i.name,
@@ -185,13 +205,16 @@ export default function CartDrawer() {
 
       const orderId = getOrderId(res);
 
-      clear();
-
       if (orderId) {
+        sessionStorage.setItem("active_order_id", orderId);
+        console.log("Active order ID set in CartDrawer:", orderId);
+        clear();
         navigate(`/t/${rid}/order/${orderId}`);
       } else {
         alert(
-          "Order placed but no order ID returned. Please check your orders."
+          `Order placed but no order ID returned. Please check your orders. Response: ${JSON.stringify(
+            res
+          )}`
         );
       }
     } catch (err: any) {
@@ -256,7 +279,7 @@ export default function CartDrawer() {
 
             <input
               type="email"
-              placeholder="Your Email"
+              placeholder="Your Email for billing"
               value={customerEmail}
               onChange={(e) => setCustomerEmail(e.target.value)}
               className="w-full border px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-400"

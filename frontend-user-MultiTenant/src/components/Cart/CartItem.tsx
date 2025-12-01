@@ -1,9 +1,9 @@
-import { Minus, Phone,Trash, Plus } from "lucide-react";
+import { Minus, Phone, Plus, Trash } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createOrder, getOrder } from "../../api/order.api";
-import { useTenant } from "../../context/TenantContext";
 import { useTable } from "../../context/TableContext";
+import { useTenant } from "../../context/TenantContext";
 import TablePickerModal from "../TableSelect/TablePickerModal";
 
 /** ---------- Types ---------- */
@@ -159,7 +159,10 @@ export default function CartItem() {
         return;
       }
     } catch (error) {
-      console.warn("No existing order found or failed to fetch, proceeding to new order flow:", error);
+      console.warn(
+        "No existing order found or failed to fetch, proceeding to new order flow:",
+        error
+      );
     } finally {
       setIsPlacingOrder(false);
     }
@@ -320,20 +323,27 @@ export default function CartItem() {
     return () =>
       window.removeEventListener("clearTableSession", handleClearCustomerInfo);
   }, [tableId]);
-  
+
   // ... rest of the component is the same
   // ...
-  
+
   return (
     <div className="bg-white min-h-screen pb-32 flex flex-col">
-      {showTablePicker && <TablePickerModal onClose={() => setShowTablePicker(false)} />}
+      {showTablePicker && (
+        <TablePickerModal onClose={() => setShowTablePicker(false)} />
+      )}
       <div className="inline-block bg-[#ffbe00] border-b border-[#051224]/20 shadow-lg sticky top-0 z-20">
         <div className="flex items-center justify-between gap-3 px-4 py-3">
           <div className="flex items-center gap-2">
-            <button onClick={() => navigate(-1)} className="p-1.5 sm:p-2 rounded-full hover:bg-white/30 transition-colors">
+            <button
+              onClick={() => navigate(-1)}
+              className="p-1.5 sm:p-2 rounded-full hover:bg-white/30 transition-colors"
+            >
               <span className="text-white">←</span>
             </button>
-            <span className="text-white font-bold text-base sm:text-lg">Cart</span>
+            <span className="text-white font-bold text-base sm:text-lg">
+              Cart
+            </span>
           </div>
         </div>
       </div>
@@ -348,98 +358,102 @@ export default function CartItem() {
             </h2>
 
             {/* Items */}
-            {cartItems.length > 0 ? cartItems.map((item) => (
-          <div key={item._id} className="p-3 border-t-2 border-b-2 ">
-            <div className="flex gap-4 items-center">
-              <img
-                src={item.image || undefined}
-                alt={item.name}
-                className="w-20 h-auto rounded-xl object-cover text-black border-2 "
-              />
-              <div className="flex-1">
-                {/* First row: Name and price */}
-                <div className="flex justify-between items-center">
-                  <span className="font-bold text-gray-900 text-base truncate">
-                    {item.name}
-                  </span>
-             
-                  
-                    <span className="font-bold text-orange-600 text-lg mb-1">
-                      ₹{item.price * item.quantity}
-                    </span>
-                  
+            {cartItems.length > 0 ? (
+              cartItems.map((item) => (
+                <div key={item._id} className="p-3 border-t-2 border-b-2 ">
+                  <div className="flex gap-4 items-center">
+                    <img
+                      src={item.image || undefined}
+                      alt={item.name}
+                      className="w-20 h-auto rounded-xl object-cover text-black border-2 "
+                    />
+                    <div className="flex-1">
+                      {/* First row: Name and price */}
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold text-gray-900 text-base truncate">
+                          {item.name}
+                        </span>
+
+                        <span className="font-bold text-orange-600 text-lg mb-1">
+                          ₹{item.price * item.quantity}
+                        </span>
+                      </div>
+                      {/* Second row: Qty controls */}
+                      <div className="flex items-center gap-0 mt-3">
+                        <button
+                          onClick={() => updateQuantity(item._id, -1)}
+                          className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-black text-xl hover:bg-gray-200 cursor-pointer"
+                        >
+                          <Minus size={15} strokeWidth={2.5} />
+                        </button>
+                        <span className="px-4 text-base font-semibold text-blue-950">
+                          {item.quantity}
+                        </span>
+                        <button
+                          onClick={() => updateQuantity(item._id, 1)}
+                          className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-black text-xl hover:bg-gray-200 cursor-pointer"
+                        >
+                          <Plus size={15} strokeWidth={2.5} />
+                        </button>
+                        {/* Remove */}
+                        <button
+                          onClick={() => removeItem(item._id)}
+                          className="ml-2 p-2 text-gray-500 hover:text-red-500 hover:bg-red-50 rounded-full cursor-pointer"
+                          title="Remove item"
+                        >
+                          <Trash size={16} strokeWidth={2.2} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                {/* Second row: Qty controls */}
-                <div className="flex items-center gap-0 mt-3">
-                  <button
-                    onClick={() => updateQuantity(item._id, -1)}
-                    className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-black text-xl hover:bg-gray-200 cursor-pointer"
-                  >
-                    <Minus size={15} strokeWidth={2.5} />
-                  </button>
-                  <span className="px-4 text-base font-semibold text-blue-950">{item.quantity}</span>
-                  <button
-                    onClick={() => updateQuantity(item._id, 1)}
-                    className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-black text-xl hover:bg-gray-200 cursor-pointer"
-                  >
-                    <Plus size={15} strokeWidth={2.5} />
-                  </button>
-                  {/* Remove */}
-                  <button
-                    onClick={() => removeItem(item._id)}
-                    className="ml-2 p-2 text-gray-500 hover:text-red-500 hover:bg-red-50 rounded-full cursor-pointer"
-                    title="Remove item"
-                  >
-                    <Trash size={16} strokeWidth={2.2} />
-                  </button>
+              ))
+            ) : (
+              <div className="text-center py-12">
+                <div className="rounded-full bg-gray-100 p-4 mb-3 text-3xl">
+                  🛒
                 </div>
+                <h2 className="font-bold text-xl text-gray-700 mb-1">
+                  Your cart is empty
+                </h2>
+                <button
+                  className="mt-2 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold rounded-lg px-6 py-2 transition cursor-pointer"
+                  onClick={() => navigate(`/t/${rid}/menu`)}
+                >
+                  Browse Menu
+                </button>
               </div>
-            </div>
-          </div>
-        )) : (
-          <div className="text-center py-12">
-            <div className="rounded-full bg-gray-100 p-4 mb-3 text-3xl">🛒</div>
-            <h2 className="font-bold text-xl text-gray-700 mb-1">
-              Your cart is empty
-            </h2>
-            <button
-              className="mt-2 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold rounded-lg px-6 py-2 transition cursor-pointer"
-              onClick={() => navigate(`/t/${rid}/menu`)}
-            >
-              Browse Menu
-            </button>
-          </div>
-        )}
+            )}
 
             {/* Totals */}
-           {cartItems.length > 0 && (
-          <div className="pt-4 pb-6 px-8 bg-gray-50 rounded-b-2xl">
-            <div className="flex justify-between font-medium text-gray-600 mb-2">
-              <span>Subtotal</span>
-              <span>₹{totalAmount}</span>
-            </div>
-            <div className="flex justify-between font-medium text-gray-600 mb-2">
-              <span>Delivery</span>
-              <span>₹10.50</span>
-            </div>
-            <div className="flex justify-between font-bold text-gray-900 text-lg mb-1">
-              <span>Total</span>
-              <span>₹{(totalAmount + 10.5).toFixed(2)}</span>
-            </div>
-            <button
-              className="w-full py-3 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-white font-bold text-lg mt-3 shadow transition cursor-pointer"
-                 onClick={initiatePlaceOrder}
-            >
-              Place Order
-            </button>
-            <button
-              className="w-full py-2 rounded-lg bg-white border mt-2 font-medium text-gray-700 hover:bg-gray-100 cursor-pointer"
-              onClick={clearCart}
-            >
-              Clear Cart
-            </button>
-          </div>
-        )}
+            {cartItems.length > 0 && (
+              <div className="pt-4 pb-6 px-8 bg-gray-50 rounded-b-2xl">
+                <div className="flex justify-between font-medium text-gray-600 mb-2">
+                  <span>Subtotal</span>
+                  <span>₹{totalAmount}</span>
+                </div>
+                <div className="flex justify-between font-medium text-gray-600 mb-2">
+                  <span>Delivery</span>
+                  <span>₹10.50</span>
+                </div>
+                <div className="flex justify-between font-bold text-gray-900 text-lg mb-1">
+                  <span>Total</span>
+                  <span>₹{(totalAmount + 10.5).toFixed(2)}</span>
+                </div>
+                <button
+                  className="w-full py-3 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-white font-bold text-lg mt-3 shadow transition cursor-pointer"
+                  onClick={initiatePlaceOrder}
+                >
+                  Place Order
+                </button>
+                <button
+                  className="w-full py-2 rounded-lg bg-white border mt-2 font-medium text-gray-700 hover:bg-gray-100 cursor-pointer"
+                  onClick={clearCart}
+                >
+                  Clear Cart
+                </button>
+              </div>
+            )}
 
             {/* Actions */}
             {/* <div className="flex gap-2">
@@ -519,7 +533,7 @@ export default function CartItem() {
 
             <input
               type="email"
-              placeholder="Your Email"
+              placeholder="Your Email for billing"
               value={customerEmail}
               onChange={(e) => setCustomerEmail(e.target.value)}
               className="w-full border px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-400 text-black"

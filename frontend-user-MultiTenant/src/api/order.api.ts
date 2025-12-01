@@ -85,9 +85,20 @@ export async function getOrder(
   rid: string,
   sessionId: string
 ): Promise<Order[]> {
-  return api<Order[]>(`/api/${rid}/orders/history?sessionId=${sessionId}`, {
-    method: "GET",
-  });
+  const result = await api<Order[] | Order>(
+    `/api/${rid}/orders/history?sessionId=${sessionId}`,
+    {
+      method: "GET",
+    }
+  );
+
+  if (Array.isArray(result)) {
+    return result;
+  }
+  if (result) {
+    return [result as Order];
+  }
+  return [];
 }
 
 // ====== GET SINGLE ORDER BY ID (Public) ======
