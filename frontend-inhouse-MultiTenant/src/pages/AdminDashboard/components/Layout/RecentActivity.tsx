@@ -1,40 +1,52 @@
 import { motion } from "framer-motion";
 import React, { useContext, useEffect, useState } from "react";
 import { getOrder, type Order } from "../../../../api/admin/order.api";
+import { getTables, type ApiTable } from "../../../../api/admin/table.api";
 import { TenantContext } from "../../../../context/TenantContext";
+import { FaBox, FaRupeeSign, FaUser } from "react-icons/fa";
+import { MdTableRestaurant } from "react-icons/md";
 
 export default function RecentActivity() {
   const [orders, setOrders] = useState<Order[]>([]);
+  const [tables, setTables] = useState<Map<string, number>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const tenantContext = useContext(TenantContext);
   const rid = tenantContext?.rid;
 
   useEffect(() => {
-    async function fetchOrders() {
+    async function fetchData() {
       if (!rid) return;
       try {
         setLoading(true);
-        const result = await getOrder(rid);
-        // Sort orders by createdAt (most recent first)
-        const sorted = [...result].sort(
+        const [orderResult, tableResult] = await Promise.all([
+          getOrder(rid),
+          getTables(rid),
+        ]);
+
+        const sortedOrders = [...orderResult].sort(
           (a, b) =>
             new Date(b.createdAt?.$date || "").getTime() -
             new Date(a.createdAt?.$date || "").getTime()
         );
-        setOrders(sorted.slice(0, 6)); // Show latest 6
+        setOrders(sortedOrders.slice(0, 6));
+
+        const tableMap = new Map(
+          tableResult.map((table) => [table._id, table.tableNumber])
+        );
+        setTables(tableMap);
+
         setError("");
       } catch (err: any) {
-        console.error("❌ Failed to fetch recent orders:", err);
+        console.error("❌ Failed to fetch recent data:", err);
         setError("Failed to load recent activity.");
       } finally {
         setLoading(false);
       }
     }
 
-    fetchOrders();
-    // Auto-refresh every 30s for live updates
-    const interval = setInterval(fetchOrders, 30000);
+    fetchData();
+    const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
   }, [rid]);
 
@@ -72,6 +84,23 @@ export default function RecentActivity() {
     }
   };
 
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case "placed":
+        return "New Order Placed";
+      case "preparing":
+        return "Order is Being Prepared";
+      case "ready":
+        return "Order Ready to Serve";
+      case "completed":
+        return "Order Completed";
+      case "cancelled":
+        return "Order Cancelled";
+      default:
+        return "Order Updated";
+    }
+  };
+
   return (
     <div className="mt-6 w-full">
       <h2 className="px-2 sm:px-0 text-lg font-semibold text-gray-900 mb-4">
@@ -93,49 +122,74 @@ export default function RecentActivity() {
           {orders.map((order) => (
             <motion.div
               key={order._id?.$oid}
-              whileHover={{ scale: 1.02, y: -2 }}
-              transition={{ duration: 0.2 }}
-              className="bg-white border border-gray-100 shadow-sm hover:shadow-md rounded-xl p-4 flex items-center justify-between"
+              whileHover={{ scale: 1.02, y: -4 }}
+              transition={{ duration: 0.2, ease: "easeInOut" }}
+              className="bg-white border border-gray-200 shadow-sm hover:shadow-lg rounded-xl p-4 flex flex-col justify-between"
             >
-              <div className="flex items-center gap-3">
-                {/* Icon Bubble */}
-                <div
-                  className={`w-10 h-10 flex items-center justify-center rounded-full text-lg font-bold ${getStatusColor(
-                    order.status
-                  )}`}
-                >
-                  {getStatusIcon(order.status)}
-                </div>
-
-                {/* Text Content */}
-                <div>
-                  <div className="text-sm font-semibold text-gray-800">
-                    {order.status === "placed"
-                      ? "New Order Placed"
-                      : order.status === "preparing"
-                      ? "Order is Being Prepared"
-                      : order.status === "ready"
-                      ? "Order Ready to Serve"
-                      : order.status === "completed"
-                      ? "Order Completed"
-                      : order.status === "cancelled"
-                      ? "Order Cancelled"
-                      : "Order Updated"}
+              {/* Card Header */}
+              <div className="flex items-start justify-between w-full mb-3">
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`w-10 h-10 flex items-center justify-center rounded-full text-xl ${getStatusColor(
+                      order.status
+                    )}`}
+                  >
+                    {getStatusIcon(order.status)}
                   </div>
-                  <div className="text-xs text-gray-500">
-                    #{(order._id?.$oid || "").slice(-6).toUpperCase()} · 
-                    {order.customerName || "Guest"}
+                  <div>
+                    <p className="font-semibold text-gray-800 text-sm">
+                      {getStatusText(order.status)}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      #{`${(order._id?.$oid || "").slice(-6)}`}
+                    </p>
+                  </div>
+                </div>
+                <span className="text-xs text-gray-400 whitespace-nowrap pt-1">
+                  {new Date(order.createdAt?.$date || "").toLocaleTimeString(
+                    [],
+                    {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    }
+                  )}
+                </span>
+              </div>
+
+              {/* Card Body with Details */}
+              <div className="w-full space-y-2 text-sm text-gray-600">
+                <div className="flex items-center gap-2">
+                  <MdTableRestaurant className="text-gray-400" />
+                  <span>
+                    For Table{" "}
+                    <strong>{tables.get(order.tableId) || order.tableId}</strong>
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <FaBox className="text-gray-400" />
+                    <span>
+                      {order.items.length}{" "}
+                      {order.items.length > 1 ? "items" : "item"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 font-semibold text-gray-700">
+                    <FaRupeeSign size={12} />
+                    <span>{order.totalAmount.toFixed(2)}</span>
                   </div>
                 </div>
               </div>
 
-              {/* Time */}
-              <span className="text-[11px] text-gray-400 ml-3 whitespace-nowrap">
-                {new Date(order.createdAt?.$date || "").toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </span>
+              {/* Card Footer */}
+              <div className="border-t border-gray-100 mt-3 pt-2 text-xs text-gray-500 flex items-center gap-2">
+                <FaUser className="text-gray-400" />
+                <span>
+                  By:{" "}
+                  <strong>
+                    {order.staffAlias || order.customerName || "Guest"}
+                  </strong>
+                </span>
+              </div>
             </motion.div>
           ))}
         </div>

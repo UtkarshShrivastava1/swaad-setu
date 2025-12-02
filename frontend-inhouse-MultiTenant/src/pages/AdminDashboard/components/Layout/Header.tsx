@@ -1,4 +1,5 @@
-import { Bell, LogOut, PlusCircle, Search } from "lucide-react";
+import { Bell, LogOut, PlusCircle, Search, Utensils } from "lucide-react";
+import { Link, useParams } from "react-router-dom";
 
 export default function Header({
   searchQuery,
@@ -13,6 +14,7 @@ export default function Header({
   onLogout: () => void;
   waiterCallCount: number;
 }) {
+  const { rid } = useParams();
   const PLACE_ORDER_LINK =
     import.meta.env.VITE_USER_LINK || "http://localhost:5173/";
 
@@ -53,6 +55,15 @@ export default function Header({
 
           {/* ---------- RIGHT: Actions ---------- */}
           <div className="flex items-center gap-2 sm:gap-3">
+            {/* 🍽️ Menu Button */}
+            <Link
+              to={`/t/${rid}/admin/menu`}
+              className="hidden sm:flex items-center gap-2 bg-[#051224] hover:bg-[#0a1a35] rounded-xl px-4 py-2.5 text-sm sm:text-base font-semibold text-[#ffbe00] shadow-md hover:shadow-xl transition-all"
+            >
+              <Utensils size={18} />
+              Menu
+            </Link>
+
             {/* ➕ Place Order Button */}
             <a
               href={PLACE_ORDER_LINK}

@@ -3,10 +3,9 @@ import { useContext, useEffect, useState } from "react";
 import {
   addCategory,
   addMenuItem,
-  createMenu,
   deleteCategory,
   deleteMenuItem,
-  fetchMenu,
+  getMenu,
   restoreMenuItem,
 } from "../../../../api/admin/menu.api";
 import { TenantContext } from "../../../../context/TenantContext";
@@ -53,7 +52,7 @@ export default function MenuBuilder({ onClose }: { onClose: () => void }) {
     if (!restaurantId) return;
     (async () => {
       try {
-        const data = (await fetchMenu(restaurantId)) as any;
+        const data = (await getMenu(restaurantId)) as any;
         if (data.menu) setItems(data.menu);
         if (data.categories) setCategories(data.categories);
         if (data.branding?.title) setTitle(data.branding.title);
@@ -135,33 +134,6 @@ export default function MenuBuilder({ onClose }: { onClose: () => void }) {
     if (!confirm("Delete this category?")) return;
     await deleteCategory(restaurantId, categoryId);
     setCategories((prev) => prev.filter((c) => c._id !== categoryId));
-  };
-
-  /* ---------------------------------------------------------------------- */
-  // Save all changes (bulk)
-  const handleSaveMenu = async () => {
-    if (!title) return alert("Enter menu title");
-    try {
-      setLoading(true);
-      const taxes = [{ name: "GST", percent: 5 }];
-      const serviceCharge = 0;
-      const branding = { title };
-
-      await createMenu(restaurantId, {
-        menu: items,
-        categories,
-        taxes,
-        serviceCharge,
-        branding,
-      });
-
-      alert("✅ Menu saved successfully!");
-    } catch (err) {
-      console.error("Save menu error:", err);
-      alert("❌ Failed to save menu");
-    } finally {
-      setLoading(false);
-    }
   };
 
   /* ---------------------------------------------------------------------- */
@@ -299,7 +271,7 @@ export default function MenuBuilder({ onClose }: { onClose: () => void }) {
             }
           />
           <button onClick={handleAddCategory} className="btn btn-secondary">
-            ➕ Add Category
+            ➕ Add Category1
           </button>
         </div>
 
@@ -321,16 +293,6 @@ export default function MenuBuilder({ onClose }: { onClose: () => void }) {
           </div>
         ))}
       </section>
-
-      {/* Save */}
-      <div className="text-right mt-8">
-        <button
-          onClick={handleSaveMenu}
-          className={`btn btn-accent ${loading ? "loading" : ""}`}
-        >
-          {loading ? "Saving..." : "💾 Save Menu"}
-        </button>
-      </div>
     </div>
   );
 }

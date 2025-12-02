@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { FiEdit2, FiEye, FiEyeOff } from "react-icons/fi";
 import {
   deleteMenuItem,
-  fetchMenu,
+  getMenu,
   restoreMenuItem,
 } from "../../../../api/admin/menu.api";
 import CreateMenu from "./CreateMenu";
@@ -28,7 +28,7 @@ export default function MenuManagement({ setActiveTab, onEdit, onCreate }) {
     if (!rid) return;
     try {
       setLoading(true);
-      const data = await fetchMenu(rid);
+      const data = await getMenu(rid);
       if (data) {
         setMenuData(data.menu || []);
         setCategories(data.categories || []);
@@ -231,9 +231,7 @@ export default function MenuManagement({ setActiveTab, onEdit, onCreate }) {
                     </span>
                     <span
                       className={`badge badge-outline ${
-                        item.isActive
-                          ? "outline-green-400"
-                          : "outline-red-600"
+                        item.isActive ? "outline-green-400" : "outline-red-600"
                       } text-gray-700 text-xs font-bold px-3 py-2 shadow rounded-full`}
                     >
                       {item.isActive ? "Available" : "Hidden"}

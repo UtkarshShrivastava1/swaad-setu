@@ -21,6 +21,9 @@ const SwaadsetuLanding = lazy(() => import("./pages/webpage/pages/swaadsetu-land
 const AdminDashboard = lazy(
   () => import("./pages/AdminDashboard/AdminDashboard")
 );
+const MenuDashboard = lazy(
+  () => import("./pages/AdminDashboard/MenuManagement/MenuDashboard")
+);
 const StaffDashboard = lazy(
   () => import("./pages/StaffDashboard/StaffDashboard")
 );
@@ -69,6 +72,7 @@ function App() {
 
             {/* 🧭 Admin Dashboard */}
             <Route path="admin-dashboard" element={<AdminDashboard />} />
+            <Route path="admin/menu" element={<MenuDashboard />} />
 
             {/* 👨‍🍳 Staff Dashboard */}
             <Route path="staff-dashboard" element={<StaffDashboard />} />

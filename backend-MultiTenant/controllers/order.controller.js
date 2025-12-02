@@ -789,6 +789,13 @@ async function getActiveOrders(req, res, next) {
         out.tableNumber = out.tableNumber ?? null;
         out.tableId = out.tableId ? String(out.tableId) : null;
       }
+      // Explicitly format createdAt and updatedAt to { $date: "ISOString" } for frontend consumption
+      if (out.createdAt instanceof Date) {
+        out.createdAt = { "$date": out.createdAt.toISOString() };
+      }
+      if (out.updatedAt instanceof Date) {
+        out.updatedAt = { "$date": out.updatedAt.toISOString() };
+      }
       return out;
     });
 

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { fetchMenu, updateMenu } from "../../../../api/admin/menu.api";
+import { addCategory } from "../../../../api/admin/menu.api";
 import ModalWrapper from "./ModalWrapper";
 
 interface Category {
@@ -48,11 +48,7 @@ export default function AddCategoryModal({
     setError("");
 
     try {
-      // 1️⃣ Fetch current menu
-      const existing = (await fetchMenu(rid)) as any;
-      if (!existing || !existing.categories) throw new Error("Menu not found");
-
-      // 2️⃣ Append new category
+      // 2️⃣ Create new category object
       const newCategory: Category = {
         name,
         itemIds: [],
@@ -66,22 +62,11 @@ export default function AddCategoryModal({
               description: comboMeta.description,
               image: comboMeta.image,
             }
-          : {
-              originalPrice: 0,
-              discountedPrice: 0,
-              saveAmount: 0,
-              description: "",
-              image: "",
-            },
-      };
-
-      const updatedMenu = {
-        ...existing,
-        categories: [...existing.categories, newCategory],
+          : undefined,
       };
 
       // 3️⃣ Update backend
-      const result = await updateMenu(rid, updatedMenu);
+      const result = await addCategory(rid, newCategory);
       console.log(result);
 
       if (onCategoryAdded) onCategoryAdded(newCategory);
@@ -100,7 +85,7 @@ export default function AddCategoryModal({
   }
 
   return (
-    <ModalWrapper title="Add New Category" isOpen={isOpen} onClose={onClose}>
+    <ModalWrapper title="Add New Category2" isOpen={isOpen} onClose={onClose}>
       {success && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center">
           <div className="absolute inset-0 bg-black/30" />

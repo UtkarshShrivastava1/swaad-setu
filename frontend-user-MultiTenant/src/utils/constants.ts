@@ -1,0 +1,1 @@
+export const GENERIC_ITEM_IMAGE_FALLBACK = "https://via.placeholder.com/150/CCCCCC/FFFFFF?text=No+Image"; // A generic placeholder image

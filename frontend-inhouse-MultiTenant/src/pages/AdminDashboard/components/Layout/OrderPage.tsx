@@ -1,5 +1,7 @@
-import { useEffect, useState } from "react";
-import { getOrder, type Order, type OrderItem } from "../../../../api/admin/order.api"; // Actual API path
+import { useEffect, useState, useCallback } from "react";
+import { FiRefreshCw } from "react-icons/fi";
+import { getOrder, type Order, type OrderItem } from "../../../../api/admin/order.api";
+import { getTables, type ApiTable } from "../../../../api/admin/table.api";
 import { useTenant } from "../../../../context/TenantContext";
 import FooterNav from "./Footer";
 import OrderHeroSection from "./OrderHero";
@@ -23,23 +25,32 @@ export default function OrdersManagement() {
   const { rid } = useTenant();
   const [activeFilter, setActiveFilter] = useState("all");
   const [orders, setOrders] = useState<Order[]>([]);
+  const [tables, setTables] = useState<Map<string, number>>(new Map());
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
+  const fetchData = useCallback(async () => {
     if (!rid) return;
-    async function fetchOrders() {
-      setLoading(true);
-      try {
-        const result = await getOrder(rid!);
-        setOrders(result || []);
-      } catch (err) {
-        console.error("Error fetching orders:", err);
-      } finally {
-        setLoading(false);
-      }
+    setLoading(true);
+    try {
+      const [orderResult, tableResult] = await Promise.all([
+        getOrder(rid),
+        getTables(rid),
+      ]);
+      setOrders(orderResult || []);
+      const tableMap = new Map(
+        tableResult.map((table: ApiTable) => [table._id, table.tableNumber])
+      );
+      setTables(tableMap);
+    } catch (err) {
+      console.error("Error fetching data:", err);
+    } finally {
+      setLoading(false);
     }
-    fetchOrders();
   }, [rid]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const filteredOrders =
     activeFilter === "all"
@@ -65,9 +76,19 @@ export default function OrdersManagement() {
         <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
           {/* ---------- Header Row ---------- */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-6 py-4 border-b border-gray-100 gap-2 bg-gradient-to-r from-yellow-400 to-yellow-300">
-            <h3 className="text-lg sm:text-xl font-semibold text-[#051224]">
-              Live Orders
-            </h3>
+            <div className="flex items-center gap-4">
+              <h3 className="text-lg sm:text-xl font-semibold text-[#051224]">
+                Live Orders
+              </h3>
+              <button
+                onClick={fetchData}
+                disabled={loading}
+                className="p-2 rounded-full bg-[#051224] text-[#ffbe00] hover:bg-[#0a1a35] disabled:bg-gray-400 disabled:cursor-not-allowed transition"
+                aria-label="Refresh Orders"
+              >
+                <FiRefreshCw className={`h-5 w-5 ${loading ? "animate-spin" : ""}`} />
+              </button>
+            </div>
 
             <button
               onClick={openCustomerPortal}
@@ -126,8 +147,9 @@ export default function OrdersManagement() {
                           hour12: true,
                         })}
                       </div>
-                      <div>Customer: {order.customerName || "—"}</div>
-                      <div>Table No: {order.tableId ?? "—"}</div>
+                      <div>Customer: <strong>{order.customerName || "—"}</strong></div>
+                      {order.customerEmail && <div>Email: {order.customerEmail}</div>}
+                      <div>Table No: {tables.get(order.tableId) ?? "—"}</div>
                     </div>
 
                     <div className="flex flex-row flex-wrap gap-2">

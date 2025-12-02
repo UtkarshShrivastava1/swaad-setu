@@ -48,12 +48,28 @@ function Dashboard() {
     if (!rid) return;
     try {
       const orders = (await getOrder(rid)) as Order[];
+      console.log("Fetched orders:", orders); // Added log for the orders array
       const now = new Date();
+      console.log("Current date for comparison:", now.toDateString());
+
       let revenue = 0;
       let count = 0;
 
       orders?.forEach((order) => {
+        if (!order.createdAt || !order.createdAt.$date) {
+          console.error("❌ Order missing createdAt.$date:", order);
+          return;
+        }
+
+        console.log("Order createdAt.$date:", order.createdAt.$date);
         const created = new Date(order.createdAt.$date);
+
+        if (isNaN(created.getTime())) {
+            console.error("Invalid Date created from:", order.createdAt.$date);
+            return;
+        }
+        console.log("Created Date object:", created.toDateString());
+
         if (
           created.getDate() === now.getDate() &&
           created.getMonth() === now.getMonth() &&
@@ -66,11 +82,12 @@ function Dashboard() {
 
       setTodayRevenue(revenue);
       setTodayOrders(count);
+      console.log("Calculated Today's Revenue:", revenue); // Added log
+      console.log("Calculated Today's Orders:", count); // Added log
     } catch (err) {
       console.error("❌ Failed to fetch today’s orders:", err);
     }
   }
-
   async function fetchTableStats() {
     if (!rid) return;
     try {
@@ -96,7 +113,7 @@ function Dashboard() {
     }
 
     refreshDashboard();
-    const interval = setInterval(refreshDashboard, 30000);
+    const interval = setInterval(refreshDashboard, 60000);
     return () => clearInterval(interval);
   }, [rid]);
 

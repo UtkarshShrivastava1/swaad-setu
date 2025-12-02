@@ -16,10 +16,10 @@ export default function FooterNav({
 }: FooterNavProps) {
   const tabs = [
     { id: "dashboard", label: "Dashboard", icon: Home, href: "/dashboard" },
-    { id: "menu", label: "Menu", icon: Utensils, href: "/menu" },
+    { id: "menu", label: "Menu", icon: Utensils, href: "admin/menu" },
     { id: "orders", label: "Orders", icon: FileText, href: "/orders" },
     { id: "tables", label: "Tables", icon: Bell, href: "/tables" },
-    { id: "more", label: "More", icon: User, href: "/more" },
+    { id: "more", label: "More", icon: User, href: "/menu" },
   ] as const;
 
   const handleClick = (id: TabId, e: React.MouseEvent) => {

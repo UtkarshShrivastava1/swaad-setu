@@ -6,15 +6,15 @@ import FooterNav from "./components/Layout/Footer";
 
 import CategoryManagement from "../AdminDashboard/components/Layout/CategoryManagement";
 import MenuEdit from "../AdminDashboard/components/Layout/EditMenu";
-import MenuManagement from "../AdminDashboard/components/Layout/MenuPage";
+import MenuDashboard from "../AdminDashboard/MenuManagement/MenuDashboard";
 import OrdersManagement from "../AdminDashboard/components/Layout/OrderPage";
 import TableManagementPage from "../AdminDashboard/components/Layout/TableManagement";
 import Dashboard from "./components/Layout/Dashboard";
 import MorePage from "./More/MorePage";
 
 import { getOrder } from "../../../src/api/admin/order.api";
-import { useTables } from "../AdminDashboard/hooks/useTables";
 import { useTenant } from "../../context/TenantContext";
+import { useTables } from "../AdminDashboard/hooks/useTables";
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -38,7 +38,13 @@ export default function AdminDashboard() {
   const tokenKey = `adminToken_${rid}`;
 
   const [activeTab, setActiveTab] = useState<
-    "dashboard" | "menu" | "categories" | "orders" | "tables" | "more" | "notifications"
+    | "dashboard"
+    | "menu"
+    | "categories"
+    | "orders"
+    | "tables"
+    | "more"
+    | "notifications"
   >("dashboard");
 
   const [view, setView] = useState<"list" | "edit" | "create">("list");
@@ -59,7 +65,6 @@ export default function AdminDashboard() {
     }
     // Optionally, you could verify token validity by calling an API or decoding it here
   }, [navigate, rid, tokenKey]);
-
 
   // ====== Logout ======
   const handleLogout = () => {
@@ -103,7 +108,7 @@ export default function AdminDashboard() {
       />
 
       {/* ===== Main Content ===== */}
-      <main className="flex-grow p-4 md:p-8 max-w-7xl mx-auto w-full pb-24">
+      <main className={`flex-grow p-4 md:p-8 w-full pb-24 ${activeTab === 'menu' ? '' : 'max-w-7xl mx-auto'}`}>
         {/* 🏠 Dashboard */}
         {activeTab === "dashboard" && view === "list" && (
           <Dashboard setActiveTab={setActiveTab} />
@@ -113,7 +118,7 @@ export default function AdminDashboard() {
         {activeTab === "menu" && (
           <>
             {view === "list" && (
-              <MenuManagement
+              <MenuDashboard
                 setActiveTab={setActiveTab}
                 onEdit={(item: any) => {
                   setSelectedMenuItem(item);

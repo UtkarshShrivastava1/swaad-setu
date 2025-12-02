@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { fetchMenu, addMenuItem } from "../../../../api/admin/menu.api";
+import { getMenu, addMenuItem } from "../../../../api/admin/menu.api";
 import ModalWrapper from "./ModalWrapper";
 
 interface Category {
@@ -34,7 +34,7 @@ export default function AddMenuItemModal({
     async function getCategories() {
       if (!rid) return;
       try {
-        const data = (await fetchMenu(rid)) as any;
+        const data = (await getMenu(rid)) as any;
         setCategories(data.categories || []);
         if (data.categories?.length > 0) {
           setCategory(data.categories[0]._id);

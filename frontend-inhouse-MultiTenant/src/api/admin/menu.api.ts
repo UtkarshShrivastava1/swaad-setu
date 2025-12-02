@@ -2,7 +2,7 @@
 import client from "./client";
 
 export interface MenuItem {
-  itemId?: string;
+  itemId: string;
   name: string;
   description?: string;
   price: number;
@@ -30,7 +30,7 @@ interface CategoryPayload {
 // 📋 MENU (GET / POST full menu)
 // -------------------------------------------------------------
 
-export async function fetchMenu(rid: string) {
+export async function getMenu(rid: string) {
   return client.get(`/api/${rid}/admin/menu`);
 }
 
@@ -38,8 +38,8 @@ export async function createMenu(rid: string, data: any) {
   return client.post(`/api/${rid}/admin/menu`, data);
 }
 
-export async function updateMenu(rid: string, menuData: any) {
-  return client.post(`/api/${rid}/admin/menu`, menuData);
+export async function bulkUpdateMenu(rid: string, data: any) {
+  return client.post(`/api/${rid}/admin/menu`, data);
 }
 
 // -------------------------------------------------------------
@@ -89,50 +89,31 @@ export async function deleteMenuItem(rid: string, itemId: string, soft = true) {
   });
 }
 
-// Restore a soft-deleted item
-export async function restoreMenuItem(rid: string, itemId: string) {
-  return client.patch(
-    `/api/${rid}/admin/menu/items/${itemId}/restore`,
-    {},
-  );
+export async function updateMenu(rid: string, data: any) {
+  return client.post(`/api/${rid}/admin/menu`, data);
 }
 
 // -------------------------------------------------------------
-// 🗂️ CATEGORIES
+// 📂 CATEGORIES
 // -------------------------------------------------------------
 
-// Fetch all categories
+export async function addCategory(rid: string, categoryData: CategoryPayload) {
+  return client.post(`/api/${rid}/admin/menu/categories`, categoryData);
+}
+
+export async function deleteCategory(rid: string, categoryId: string) {
+  return client.delete(`/api/${rid}/admin/menu/categories/${categoryId}`);
+}
+
 export async function fetchCategories(rid: string) {
   return client.get(`/api/${rid}/admin/menu/categories`);
 }
 
-// Add new category
-export async function addCategory(rid: string, category: CategoryPayload) {
-  return client.post(
-    `/api/${rid}/admin/menu/categories`,
-    { category },
-  );
+export async function updateCategory(rid: string, categoryId: string, categoryData: Partial<CategoryPayload>) {
+  return client.patch(`/api/${rid}/admin/menu/categories/${categoryId}`, categoryData);
 }
 
-// Update existing category
-export async function updateCategory(
-  rid: string,
-  categoryId: string,
-  payload: CategoryPayload
-) {
-  return client.patch(
-    `/api/${rid}/admin/menu/categories/${categoryId}`,
-    payload,
-  );
+export async function restoreMenuItem(rid: string, itemId: string) {
+  return client.patch(`/api/${rid}/admin/menu/items/${itemId}/restore`);
 }
 
-// Delete category (soft delete optional)
-export async function deleteCategory(
-  rid: string,
-  categoryId: string,
-  soft = true
-) {
-  return client.delete(`/api/${rid}/admin/menu/categories/${categoryId}`, {
-    data: { soft },
-  });
-}

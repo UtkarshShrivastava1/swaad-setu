@@ -7,9 +7,9 @@ import { useTenant } from "../../context/TenantContext";
 import { useCart } from "../../stores/cart.store"; // Import useCart from Zustand
 import FooterNav from "../Layout/Footer";
 import TablePickerModal from "../TableSelect/TablePickerModal";
+import { GENERIC_ITEM_IMAGE_FALLBACK } from "../../utils/constants";
 
-const imgFallback =
-  "https://www.vegrecipesofindia.com/wp-content/uploads/2020/01/paneer-butter-masala-1.jpg";
+
 
 /** ---------- Types ---------- */
 type CartItemType = {
@@ -275,7 +275,11 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
             <div key={item._id} className="p-3 border-t-2 border-b-2 ">
               <div className="flex gap-4 items-center">
                 <img
-                  src={item.image || imgFallback}
+                  src={
+                    item.image && item.image.startsWith("https://example.com/images/")
+                      ? GENERIC_ITEM_IMAGE_FALLBACK
+                      : item.image
+                  }
                   alt={item.name}
                   className="w-20 h-auto rounded-xl object-cover text-black border-2 "
                 />

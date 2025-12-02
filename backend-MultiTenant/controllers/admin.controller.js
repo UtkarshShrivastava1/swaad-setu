@@ -457,7 +457,7 @@ async function getMenu(req, res, next) {
 }
 
 /*/**
- * Update Menu (admin protected)
+ * Create/Update Menu (admin protected)
  * POST /api/:rid/admin/menu
  *
  * Supports normal menu + combo categories.
@@ -665,50 +665,122 @@ async function updateMenu(req, res, next) {
  * Add a single menu item (admin)
  * POST /api/:rid/admin/menu/items
  */
-/**
-/**
- * Add a single menu item (admin)
- * POST /api/:rid/admin/menu/items
- */
 async function addMenuItem(req, res, next) {
   logger?.info?.("Enter addMenuItem", { params: req.params });
+
   try {
     const { rid } = req.params;
-    const parsedBody = parseFormData(req.body); // Use the helper
+    const parsedBody = parseFormData(req.body);
     const { item } = parsedBody || {};
 
-    if (req.body) {
-      // Remove any client-provided restaurantId
-      delete req.body.restaurantId;
+    if (!rid) {
+      return res.status(400).json({ error: "Missing restaurant id (rid)" });
     }
 
-    if (!rid)
-      return res.status(400).json({ error: "Missing restaurant id (rid)" });
-    if (!item || typeof item !== "object")
+    if (!item || typeof item !== "object") {
       return res.status(400).json({ error: "Valid menu item required" });
-    if (!item.name || typeof item.name !== "string")
-      return res.status(400).json({ error: "Item name required" });
-    if (typeof item.price !== "number")
-      return res.status(400).json({ error: "Item price required (number)" });
+    }
 
-    const categoryName =
-      typeof item.category === "string" && item.category.trim() !== ""
-        ? item.category
-        : "Uncategorized";
+    // ✅ Strong validation
+    if (
+      !item.name ||
+      typeof item.name !== "string" ||
+      item.name.trim() === ""
+    ) {
+      return res
+        .status(400)
+        .json({ error: "Item name is required and cannot be empty." });
+    }
 
-    // Stable business id
-    const itemId =
-      typeof item.itemId === "string"
-        ? item.itemId
-        : `i_${new mongoose.Types.ObjectId().toHexString()}`;
+    if (typeof item.price !== "number" || item.price <= 0) {
+      return res
+        .status(400)
+        .json({ error: "Item price must be a positive number." });
+    }
 
+    if (
+      !item.category ||
+      typeof item.category !== "string" ||
+      item.category.trim() === ""
+    ) {
+      return res
+        .status(400)
+        .json({ error: "Item category is required and cannot be empty." });
+    }
+
+    const categoryName = item.category.trim();
+
+    // ✅ Reject frontend itemId
+    if (item.itemId) {
+      logger?.warn?.("addMenuItem: Frontend attempted to supply itemId", {
+        rid,
+        suppliedItemId: item.itemId,
+      });
+      return res.status(400).json({
+        error: "itemId is auto-generated and cannot be supplied.",
+      });
+    }
+
+    // ✅ 1. Load active menu
+    const menuDoc = await Menu.findOne({
+      restaurantId: rid,
+      isActive: true,
+    });
+
+    if (!menuDoc) {
+      logger?.warn?.("addMenuItem: Menu not found", { rid });
+      return res.status(404).json({
+        error:
+          "Menu not found for this restaurant. Please create a menu first.",
+      });
+    }
+
+    // ✅ 2. Generate next itemId
+    let highestNum = 0;
+
+    if (Array.isArray(menuDoc.items)) {
+      menuDoc.items.forEach((existingItem) => {
+        if (existingItem.itemId) {
+          const match = existingItem.itemId.match(/^m(\d+)$/);
+          if (match) {
+            const num = parseInt(match[1], 10);
+            if (num > highestNum) highestNum = num;
+          }
+        }
+      });
+    }
+
+    const newItemId = `m${highestNum + 1}`;
+
+    logger?.debug?.("addMenuItem: Generated itemId", { rid, newItemId });
+
+    // ✅ 3. Ensure no duplicate
+    if (menuDoc.items.some((i) => i.itemId === newItemId)) {
+      return res.status(409).json({
+        error: "Generated itemId already exists. Please retry.",
+      });
+    }
+
+    // ✅ 4. Find category
+    const categoryIndex = menuDoc.categories.findIndex(
+      (cat) => cat.name === categoryName
+    );
+
+    if (categoryIndex === -1) {
+      return res.status(400).json({
+        error: `Category '${categoryName}' not found in the menu.`,
+      });
+    }
+
+    // ✅ 5. Build new item
     const newItem = {
-      itemId,
+      _id: new mongoose.Types.ObjectId(),
+      itemId: newItemId,
       name: item.name.trim(),
       description: item.description || "",
       price: item.price,
       currency: item.currency || "INR",
-      image: req.file ? req.file.path : item.image || null, // Assign req.file.path if file exists
+      image: req.file ? req.file.path : item.image || null,
       isActive: typeof item.isActive === "boolean" ? item.isActive : true,
       isVegetarian: !!item.isVegetarian,
       preparationTime:
@@ -716,126 +788,64 @@ async function addMenuItem(req, res, next) {
       metadata: item.metadata || {},
     };
 
-    logger?.debug?.("addMenuItem prepared", {
-      rid,
-      itemId,
-      name: newItem.name,
-    });
-
-    // Ensure single source of truth menu (no duplicate)
-    const upsertUpdate = {
-      $setOnInsert: {
+    // ✅ 6. Atomic single-document update (NO TRANSACTION NEEDED)
+    const updatedMenuDoc = await Menu.findOneAndUpdate(
+      {
+        _id: menuDoc._id,
         restaurantId: rid,
-        version: 1,
-        title: `${rid} menu`,
-        isActive: true, // ✅ ensure new ones are active
-        createdAt: new Date(),
+        isActive: true,
+        "items.itemId": { $ne: newItemId },
       },
-      $push: { items: newItem },
-      $set: { updatedAt: new Date() },
-    };
-
-    if (!Menu)
-      return res.status(501).json({ error: "Menu collection not available" });
-
-    let menuDoc = null;
-    try {
-      const session = await mongoose.startSession();
-      await session.withTransaction(async () => {
-        menuDoc = await Menu.findOneAndUpdate(
-          { restaurantId: rid }, // ✅ no isActive constraint
-          upsertUpdate,
-          { new: true, upsert: true, session }
-        );
-
-        // Ensure category exists or update it
-        await Menu.updateOne(
-          { _id: menuDoc._id, "categories.name": { $ne: categoryName } },
-          { $push: { categories: { name: categoryName, itemIds: [itemId] } } },
-          { session }
-        );
-
-        await Menu.updateOne(
-          {
-            _id: menuDoc._id,
-            "categories.name": categoryName,
-            "categories.itemIds": { $ne: itemId },
-          },
-          { $push: { "categories.$.itemIds": itemId } },
-          { session }
-        );
-      });
-      session.endSession();
-    } catch (err) {
-      logger?.warn?.(
-        "Transaction failed, fallback to non-transactional upsert",
-        {
-          restaurantId: rid,
-          error: err.message,
-        }
-      );
-
-      menuDoc = await Menu.findOneAndUpdate(
-        { restaurantId: rid },
-        upsertUpdate,
-        { new: true, upsert: true }
-      );
-
-      await Menu.updateOne(
-        { _id: menuDoc._id, "categories.name": { $ne: categoryName } },
-        { $push: { categories: { name: categoryName, itemIds: [itemId] } } }
-      );
-
-      await Menu.updateOne(
-        {
-          _id: menuDoc._id,
-          "categories.name": categoryName,
-          "categories.itemIds": { $ne: itemId },
+      {
+        $push: {
+          items: newItem,
+          [`categories.${categoryIndex}.itemIds`]: newItemId,
         },
-        { $push: { "categories.$.itemIds": itemId } }
-      );
+        $set: { updatedAt: new Date() },
+      },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedMenuDoc) {
+      return res.status(409).json({
+        error:
+          "Failed to add item due to concurrent modification. Please retry.",
+      });
     }
 
-    // Guarantee only one menu per restaurant
+    // ✅ 7. Ensure only one active menu
     await Menu.updateMany(
-      { restaurantId: rid, _id: { $ne: menuDoc._id } },
+      { restaurantId: rid, _id: { $ne: updatedMenuDoc._id } },
       { $set: { isActive: false } }
     );
 
-    // Ensure Admin record
+    // ✅ 8. Ensure Admin record
     await Admin.updateOne(
       { restaurantId: rid },
       {
         $setOnInsert: { restaurantId: rid, hashedPin: "" },
-        $set: { updatedAt: Date.now() },
+        $set: { updatedAt: new Date() },
       },
       { upsert: true }
     );
 
+    // ✅ 9. Publish event
     safePublish(`restaurant:${rid}:staff`, {
       event: "menuItemAdded",
       data: {
-        itemId,
+        itemId: newItemId,
         name: newItem.name,
         category: categoryName,
         createdAt: new Date(),
       },
     });
 
-    logger?.info?.("addMenuItem completed successfully", { rid, itemId });
-
-    return res.status(201).json({
-      item: {
-        itemId: newItem.itemId,
-        name: newItem.name,
-        price: newItem.price,
-        description: newItem.description,
-        category: categoryName,
-        image: newItem.image,
-        isVegetarian: newItem.isVegetarian,
-        preparationTime: newItem.preparationTime,
-      },
+    logger?.info?.("addMenuItem completed successfully", {
+      rid,
+      newItemId,
     });
+
+    return res.status(201).json(newItem);
   } catch (err) {
     logger?.error?.("Add menu item error", err);
     return next(err);
@@ -898,7 +908,7 @@ async function updateMenuItem(req, res, next) {
     logger &&
       logger.info &&
       logger.info("updateMenuItem success", { restaurantId: rid, itemId });
-    return res.json({ success: true, item });
+    return res.json({ item });
   } catch (err) {
     logger && logger.error && logger.error("updateMenuItem error:", err);
     return next(err);
@@ -1173,6 +1183,111 @@ async function getAllCategories(req, res, next) {
   } catch (err) {
     console.error("❌ getAllCategories error:", err);
     next(err);
+  }
+}
+
+/**
+ * Add a single menu category
+ * POST /api/:rid/admin/menu/categories
+ * Input: { name, isMenuCombo, comboMeta }
+ */
+async function addCategory(req, res, next) {
+  logger?.info?.("Enter addCategory", { params: req.params, body: req.body });
+  try {
+    const { rid } = req.params;
+    const { name, isMenuCombo, comboMeta } = req.body;
+
+    if (!rid) {
+      logger?.warn?.("addCategory missing rid");
+      return res.status(400).json({ error: "Missing restaurant id (rid)" });
+    }
+
+    if (!name || typeof name !== "string" || name.trim() === "") {
+      logger?.warn?.("addCategory missing or invalid category name");
+      return res.status(400).json({ error: "Category name is required" });
+    }
+
+    if (!Menu) {
+      logger?.warn?.("addCategory failed: Menu model not available");
+      return res
+        .status(501)
+        .json({ error: "Menu collection not available on server." });
+    }
+
+    logger?.debug?.("addCategory finding active menu", { restaurantId: rid });
+    let menu = await Menu.findOne({ restaurantId: rid, isActive: true });
+
+    if (!menu) {
+      logger?.warn?.("addCategory menu not found", { restaurantId: rid });
+      return res
+        .status(404)
+        .json({ error: "Menu not found for this restaurant." });
+    }
+
+    const newCategory = {
+      _id: new mongoose.Types.ObjectId(), // Generate a new ObjectId for the embedded document
+      name: name.trim(),
+      itemIds: [], // Ensure itemIds initializes as an empty array
+      isMenuCombo: !!isMenuCombo,
+    };
+
+    if (newCategory.isMenuCombo && comboMeta) {
+      newCategory.comboMeta = {
+        originalPrice: Number(comboMeta.originalPrice || 0),
+        discountedPrice: Number(comboMeta.discountedPrice || 0),
+        saveAmount: Math.max(
+          Number(comboMeta.originalPrice || 0) -
+            Number(comboMeta.discountedPrice || 0),
+          0
+        ),
+        description: comboMeta.description || "",
+        image: comboMeta.image || null,
+      };
+    } else {
+      // Ensure comboMeta is not present or is an empty object if not a combo
+      newCategory.comboMeta = {};
+      newCategory.isMenuCombo = false; // Override if comboMeta is missing but isMenuCombo was true
+    }
+
+    logger?.debug?.("addCategory pushing new category", {
+      restaurantId: rid,
+      categoryName: newCategory.name,
+    });
+
+    const updatedMenu = await Menu.findOneAndUpdate(
+      { restaurantId: rid, isActive: true },
+      {
+        $push: { categories: newCategory },
+        $set: { updatedAt: new Date() },
+      },
+      { new: true, runValidators: true } // Return the updated document and run schema validators
+    );
+
+    if (!updatedMenu) {
+      // This case should ideally not happen if 'menu' was found above, but good for robustness
+      logger?.error?.("addCategory failed to update menu after finding it", {
+        restaurantId: rid,
+      });
+      return res.status(500).json({ error: "Failed to add category to menu." });
+    }
+
+    safePublish(`restaurant:${rid}:staff`, {
+      event: "menuCategoryAdded",
+      data: {
+        categoryId: newCategory._id,
+        name: newCategory.name,
+        timestamp: new Date(),
+      },
+    });
+
+    logger?.info?.("addCategory completed successfully", {
+      restaurantId: rid,
+      categoryId: newCategory._id,
+    });
+    return res.status(201).json(newCategory);
+  } catch (err) {
+    logger?.error?.("Add category error:", err && err.stack ? err.stack : err);
+    return next(err);
   }
 }
 
@@ -2667,6 +2782,7 @@ module.exports = {
   updateCategory,
   deleteCategory,
   getAllCategories,
+  addCategory,
   getAnalytics,
   exportReport,
   updateTable,

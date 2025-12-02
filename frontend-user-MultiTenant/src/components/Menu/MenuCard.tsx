@@ -1,14 +1,10 @@
 
 import type { MenuItem } from "../../types/types";
+import { GENERIC_ITEM_IMAGE_FALLBACK } from "../../utils/constants";
 
 type Props = {
   item: MenuItem;
-  onAdd: (item: {
-    itemId: string;
-    name: string;
-    price: number;
-    quantity: number;
-  }) => void;
+  onAdd: (item: MenuItem) => void;
 };
 
 export default function MenuCard({ item, onAdd }: Props) {
@@ -17,7 +13,7 @@ export default function MenuCard({ item, onAdd }: Props) {
       {/* Image Section */}
       {item.image ? (
         <img
-          src={item.image}
+          src={item.image || GENERIC_ITEM_IMAGE_FALLBACK}
           alt={item.name}
           className="h-40 w-full object-cover group-hover:scale-105 transition-transform duration-300"
         />
@@ -63,14 +59,7 @@ export default function MenuCard({ item, onAdd }: Props) {
           </div>
 
           <button
-            onClick={() =>
-              onAdd({
-                itemId: item.itemId,
-                name: item.name,
-                price: item.price,
-                quantity: 1,
-              })
-            }
+            onClick={() => onAdd(item)}
             className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 transition-all text-white text-sm font-bold rounded-xl cursor-pointer shadow-md hover:shadow-lg"
           >
             + Add

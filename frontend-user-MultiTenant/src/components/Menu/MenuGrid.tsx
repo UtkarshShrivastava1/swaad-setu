@@ -1,18 +1,20 @@
-import { Clock, Minus, Plus, Utensils } from "lucide-react";
-import { useState } from "react";
+
+
+import { Minus, Plus, Utensils } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCart } from "../../stores/cart.store"; // Import useCart from Zustand
-import type { CartItem, MenuItem } from "../../types/types";
+import type { CartItem, MenuItem, Category, DisplayableItem, ComboItem } from "../../types/types"; // Import new types
+import { GENERIC_ITEM_IMAGE_FALLBACK } from "../../utils/constants";
+import MenuCard from "./MenuCard"; // Assuming MenuCard is in the same directory
+import ComboCard from "../combos/ComboCard"; // Import ComboCard
+import ComboAdvertisement from "../combos/ComboAdvertisement";
+
 
 type MenuAppProps = {
   menuData: {
     branding: { title: string };
-    categories: Array<{
-      name: string;
-      itemIds: string[];
-      _id: string;
-      isMenuCombo?: boolean;
-    }>;
+    categories: Category[]; // Use the new Category type
     menu: MenuItem[];
     serviceCharge: number;
     taxes: Array<{ name: string; percent: number }>;
@@ -53,19 +55,59 @@ export default function RestaurantMenuApp({
     setModalOpen(true);
   };
 
-  const filteredItems = menuData.menu.filter((item) => {
+  const allDisplayableItems: DisplayableItem[] = useMemo(() => {
+    const items: DisplayableItem[] = menuData.menu.map(item => ({ ...item, type: 'item' }));
+    const combos: DisplayableItem[] = menuData.categories
+      .filter(category => category.isMenuCombo && category.comboMeta)
+      .map(comboCategory => ({
+        _id: comboCategory._id,
+        itemId: `combo-${comboCategory._id}`, // Unique ID for combo
+        name: comboCategory.name,
+        description: comboCategory.comboMeta!.description || '',
+        price: comboCategory.comboMeta!.discountedPrice || 0,
+        image: comboCategory.comboMeta!.image || null, // Use combo image
+        isVegetarian: false, // Default, adjust if combo can be all veg
+        preparationTime: null, // Default, adjust if combo has prep time
+        isActive: true, // Assuming combos are active if listed
+        type: 'combo',
+        originalPrice: comboCategory.comboMeta!.originalPrice,
+        saveAmount: comboCategory.comboMeta!.saveAmount,
+        itemIds: comboCategory.itemIds, // Keep item IDs for internal use if needed
+      }));
+    return [...items, ...combos];
+  }, [menuData]);
+
+  const activeComboCategories = useMemo(() => {
+    return menuData.categories.filter(category => category.isMenuCombo && category.comboMeta);
+  }, [menuData.categories]);
+
+  const handleViewCombo = (comboName: string) => {
+    setShowComboOnly(true);
+    setSelectedCombo(comboName);
+    setActiveCategory(null);
+  };
+
+
+  const filteredItems = allDisplayableItems.filter((item) => {
     if (!item.isActive) return false;
 
     const matchesSearch =
       item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.description?.toLowerCase().includes(searchQuery.toLowerCase());
+  
+      let matchesCategory = true;
 
-    const category = activeCategory
-      ? menuData.categories.find((cat) => cat.name === activeCategory)
-      : null;
-    const matchesCategory = category
-      ? category.itemIds.includes(item.itemId)
-      : true;
+      if (activeCategory) {
+        const category = menuData.categories.find(cat => cat.name === activeCategory);
+        if (category) {
+          if (item.type === 'item') {
+            matchesCategory = category.itemIds.includes(item.itemId);
+          } else if (item.type === 'combo') {
+            // If an individual category is selected, combos should not match unless specifically selected
+            matchesCategory = false;
+          }
+        }
+      }
 
     const matchesVeg =
       vegFilter === "all"
@@ -74,27 +116,26 @@ export default function RestaurantMenuApp({
           ? item.isVegetarian
           : !item.isVegetarian;
 
-    // ✅ Handle combos properly
     if (showComboOnly) {
-      // If a specific combo is selected
       if (selectedCombo) {
-        const comboCategory = menuData.categories.find(
-          (cat) => cat.isMenuCombo && cat.name === selectedCombo
-        );
-        return comboCategory
-          ? comboCategory.itemIds.includes(item.itemId)
-          : false;
+        // Only show the specific combo if selected
+        return item.type === 'combo' && item.name === selectedCombo && matchesSearch && matchesVeg;
       }
-
-      // ✅ If "All Combos" is selected
-      const allComboItems = menuData.categories
-        .filter((cat) => cat.isMenuCombo)
-        .flatMap((cat) => cat.itemIds);
-
-      return allComboItems.includes(item.itemId);
+      // Show all combos if showComboOnly is true and no specific combo selected
+      return item.type === 'combo' && matchesSearch && matchesVeg;
+    } else if (selectedCombo) {
+      // If a specific combo is selected but showComboOnly is false, display only items in that combo
+      const comboCategory = menuData.categories.find(
+        (cat) => cat.isMenuCombo && cat.name === selectedCombo
+      );
+      if (comboCategory) {
+        return item.type === 'item' && comboCategory.itemIds.includes(item.itemId) && matchesSearch && matchesVeg;
+      }
+      return false; // Should not happen if selectedCombo is valid
     }
 
-    return matchesSearch && matchesCategory && matchesVeg;
+
+    return matchesSearch && matchesCategory && matchesVeg && item.type === 'item';
   });
 
   return (
@@ -222,6 +263,8 @@ export default function RestaurantMenuApp({
         </div>
       </div>
 
+      <ComboAdvertisement comboCategories={activeComboCategories} onViewCombo={handleViewCombo} />
+
       <div className="max-w-7xl mx-auto px-4 py-6">
         {filteredItems.length === 0 ? (
           <div className="text-center py-20">
@@ -239,121 +282,44 @@ export default function RestaurantMenuApp({
               const itemInCart = zustandCartItems.find(
                 (cartItem) => cartItem.itemId === item.itemId
               );
-              return (
-                <div
-                  key={item._id}
-                  className="card card-side bg-yellow-100/15 shadow-sm rounded-2xl overflow-hidden border border-gray-300 hover:border-yellow-700 group transition-all duration-300"
-                >
-                  {/* Left: Image */}
-                  <figure className="w-32 h-auto rounded-xl overflow-hidden shadow-md relative group-hover:shadow-lg transition-shadow">
-                    {item.image ? (
-                      <img
-                        src={
-                          "https://www.vegrecipesofindia.com/wp-content/uploads/2020/01/paneer-butter-masala-1.jpg" ||
-                          item.image
-                        }
-                        alt={item.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-yellow-100 to-yellow-200 flex items-center justify-center">
-                        {/* <span className="text-5xl opacity-40">🍽️</span> */}
-                        <img src="https://www.vegrecipesofindia.com/wp-content/uploads/2020/01/paneer-butter-masala-1.jpg" />
-                      </div>
-                    )}
-                  </figure>
 
-                  {/* Right: Card body with details and actions */}
-                  <div className="card-body p-4 lg:p-5 flex flex-col justify-between flex-1">
-                    {/* Item details */}
-                    <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <div
-                          className={`w-5 h-5 border-2 rounded-sm flex items-center justify-center ${
-                            item.isVegetarian
-                              ? "border-green-600 bg-green-50"
-                              : "border-red-600 bg-red-50"
-                          }`}
-                        >
-                          <div
-                            className={`w-2.5 h-2.5 rounded-full ${
-                              item.isVegetarian ? "bg-green-600" : "bg-red-600"
-                            }`}
-                          />
-                        </div>
-                        <h3 className="font-bold text-gray-900 text-base lg:text-lg">
-                          {item.name}
-                        </h3>
-                      </div>
-                      <p className="text-sm text-gray-600 mb-3 line-clamp-2 ml-7 leading-relaxed">
-                        {item.description}
-                      </p>
-                      <div className="flex items-center gap-3 ml-7">
-                        <span className="font-bold text-gray-900 text-lg">
-                          ₹{item.price}
-                        </span>
-                        {item.preparationTime && (
-                          <>
-                            <span className="text-gray-300">•</span>
-                            <span className="text-xs text-gray-500 flex items-center gap-1 bg-gray-50 px-2 py-1 rounded-full">
-                              <Clock size={12} />
-                              {item.preparationTime} mins
-                            </span>
-                          </>
-                        )}
-                      </div>
-                    </div>
+              // Function to handle adding items to cart (for both MenuCard and ComboCard)
+              const handleAddItemToCart = (itemToAdd: MenuItem | ComboItem) => {
+                if (itemToAdd.type === 'combo') {
+                  const comboCartItem: CartItem = {
+                    itemId: itemToAdd.itemId,
+                    name: itemToAdd.name,
+                    price: itemToAdd.price,
+                    quantity: 1,
+                    variant: 'combo',
+                    notes: itemToAdd.description,
+                  };
+                  addItem(comboCartItem);
+                } else {
+                  // For regular menu items, still show modal for variants
+                  handleShowModal(itemToAdd as MenuItem);
+                }
+                setShowSuccessPop(true);
+                setTimeout(() => setShowSuccessPop(false), 500);
+              };
 
-                    {/* Cart Buttons */}
-                    <div className="mt-4 flex items-center justify-center gap-2">
-                      {!itemInCart ? (
-                        <button
-                          onClick={() => handleShowModal(item)}
-                          className="w-28 lg:w-32 px-2 py-2 bg-white border-2 border-yellow-700 text-yellow-700 rounded-xl font-bold hover:bg-yellow-800 hover:text-white transition-all shadow-sm flex items-center justify-center gap-2 text-[10px]"
-                        >
-                          <Plus size={10} strokeWidth={3} /> ADD
-                        </button>
-                      ) : (
-                        <div className="flex items-center gap-2 bg-yellow-700 rounded-xl px-3 py-2 w-28 lg:w-32 shadow-md">
-                          <button
-                            onClick={() => {
-                              if (itemInCart && itemInCart.quantity > 1) {
-                                updateQty(
-                                  itemInCart.itemId,
-                                  itemInCart.quantity - 1
-                                );
-                              } else if (itemInCart) {
-                                removeItem(itemInCart.itemId);
-                              }
-                            }}
-                            className="text-white hover:bg-yellow-800 rounded-lg p-1 transition-colors"
-                          >
-                            <Minus size={18} strokeWidth={3} />
-                          </button>
-                          <span className="flex-1 text-center font-bold text-white text-lg">
-                            {itemInCart ? itemInCart.quantity : 0}
-                          </span>
-                          <button
-                            onClick={() => {
-                              if (itemInCart) {
-                                updateQty(
-                                  itemInCart.itemId,
-                                  itemInCart.quantity + 1
-                                );
-                              } else {
-                                handleShowModal(item);
-                              }
-                            }}
-                            className="text-white hover:bg-yellow-800 rounded-lg p-1 transition-colors"
-                          >
-                            <Plus size={18} strokeWidth={3} />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
+              if (item.type === 'combo') {
+                return (
+                  <ComboCard
+                    key={item.itemId}
+                    combo={item as ComboItem}
+                    onAdd={() => handleAddItemToCart(item)}
+                  />
+                );
+              } else {
+                return (
+                  <MenuCard
+                    key={item.itemId}
+                    item={item as MenuItem}
+                    onAdd={(itemToAdd) => handleAddItemToCart(itemToAdd)}
+                  />
+                );
+              }
             })}
           </div>
         )}

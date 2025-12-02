@@ -250,6 +250,14 @@ router.delete(
 // ✔ FREE
 router.get("/menu/categories", adminController.getAllCategories);
 
+// ✔ FREE
+router.post(
+  "/menu/categories",
+  authMiddleware,
+  requireRole("admin"),
+  adminController.addCategory
+);
+
 // -----------------------------------------------------------
 // 📊 ANALYTICS (STANDARD + PRO)
 // -----------------------------------------------------------

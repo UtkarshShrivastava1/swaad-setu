@@ -9,7 +9,13 @@ const { Schema } = mongoose;
    Menu Item Schema
    ------------------------------------------------------------------ */
 const MenuItemSchema = new Schema({
-  itemId: { type: String, required: true }, // e.g. i_<ObjectId>
+  itemId: {
+    type: String,
+    unique: true,
+    index: true,
+    // ✅ NOT required anymore (backend will auto-generate)
+  },
+
   name: { type: String, required: true },
   description: { type: String, default: "" },
   price: { type: Number, required: true, default: 0 },
@@ -26,11 +32,11 @@ const MenuItemSchema = new Schema({
    ------------------------------------------------------------------ */
 const ComboMetaSchema = new Schema(
   {
-    originalPrice: { type: Number, default: 0 }, // sum of item prices if sold separately
-    discountedPrice: { type: Number, default: 0 }, // actual combo selling price
-    saveAmount: { type: Number, default: 0 }, // derived: originalPrice - discountedPrice
-    description: { type: String, default: "" }, // e.g. "Butter Chicken + Rice + Naan"
-    image: { type: String, default: null }, // optional combo banner image
+    originalPrice: { type: Number, default: 0 },
+    discountedPrice: { type: Number, default: 0 },
+    saveAmount: { type: Number, default: 0 },
+    description: { type: String, default: "" },
+    image: { type: String, default: null },
   },
   { _id: false }
 );
@@ -40,9 +46,12 @@ const ComboMetaSchema = new Schema(
    ------------------------------------------------------------------ */
 const MenuCategorySchema = new Schema({
   name: { type: String, required: true, trim: true },
-  itemIds: { type: [String], default: [] }, // array of menu itemIds
-  isMenuCombo: { type: Boolean, default: false }, // true = combo category
-  comboMeta: { type: ComboMetaSchema, default: () => ({}) }, // always present for consistency
+
+  itemIds: { type: [String], default: [] }, // references MenuItem.itemId
+
+  isMenuCombo: { type: Boolean, default: false },
+
+  comboMeta: { type: ComboMetaSchema, default: () => ({}) },
 });
 
 /* ------------------------------------------------------------------
@@ -61,7 +70,6 @@ const MenuSchema = new Schema(
     restaurantId: {
       type: String,
       required: true,
-
       // ⚠️ No unique constraint — allows versioned menus
     },
 
@@ -76,10 +84,10 @@ const MenuSchema = new Schema(
     // global config
     taxes: { type: [TaxSchema], default: [] },
     serviceCharge: { type: Number, default: 0 },
-    branding: { type: Schema.Types.Mixed, default: {} }, // color, logo, theme, etc.
+    branding: { type: Schema.Types.Mixed, default: {} },
   },
   {
-    timestamps: true, // adds createdAt / updatedAt
+    timestamps: true,
   }
 );
 
@@ -88,7 +96,12 @@ const MenuSchema = new Schema(
    ------------------------------------------------------------------ */
 MenuSchema.index({ restaurantId: 1, version: -1 });
 MenuSchema.index({ restaurantId: 1, isActive: 1 });
-MenuSchema.index({ restaurantId: 1, "items.itemId": 1 }, { unique: true });
+
+// ✅ Unique business ID per restaurant (safe with backend-generated IDs)
+MenuSchema.index(
+  { restaurantId: 1, "items.itemId": 1 },
+  { unique: true, sparse: true }
+);
 
 /* ------------------------------------------------------------------
    Pre-save Middleware — auto compute saveAmount for combos
