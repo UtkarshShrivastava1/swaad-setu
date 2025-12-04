@@ -1,24 +1,29 @@
-import { useEffect, useState, useCallback } from "react";
-import { FiRefreshCw } from "react-icons/fi";
-import { getOrder, type Order, type OrderItem } from "../../../../api/admin/order.api";
+import { useCallback, useEffect, useState } from "react";
+import { FiInbox, FiRefreshCw } from "react-icons/fi";
+import { isToday } from "date-fns";
+import {
+  getOrder,
+  type Order,
+  type OrderItem,
+} from "../../../../api/admin/order.api";
 import { getTables, type ApiTable } from "../../../../api/admin/table.api";
 import { useTenant } from "../../../../context/TenantContext";
 import FooterNav from "./Footer";
 import OrderHeroSection from "./OrderHero";
 
 const STATUS_CLASSES: Record<string, string> = {
-  placed: "bg-gray-50 text-black border border-gray-300",
-  preparing: "bg-yellow-50 text-yellow-600 border border-yellow-200",
-  ready: "bg-green-50 text-green-600 border border-green-200",
-  delivered: "bg-green-50 text-green-600 border border-green-200",
+  placed: "bg-slate-50 text-slate-800 border border-slate-200",
+  preparing: "bg-amber-50 text-amber-700 border border-amber-200",
+  ready: "bg-emerald-50 text-emerald-700 border border-emerald-200",
+  done: "bg-emerald-50 text-emerald-700 border border-emerald-200",
 };
 
 const FILTERS = [
-  { label: "All Orders", key: "all" },
+  { label: "Current", key: "all" },
   { label: "Placed", key: "placed" },
   { label: "Preparing", key: "preparing" },
   { label: "Ready", key: "ready" },
-  { label: "Delivered", key: "delivered" },
+  { label: "Paid", key: "done" },
 ];
 
 export default function OrdersManagement() {
@@ -52,10 +57,18 @@ export default function OrdersManagement() {
     fetchData();
   }, [fetchData]);
 
-  const filteredOrders =
-    activeFilter === "all"
-      ? orders
-      : orders.filter((order) => order.status === activeFilter);
+  const filteredOrders = orders.filter((order) => {
+    if (activeFilter === "all") {
+      return true;
+    }
+    if (activeFilter === "done") {
+      return (
+        order.paymentStatus === "paid" &&
+        isToday(new Date(order.createdAt.$date))
+      );
+    }
+    return order.status === activeFilter;
+  });
 
   function capitalize(word: string) {
     return word ? word.charAt(0).toUpperCase() + word.slice(1) : "";
@@ -68,49 +81,77 @@ export default function OrdersManagement() {
   };
 
   return (
-    <div className="w-full flex flex-col items-center py-8 min-h-screen bg-gray-50">
-      <div className="w-full max-w-5xl">
+    <div className="min-h-screen w-full flex flex-col items-center bg-gradient-to-br from-slate-100 via-amber-50/60 to-slate-100 py-8">
+      <div className="w-full max-w-6xl px-4 lg:px-0 space-y-6">
+        {/* Hero / Title */}
         <OrderHeroSection />
 
         {/* ---------- Orders Container ---------- */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+        <div className="rounded-3xl shadow-2xl border border-white/70 bg-white/90 backdrop-blur-xl overflow-hidden">
           {/* ---------- Header Row ---------- */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-6 py-4 border-b border-gray-100 gap-2 bg-gradient-to-r from-yellow-400 to-yellow-300">
-            <div className="flex items-center gap-4">
-              <h3 className="text-lg sm:text-xl font-semibold text-[#051224]">
-                Live Orders
-              </h3>
-              <button
-                onClick={fetchData}
-                disabled={loading}
-                className="p-2 rounded-full bg-[#051224] text-[#ffbe00] hover:bg-[#0a1a35] disabled:bg-gray-400 disabled:cursor-not-allowed transition"
-                aria-label="Refresh Orders"
-              >
-                <FiRefreshCw className={`h-5 w-5 ${loading ? "animate-spin" : ""}`} />
-              </button>
-            </div>
+          <div className="relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-r from-[#051224] via-[#051224] to-[#051224] opacity-90" />
+            <div className="relative px-6 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_12px_rgba(16,185,129,0.9)]" />
+                    <span className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">
+                      Live Kitchen View
+                    </span>
+                  </div>
+                  <h3 className="mt-1 text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center gap-2">
+                    Orders Dashboard
+                  </h3>
+                  <p className="text-xs sm:text-sm text-amber-100/90 mt-1">
+                    Track, filter, and manage all running orders in real-time.
+                  </p>
+                </div>
 
-            <button
-              onClick={openCustomerPortal}
-              className="flex items-center gap-2 bg-[#051224] hover:bg-[#0a1a35] text-[#ffbe00] py-2 px-4 rounded-xl shadow font-semibold transition text-sm hover:scale-[1.03] active:scale-[0.97] focus:ring-2 focus:ring-yellow-400"
-            >
-              <span className="text-lg leading-none">＋</span>
-              <span>New Order</span>
-            </button>
+                <button
+                  onClick={fetchData}
+                  disabled={loading}
+                  className="ml-1 p-2 rounded-full bg-white/10 text-amber-200 hover:bg-white/15 disabled:bg-slate-500/40 disabled:text-slate-200/70 disabled:cursor-not-allowed transition-all border border-white/20"
+                  aria-label="Refresh Orders"
+                >
+                  <FiRefreshCw
+                    className={`h-5 w-5 ${loading ? "animate-spin" : ""}`}
+                  />
+                </button>
+              </div>
+
+              <div className="flex flex-wrap gap-2 sm:gap-3 items-center">
+                <div className="hidden sm:flex flex-col text-xs text-amber-100/80">
+                  <span>New order opens customer portal</span>
+                  <span className="opacity-80">
+                    Use this at counter or for assisted ordering.
+                  </span>
+                </div>
+                <button
+                  onClick={openCustomerPortal}
+                  className="flex items-center gap-2 bg-amber-300 text-[#051224] py-2.5 px-4 rounded-xl shadow-lg font-semibold text-sm hover:bg-amber-200 hover:shadow-xl active:scale-[0.97] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-amber-300 focus-visible:ring-offset-[#051224]"
+                >
+                  <span className="text-lg leading-none">＋</span>
+                  <span>New Order</span>
+                </button>
+              </div>
+            </div>
           </div>
 
-          {/* ---------- Filter Buttons ---------- */}
-          <div className="p-6">
-            <div className="flex flex-wrap gap-2 mb-4">
+          {/* ---------- Body ---------- */}
+          <div className="p-6 space-y-5">
+            {/* ---------- Filter Buttons ---------- */}
+            <div className="flex flex-wrap gap-2 mb-2">
               {FILTERS.map((filt) => (
                 <button
                   key={filt.key}
                   onClick={() => setActiveFilter(filt.key)}
-                  className={`px-3 py-1.5 rounded-full border text-sm font-semibold transition ${
-                    activeFilter === filt.key
-                      ? "bg-[#051224] text-[#ffbe00] shadow-md"
-                      : "border-gray-300 bg-white text-gray-600 hover:bg-gray-50"
-                  }`}
+                  className={`px-3.5 py-1.5 rounded-full border text-xs sm:text-sm font-semibold transition-all shadow-sm
+                    ${
+                      activeFilter === filt.key
+                        ? "bg-[#051224] text-amber-300 border-[#051224] shadow-[0_10px_25px_rgba(5,18,36,0.4)] scale-[1.02]"
+                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300"
+                    }`}
                 >
                   {filt.label}
                 </button>
@@ -119,124 +160,204 @@ export default function OrdersManagement() {
 
             {/* ---------- Loading & Empty States ---------- */}
             {loading && (
-              <div className="text-center py-10 text-gray-500 animate-pulse">
-                Loading orders...
+              <div className="flex flex-col items-center justify-center py-12 text-slate-500">
+                <div className="h-10 w-10 rounded-full border-2 border-dashed border-slate-300 animate-spin mb-3" />
+                <p className="text-sm font-medium">
+                  Fetching latest orders from the kitchen...
+                </p>
               </div>
             )}
 
             {!loading && filteredOrders.length === 0 && (
-              <div className="text-center text-gray-500 py-12 italic">
-                No orders found for "{activeFilter}".
+              <div className="flex flex-col items-center justify-center py-14 text-slate-500">
+                <div className="h-12 w-12 rounded-2xl bg-slate-100 flex items-center justify-center mb-3 shadow-inner">
+                  <FiInbox className="h-6 w-6 text-slate-400" />
+                </div>
+                <p className="text-sm font-semibold mb-1">
+                  No orders in{" "}
+                  {activeFilter === "all"
+                    ? "the system"
+                    : `"${capitalize(activeFilter)}"`}
+                  .
+                </p>
+                <p className="text-xs text-slate-500">
+                  Once customers start ordering, you&apos;ll see them appear
+                  here in real-time.
+                </p>
               </div>
             )}
 
             {/* ---------- Orders List ---------- */}
-            <div className="grid gap-7">
-              {filteredOrders.map((order) => (
-                <div
-                  key={order._id.$oid}
-                  className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition p-0 overflow-hidden"
-                >
-                  {/* BILL HEADER */}
-                  <div className="bg-yellow-400 text-black px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div className="flex flex-col gap-1 text-sm sm:text-base">
-                      <div>Order ID: {order._id.$oid}</div>
-                      <div>
-                        Date:{" "}
-                        {new Date(order.createdAt.$date).toLocaleString("en-IN", {
-                          hour12: true,
-                        })}
-                      </div>
-                      <div>Customer: <strong>{order.customerName || "—"}</strong></div>
-                      {order.customerEmail && <div>Email: {order.customerEmail}</div>}
-                      <div>Table No: {tables.get(order.tableId) ?? "—"}</div>
-                    </div>
-
-                    <div className="flex flex-row flex-wrap gap-2">
-                      <span
-                        className={`px-4 py-1 rounded-full font-semibold border text-sm ${
-                          STATUS_CLASSES[order.status] ?? STATUS_CLASSES.placed
-                        }`}
-                      >
-                        {capitalize(order.status)}
-                      </span>
-                      <span
-                        className={`px-4 py-1 rounded-full font-semibold border text-sm ${
-                          order.paymentStatus === "paid"
-                            ? "bg-emerald-100 text-emerald-800"
-                            : "bg-red-100 text-red-800"
-                        }`}
-                      >
-                        {order.paymentStatus === "paid" ? "Paid" : "Unpaid"}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* ITEMS TABLE */}
-                  <div className="overflow-x-auto p-0">
-                    <table className="min-w-full table-fixed text-[15px] border-t border-indigo-100">
-                      <thead className="bg-indigo-100 text-gray-800">
-                        <tr>
-                          <th className="p-2 pl-4 text-left font-bold align-middle">
-                            S.no
-                          </th>
-                          <th className="p-2 text-left font-bold align-middle">
-                            Dish Name
-                          </th>
-                          <th className="p-2 text-center font-bold align-middle">
-                            Qty
-                          </th>
-                          <th className="p-2 text-right font-bold align-middle">
-                            MRP
-                          </th>
-                          <th className="p-2 text-right font-bold align-middle">
-                            Amount
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {order.items?.map((item: OrderItem, idx: number) => (
-                          <tr
-                            key={idx}
-                            className="border-b border-slate-100 hover:bg-gray-50 text-black"
-                          >
-                            <td className="p-2 pl-4 align-middle">{idx + 1}</td>
-                            <td className="p-2 align-middle">{item.name}</td>
-                            <td className="p-2 text-center align-middle">
-                              {item.quantity}
-                            </td>
-                            <td className="p-2 text-right align-middle">
-                              ₹{item.price}
-                            </td>
-                            <td className="p-2 text-right align-middle">
-                              ₹{(item.price * item.quantity).toFixed(2)}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* BILL SUMMARY */}
-                  <div className="p-5 border-t border-slate-300 bg-slate-50">
-                    <div className="flex flex-col items-end gap-1 text-sm text-gray-700">
-                      <div>Discount: ₹{order.discountAmount ?? 0}</div>
-                      {order.appliedTaxes?.map((tax, idx) => (
-                        <div key={tax._id || idx}>
-                          {tax.name} ({tax.percent}%): ₹{tax.amount}
+            {!loading && filteredOrders.length > 0 && (
+              <div className="grid gap-6">
+                {filteredOrders.map((order) => (
+                  <div
+                    key={order._id.$oid}
+                    className="group bg-white rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-xl hover:border-amber-200 transition-all overflow-hidden"
+                  >
+                    {/* BILL HEADER */}
+                    <div className="bg-gradient-to-r from-amber-100 via-amber-50 to-white px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-amber-100">
+                      <div className="flex flex-col gap-1 text-xs sm:text-sm text-slate-800">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-[11px] uppercase tracking-[0.22em] text-slate-500 font-semibold">
+                            Order
+                          </span>
+                          <span className="px-2 py-0.5 rounded-full bg-slate-900 text-amber-300 text-[11px] font-mono">
+                            #{order._id?.$oid?.slice(-6) || "Missing ID"}
+                          </span>
                         </div>
-                      ))}
-                      <div>
-                        Service Charge: ₹{order.serviceChargeAmount ?? 0}
+                        <div className="text-[13px] sm:text-sm text-slate-700">
+                          Placed at{" "}
+                          <span className="font-semibold">
+                            {new Date(order.createdAt.$date).toLocaleString(
+                              "en-IN",
+                              {
+                                hour12: true,
+                              }
+                            )}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-[13px] sm:text-sm">
+                          <span>
+                            Customer:{" "}
+                            <span className="font-semibold">
+                              {order.customerName || "Walk-in"}
+                            </span>
+                          </span>
+                          {order.customerEmail && (
+                            <span className="hidden sm:inline-block">
+                              Email: {order.customerEmail}
+                            </span>
+                          )}
+                          <span>
+                            Table:{" "}
+                            <span className="font-semibold">
+                              {tables.get(order.tableId) ?? "—"}
+                            </span>
+                          </span>
+                        </div>
                       </div>
-                      <div className="font-bold text-base mt-2 text-gray-900">
-                        Total: ₹{order.totalAmount}
+
+                      <div className="flex flex-wrap gap-2 justify-start sm:justify-end">
+                        <span
+                          className={`px-3.5 py-1 rounded-full font-semibold border text-xs sm:text-sm flex items-center gap-1.5 ${
+                            STATUS_CLASSES[order.status] ??
+                            STATUS_CLASSES.placed
+                          }`}
+                        >
+                          <span className="h-1.5 w-1.5 rounded-full bg-current opacity-70" />
+                          {capitalize(order.status)}
+                        </span>
+                        <span
+                          className={`px-3 py-1 rounded-full font-semibold text-xs sm:text-sm border flex items-center gap-1.5 ${
+                            order.paymentStatus === "paid"
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                              : "bg-rose-50 text-rose-700 border-rose-200"
+                          }`}
+                        >
+                          <span className="h-1.5 w-1.5 rounded-full bg-current opacity-70" />
+                          {order.paymentStatus === "paid" ? "Paid" : "Unpaid"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* ITEMS TABLE */}
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full text-[13px] sm:text-[14px] border-t border-slate-100">
+                        <thead className="bg-slate-50/90 text-slate-700">
+                          <tr>
+                            <th className="p-2 pl-4 text-left font-semibold align-middle w-16">
+                              #
+                            </th>
+                            <th className="p-2 text-left font-semibold align-middle">
+                              Dish
+                            </th>
+                            <th className="p-2 text-center font-semibold align-middle w-16">
+                              Qty
+                            </th>
+                            <th className="p-2 text-right font-semibold align-middle w-24">
+                              MRP
+                            </th>
+                            <th className="p-2 pr-4 text-right font-semibold align-middle w-28">
+                              Amount
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {order.items?.map((item: OrderItem, idx: number) => (
+                            <tr
+                              key={idx}
+                              className="border-t border-slate-100 hover:bg-slate-50/80 text-slate-900"
+                            >
+                              <td className="p-2 pl-4 align-middle text-xs sm:text-sm text-slate-500">
+                                {idx + 1}
+                              </td>
+                              <td className="p-2 align-middle text-xs sm:text-sm">
+                                {item.name}
+                              </td>
+                              <td className="p-2 text-center align-middle text-xs sm:text-sm">
+                                {item.quantity}
+                              </td>
+                              <td className="p-2 text-right align-middle text-xs sm:text-sm">
+                                ₹{item.priceAtOrder || item.price}
+                              </td>
+                              <td className="p-2 pr-4 text-right align-middle text-xs sm:text-sm font-medium">
+                                ₹
+                                {(
+                                  (item.priceAtOrder || item.price) *
+                                  item.quantity
+                                ).toFixed(2)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* BILL SUMMARY */}
+                    <div className="px-5 py-4 border-t border-slate-200 bg-slate-50/90">
+                      <div className="flex flex-col items-end gap-0.5 text-xs sm:text-sm text-slate-700">
+                        <div className="flex justify-between gap-6 w-full max-w-xs">
+                          <span>Discount</span>
+                          <span className="font-medium">
+                            ₹{order.discountAmount ?? 0}
+                          </span>
+                        </div>
+
+                        {order.appliedTaxes?.map((tax, idx) => (
+                          <div
+                            key={tax._id || idx}
+                            className="flex justify-between gap-6 w-full max-w-xs"
+                          >
+                            <span>
+                              {tax.name} ({tax.percent}
+                              %)
+                            </span>
+                            <span className="font-medium">₹{tax.amount}</span>
+                          </div>
+                        ))}
+
+                        <div className="flex justify-between gap-6 w-full max-w-xs">
+                          <span>Service Charge</span>
+                          <span className="font-medium">
+                            ₹{order.serviceChargeAmount ?? 0}
+                          </span>
+                        </div>
+
+                        <div className="flex justify-between gap-6 w-full max-w-xs mt-2 pt-2 border-t border-slate-300">
+                          <span className="font-semibold text-slate-900">
+                            Total
+                          </span>
+                          <span className="font-extrabold text-base text-slate-900">
+                            ₹{order.totalAmount}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

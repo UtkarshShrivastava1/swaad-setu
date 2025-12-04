@@ -117,8 +117,10 @@ export default function Header({
             <button
               onClick={handleCallWaiterClick}
               className={`${
-                callActive ? "ring-2 ring-green-600 animate-pulse" : ""
-              } flex items-center gap-1 bg-black px-3 py-1.5 rounded-full text-yellow-400 font-semibold hover:bg-black/80 transition`}
+                callActive
+                  ? "ring-2 ring-green-600 animate-pulse text-green-500"
+                  : "text-yellow-400"
+              } flex items-center gap-1 bg-black px-3 py-1.5 rounded-full font-semibold hover:bg-black/80 transition`}
             >
               <BellRing size={14} /> Call Waiter
             </button>
@@ -173,8 +175,10 @@ export default function Header({
           <button
             onClick={handleCallWaiterClick}
             className={`${
-              callActive ? "ring-2 ring-green-600 animate-pulse" : ""
-            } bg-black hover:bg-black/80 px-3 py-1.5 rounded-full text-yellow-400 font-semibold text-xs flex items-center gap-1`}
+              callActive
+                ? "ring-2 ring-green-600 animate-pulse text-green-500"
+                : "text-yellow-400"
+            } bg-black hover:bg-black/80 px-3 py-1.5 rounded-full font-semibold text-xs flex items-center gap-1`}
           >
             <BellRing size={14} /> Call Waiter
           </button>
