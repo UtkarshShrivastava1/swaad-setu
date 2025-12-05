@@ -1,10 +1,10 @@
 import { motion } from "framer-motion";
-import React, { useContext, useEffect, useState } from "react";
-import { getOrder, type Order } from "../../../../api/admin/order.api";
-import { getTables, type ApiTable } from "../../../../api/admin/table.api";
-import { TenantContext } from "../../../../context/TenantContext";
+import { useContext, useEffect, useState } from "react";
 import { FaBox, FaRupeeSign, FaUser } from "react-icons/fa";
 import { MdTableRestaurant } from "react-icons/md";
+import { getOrder, type Order } from "../../../../api/admin/order.api";
+import { getTables } from "../../../../api/admin/table.api";
+import { TenantContext } from "../../../../context/TenantContext";
 
 export default function RecentActivity() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -29,7 +29,7 @@ export default function RecentActivity() {
             new Date(b.createdAt?.$date || "").getTime() -
             new Date(a.createdAt?.$date || "").getTime()
         );
-        setOrders(sortedOrders.slice(0, 6));
+        setOrders(sortedOrders.slice(0, 3));
 
         const tableMap = new Map(
           tableResult.map((table) => [table._id, table.tableNumber])
@@ -102,93 +102,139 @@ export default function RecentActivity() {
   };
 
   return (
-    <div className="mt-6 w-full">
-      <h2 className="px-2 sm:px-0 text-lg font-semibold text-gray-900 mb-4">
-        Recent Activity
-      </h2>
+    <div className="mt-8 w-full">
+      {/* ===== Section Header ===== */}
+      <div className="flex items-center justify-between mb-5">
+        <h2 className="text-lg font-bold text-gray-900 tracking-tight">
+          Recent Activity
+        </h2>
+        <span className="text-xs text-gray-400">Live order updates</span>
+      </div>
 
+      {/* ===== States ===== */}
       {loading ? (
-        <div className="text-gray-500 text-sm text-center py-6">
-          Loading recent orders...
+        <div className="flex items-center justify-center py-10 text-sm text-gray-500">
+          Loading recent orders…
         </div>
       ) : error ? (
-        <div className="text-red-500 text-sm text-center py-6">{error}</div>
+        <div className="flex items-center justify-center py-10 text-sm text-red-500">
+          {error}
+        </div>
       ) : orders.length === 0 ? (
-        <div className="text-gray-400 text-sm text-center py-6">
+        <div className="flex items-center justify-center py-10 text-sm text-gray-400 bg-white border border-gray-200 rounded-2xl shadow-sm">
           No recent activity yet.
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {orders.map((order) => (
             <motion.div
-              key={order._id?.$oid}
-              whileHover={{ scale: 1.02, y: -4 }}
-              transition={{ duration: 0.2, ease: "easeInOut" }}
-              className="bg-white border border-gray-200 shadow-sm hover:shadow-lg rounded-xl p-4 flex flex-col justify-between"
+              key={
+                order._id?.$oid ??
+                `${order.sessionId}-${order.createdAt?.$date}`
+              }
+              whileHover={{ y: -3 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="relative bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-md transition overflow-hidden"
             >
-              {/* Card Header */}
-              <div className="flex items-start justify-between w-full mb-3">
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`w-10 h-10 flex items-center justify-center rounded-full text-xl ${getStatusColor(
-                      order.status
-                    )}`}
-                  >
-                    {getStatusIcon(order.status)}
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-800 text-sm">
-                      {getStatusText(order.status)}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      #{`${(order._id?.$oid || "").slice(-6)}`}
-                    </p>
-                  </div>
-                </div>
-                <span className="text-xs text-gray-400 whitespace-nowrap pt-1">
-                  {new Date(order.createdAt?.$date || "").toLocaleTimeString(
-                    [],
-                    {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    }
-                  )}
-                </span>
-              </div>
+              {/* Top Accent Line (status color) */}
+              <div
+                className={`absolute inset-x-0 top-0 h-[3px] ${
+                  order.status === "completed"
+                    ? "bg-emerald-400"
+                    : order.status === "ready"
+                    ? "bg-green-400"
+                    : order.status === "preparing"
+                    ? "bg-yellow-400"
+                    : order.status === "cancelled"
+                    ? "bg-red-400"
+                    : "bg-blue-400"
+                }`}
+              />
 
-              {/* Card Body with Details */}
-              <div className="w-full space-y-2 text-sm text-gray-600">
-                <div className="flex items-center gap-2">
-                  <MdTableRestaurant className="text-gray-400" />
-                  <span>
-                    For Table{" "}
-                    <strong>{tables.get(order.tableId) || order.tableId}</strong>
+              <div className="p-4 flex flex-col justify-between h-full">
+                {/* ===== Header ===== */}
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`w-10 h-10 flex items-center justify-center rounded-full text-lg ${getStatusColor(
+                        order.status
+                      )}`}
+                    >
+                      {getStatusIcon(order.status)}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-800 text-sm">
+                        {getStatusText(order.status)}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        #{(order._id?.$oid || "").slice(-6)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <span className="text-[11px] text-gray-400 whitespace-nowrap">
+                    {new Date(order.createdAt?.$date || "").toLocaleTimeString(
+                      [],
+                      {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      }
+                    )}
                   </span>
                 </div>
-                <div className="flex items-center justify-between">
+
+                {/* ===== Body ===== */}
+                <div className="space-y-2 text-sm text-gray-600">
                   <div className="flex items-center gap-2">
-                    <FaBox className="text-gray-400" />
+                    <MdTableRestaurant className="text-gray-400" />
                     <span>
-                      {order.items.length}{" "}
-                      {order.items.length > 1 ? "items" : "item"}
+                      Table{" "}
+                      <strong className="text-gray-800">
+                        {tables.get(order.tableId) || order.tableId}
+                      </strong>
                     </span>
                   </div>
-                  <div className="flex items-center gap-1 font-semibold text-gray-700">
-                    <FaRupeeSign size={12} />
-                    <span>{order.totalAmount.toFixed(2)}</span>
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <FaBox className="text-gray-400" />
+                      <span>
+                        {order.items.length}{" "}
+                        {order.items.length > 1 ? "items" : "item"}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-1 font-semibold text-gray-800">
+                      <FaRupeeSign size={12} />
+                      <span>{order.totalAmount.toFixed(2)}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Card Footer */}
-              <div className="border-t border-gray-100 mt-3 pt-2 text-xs text-gray-500 flex items-center gap-2">
-                <FaUser className="text-gray-400" />
-                <span>
-                  By:{" "}
-                  <strong>
-                    {order.staffAlias || order.customerName || "Guest"}
-                  </strong>
-                </span>
+                {/* ===== Footer ===== */}
+                <div className="mt-4 pt-3 border-t border-gray-100 flex items-center gap-2 text-xs text-gray-500">
+                  <FaUser className="text-gray-400" />
+                  <span>
+                    {order.staffAlias && (
+                      <>
+                        By:{" "}
+                        <strong className="text-gray-700">
+                          {order.staffAlias}
+                        </strong>
+                        {order.customerName && ", "}
+                      </>
+                    )}
+                    {order.customerName && (
+                      <>
+                        To:{" "}
+                        <strong className="text-gray-700">
+                          {order.customerName}
+                        </strong>
+                      </>
+                    )}
+                    {!order.staffAlias && !order.customerName && "Guest"}
+                  </span>
+                </div>
               </div>
             </motion.div>
           ))}
