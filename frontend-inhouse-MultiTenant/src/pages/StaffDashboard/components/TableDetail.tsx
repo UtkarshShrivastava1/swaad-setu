@@ -247,23 +247,21 @@ export default function TableDetailView({
             >
               {table.status === "occupied" ? "Occupied" : "Available"}
             </div>
-            {table.status !== "available" && (
-              <button
-                onClick={handleResetTable}
-                className="px-4 py-2 rounded-lg text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white transition flex items-center gap-1"
-                disabled={resettingTable}
-              >
-                {resettingTable ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" /> Resetting...
-                  </>
-                ) : (
-                  <>
-                    <RotateCcw className="h-4 w-4" /> Reset Table
-                  </>
-                )}
-              </button>
-            )}
+            <button
+              onClick={handleResetTable}
+              className="px-4 py-2 rounded-lg text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white transition flex items-center gap-1"
+              disabled={resettingTable}
+            >
+              {resettingTable ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" /> Resetting...
+                </>
+              ) : (
+                <>
+                  <RotateCcw className="h-4 w-4" /> Reset Table
+                </>
+              )}
+            </button>
             <button
               onClick={() => onOpenQrModal(table)}
               className="px-4 py-2 rounded-lg text-sm font-semibold bg-blue-500 hover:bg-blue-600 text-white transition"
@@ -273,94 +271,122 @@ export default function TableDetailView({
           </div>
         </div>
 
-      {/* ORDERS */}
-      <div>
-        <h3 className="text-lg sm:text-xl font-semibold text-slate-800 mb-3 flex items-center gap-2">
-          <Receipt className="h-5 w-5 text-indigo-600" />
-          Active Orders1
-        </h3>
+        {/* ORDERS */}
+        <div>
+          <h3 className="text-lg sm:text-xl font-semibold text-slate-800 mb-3 flex items-center gap-2">
+            <Receipt className="h-5 w-5 text-indigo-600" />
+            Active Orders1
+          </h3>
 
-        {loading ? (
-          <div className="flex items-center gap-2 text-slate-600 text-sm">
-            <Loader2 className="animate-spin h-4 w-4" /> Loading orders…
-          </div>
-        ) : error ? (
-          <div className="p-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg text-sm flex items-center gap-2">
-            <AlertCircle className="h-4 w-4" /> {error}
-          </div>
-        ) : unpaidOrders.length === 0 ? (
-          <div className="p-4 border border-slate-200 rounded-lg text-slate-500 bg-slate-50 text-sm flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 text-amber-500" />
-            No active unpaid orders.
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {unpaidOrders.map((o) => {
-              const orderId = o._id || o.id;
-              const isExpanded = expandedOrderId === orderId;
+          {loading ? (
+            <div className="flex items-center gap-2 text-slate-600 text-sm">
+              <Loader2 className="animate-spin h-4 w-4" /> Loading orders…
+            </div>
+          ) : error ? (
+            <div className="p-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg text-sm flex items-center gap-2">
+              <AlertCircle className="h-4 w-4" /> {error}
+            </div>
+          ) : unpaidOrders.length === 0 ? (
+            <div className="p-4 border border-slate-200 rounded-lg text-slate-500 bg-slate-50 text-sm flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-amber-500" />
+              No active unpaid orders.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {unpaidOrders.map((o) => {
+                const orderId = o._id || o.id;
+                const isExpanded = expandedOrderId === orderId;
 
-              return (
-                <div
-                  key={orderId}
-                  className="p-4 bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md cursor-pointer transition-all"
-                  onClick={() => {
-                    if (window.innerWidth < 640)
-                      setExpandedOrderId(isExpanded ? null : orderId);
-                  }}
-                >
-                  {/* HEADER */}
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="text-lg font-semibold text-slate-800">
-                        #{o.orderNumberForDay ?? String(orderId).slice(-5)}
-                      </h4>
+                return (
+                  <div
+                    key={orderId}
+                    className="p-4 bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md cursor-pointer transition-all"
+                    onClick={() => {
+                      if (window.innerWidth < 640)
+                        setExpandedOrderId(isExpanded ? null : orderId);
+                    }}
+                  >
+                    {/* HEADER */}
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="text-lg font-semibold text-slate-800">
+                          #{o.orderNumberForDay ?? String(orderId).slice(-5)}
+                        </h4>
 
-                      {o.customerName && (
-                        <p className="text-sm text-slate-600 flex items-center gap-1">
-                          <User className="h-4 w-4" />
-                          {o.customerName}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="flex flex-col items-end gap-1">
-                      {getStatusBadge(o.status)}
-                      <ChevronDown
-                        className={`h-4 w-4 sm:hidden text-slate-500 transition-transform ${
-                          isExpanded ? "rotate-180" : ""
-                        }`}
-                      />
-                    </div>
-                  </div>
-
-                  {/* MOBILE DETAILS */}
-                  {isExpanded && (
-                    <div className="mt-3 border-t border-slate-100 pt-2 text-sm text-slate-600 sm:hidden space-y-1">
-                      <div className="flex justify-between">
-                        <span>Status:</span>
-                        <span className="capitalize">{o.status}</span>
+                        {o.customerName && (
+                          <p className="text-sm text-slate-600 flex items-center gap-1">
+                            <User className="h-4 w-4" />
+                            {o.customerName}
+                          </p>
+                        )}
                       </div>
 
-                      <div className="flex justify-between">
-                        <span>Total:</span>
-                        <span className="font-semibold flex items-center gap-1">
-                          <IndianRupee className="h-4 w-4 text-emerald-600" />
+                      <div className="flex flex-col items-end gap-1">
+                        {getStatusBadge(o.status)}
+                        <ChevronDown
+                          className={`h-4 w-4 sm:hidden text-slate-500 transition-transform ${
+                            isExpanded ? "rotate-180" : ""
+                          }`}
+                        />
+                      </div>
+                    </div>
+
+                    {/* MOBILE DETAILS */}
+                    {isExpanded && (
+                      <div className="mt-3 border-t border-slate-100 pt-2 text-sm text-slate-600 sm:hidden space-y-1">
+                        <div className="flex justify-between">
+                          <span>Status:</span>
+                          <span className="capitalize">{o.status}</span>
+                        </div>
+
+                        <div className="flex justify-between">
+                          <span>Total:</span>
+                          <span className="font-semibold flex items-center gap-1">
+                            <IndianRupee className="h-4 w-4 text-emerald-600" />
+                            {o.totalAmount?.toFixed(2)}
+                          </span>
+                        </div>
+
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleGenerateAndOpenBill(o);
+                          }}
+                          disabled={billLoadingId === orderId}
+                          className="mt-3 w-full px-4 py-1.5 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700 transition flex items-center justify-center gap-1"
+                        >
+                          {billLoadingId === orderId ? (
+                            <>
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              Generating…
+                            </>
+                          ) : (
+                            <>
+                              View Order
+                              <ChevronLeft className="rotate-180 h-4 w-4" />
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
+
+                    {/* DESKTOP FOOTER */}
+                    <div className="hidden sm:flex justify-between items-center mt-4 pt-2 border-t border-slate-100">
+                      <div className="flex items-center gap-1.5">
+                        <IndianRupee className="h-4 w-4 text-emerald-600" />
+                        <span className="text-base font-semibold text-slate-800">
                           {o.totalAmount?.toFixed(2)}
                         </span>
                       </div>
 
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleGenerateAndOpenBill(o);
-                        }}
+                        onClick={() => handleGenerateAndOpenBill(o)}
                         disabled={billLoadingId === orderId}
-                        className="mt-3 w-full px-4 py-1.5 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700 transition flex items-center justify-center gap-1"
+                        className="px-3.5 py-1.5 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 transition flex items-center gap-1"
                       >
                         {billLoadingId === orderId ? (
                           <>
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            Generating…
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />…
                           </>
                         ) : (
                           <>
@@ -370,57 +396,30 @@ export default function TableDetailView({
                         )}
                       </button>
                     </div>
-                  )}
-
-                  {/* DESKTOP FOOTER */}
-                  <div className="hidden sm:flex justify-between items-center mt-4 pt-2 border-t border-slate-100">
-                    <div className="flex items-center gap-1.5">
-                      <IndianRupee className="h-4 w-4 text-emerald-600" />
-                      <span className="text-base font-semibold text-slate-800">
-                        {o.totalAmount?.toFixed(2)}
-                      </span>
-                    </div>
-
-                    <button
-                      onClick={() => handleGenerateAndOpenBill(o)}
-                      disabled={billLoadingId === orderId}
-                      className="px-3.5 py-1.5 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 transition flex items-center gap-1"
-                    >
-                      {billLoadingId === orderId ? (
-                        <>
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />…
-                        </>
-                      ) : (
-                        <>
-                          View Order
-                          <ChevronLeft className="rotate-180 h-4 w-4" />
-                        </>
-                      )}
-                    </button>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* COMBINED AMOUNT */}
+        {unpaidOrders.length > 1 && (
+          <div className="mt-8 border-t border-slate-200 pt-4">
+            <h4 className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
+              <CreditCard className="h-4 w-4 text-slate-600" />
+              Combined Pending Amount
+            </h4>
+
+            <div className="text-lg sm:text-xl font-bold text-emerald-700">
+              ₹
+              {unpaidOrders
+                .reduce((sum, o) => sum + (o.totalAmount || 0), 0)
+                .toFixed(2)}
+            </div>
           </div>
         )}
       </div>
-
-      {/* COMBINED AMOUNT */}
-      {unpaidOrders.length > 1 && (
-        <div className="mt-8 border-t border-slate-200 pt-4">
-          <h4 className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
-            <CreditCard className="h-4 w-4 text-slate-600" />
-            Combined Pending Amount
-          </h4>
-
-          <div className="text-lg sm:text-xl font-bold text-emerald-700">
-            ₹
-            {unpaidOrders
-              .reduce((sum, o) => sum + (o.totalAmount || 0), 0)
-              .toFixed(2)}
-          </div>
-        </div>
-      )}
-    </div>
+    </>
   );
 }
