@@ -219,7 +219,7 @@ export default function TableDetailView({
       <div className="max-w-6xl mx-auto p-4 sm:p-6">
         <button
           onClick={onBack}
-          className="mb-4 inline-flex items-center gap-2 text-indigo-600 hover:text-indigo-800 font-medium"
+          className="mb-4 inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-slate-200 text-slate-700 hover:bg-slate-300 transition-colors"
         >
           <ChevronLeft className="h-4 w-4" /> Back to Dashboard
         </button>
