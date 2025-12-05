@@ -11,6 +11,7 @@ export type OrderItem = {
   _id: { $oid: string };
   createdAt: { $date: string };
   updatedAt: { $date: string };
+  OrderNumberForDay?: number;
 };
 
 export type Order = {
@@ -20,7 +21,7 @@ export type Order = {
   sessionId: string;
   items: OrderItem[];
   totalAmount: number;
-  status: "placed" | "preparing" | "ready" | "completed" | "cancelled";
+  status: "placed" | "preparing" | "ready" | "completed" | "cancelled" | "done";
   paymentStatus: "unpaid" | "paid" | "partial";
   isCustomerOrder: boolean;
   customerName: string;
@@ -39,14 +40,21 @@ export type Order = {
     percent: number;
     amount: number;
   }[];
+  orderNumberForDay?: number; // Added this line
 };
 
 export async function createOrder(rid: string, payload: object) {
   return client.post(`/api/${rid}/orders`, payload);
 }
 
-export async function getOrder(rid: string): Promise<Order[]> {
-  return client.get(`/api/${rid}/orders/active`);
+export async function getOrder(rid: string, statusFilter?: "all" | "placed" | "preparing" | "ready" | "served" | "cancelled"): Promise<Order[]> {
+  let url = `/api/${rid}/orders`;
+  if (statusFilter === "all" || !statusFilter) {
+    url += "/active"; // Default or "Current" filter
+  } else { // specific active statuses like "placed", "preparing", "ready"
+    url += `/active?status=${statusFilter}`;
+  }
+  return client.get(url);
 }
 
 export async function getOrderById(

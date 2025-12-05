@@ -143,6 +143,14 @@ router.get(
 );
 
 router.get(
+  "/", // This route handles /api/:rid/orders?status=...
+  authMiddleware,
+  requireRole(["staff", "admin"]),
+  limiter("standardLimiter"),
+  orderController.getOrderHistory
+);
+
+router.get(
   "/waiters",
   authMiddleware,
   requireRole(["staff", "admin"]),

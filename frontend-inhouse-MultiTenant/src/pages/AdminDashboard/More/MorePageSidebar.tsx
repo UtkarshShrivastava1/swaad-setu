@@ -1,7 +1,21 @@
-import { Users, BarChart, Settings, Clock } from "lucide-react";
+import {
+  Users,
+  BarChart,
+  Settings,
+  Clock,
+  Shield,
+  CreditCard,
+} from "lucide-react";
 import React from "react";
 
-type MoreTab = "staff" | "bills" | "settings" | "recent_bills";
+type MoreTab =
+  | "staff"
+  | "bills"
+  | "settings"
+  | "upi_settings"
+  | "recent_bills"
+  | "admin_pin"
+  | "staff_pin";
 
 export default function MorePageSidebar({
   activeTab,
@@ -14,7 +28,10 @@ export default function MorePageSidebar({
     { id: "staff", label: "Waiter Management", icon: Users },
     { id: "bills", label: "Bills Overview", icon: BarChart },
     { id: "settings", label: "System Settings", icon: Settings },
+    { id: "upi_settings", label: "UPI Settings", icon: CreditCard },
     { id: "recent_bills", label: "Recent Bills", icon: Clock },
+    { id: "admin_pin", label: "Admin PIN", icon: Shield },
+    { id: "staff_pin", label: "Staff PIN", icon: Shield },
   ];
 
   return (

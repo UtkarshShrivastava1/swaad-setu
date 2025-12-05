@@ -7,9 +7,9 @@ import {
   LogOut,
   MapPin,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { createCall } from "../../api/call.api";
+import { createCall, getCall } from "../../api/call.api";
 import { useTenant } from "../../context/TenantContext";
 
 export default function Header({
@@ -25,13 +25,54 @@ export default function Header({
 }) {
   const navigate = useNavigate();
   const { rid } = useTenant();
-  const [callActive, setCallActive] = useState(false);
+  const [callActive, setCallActive] = useState(() => {
+    try {
+      const activeCall = sessionStorage.getItem("active_call");
+      if (activeCall) {
+        const call = JSON.parse(activeCall);
+        return call.status === "active";
+      }
+    } catch (error) {
+      console.error("Failed to parse active_call from sessionStorage:", error);
+    }
+    return false;
+  });
   const [toast, setToast] = useState<null | {
     type: "success" | "error";
     message: string;
   }>(null);
 
   const tableId = table?._id;
+
+  useEffect(() => {
+    let intervalId: number | undefined;
+
+    if (callActive) {
+      const activeCallData = sessionStorage.getItem("active_call");
+      if (activeCallData) {
+        const call = JSON.parse(activeCallData);
+        intervalId = setInterval(async () => {
+          try {
+            const updatedCall = await getCall(rid, call._id);
+            if (updatedCall.status !== "active") {
+              setCallActive(false);
+              sessionStorage.removeItem("active_call");
+              clearInterval(intervalId);
+            }
+          } catch (error) {
+            console.error("Failed to get call status:", error);
+            // Optional: handle error, maybe stop polling
+          }
+        }, 5000); // Poll every 5 seconds
+      }
+    }
+
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [callActive, rid]);
 
   const showToast = (type: "success" | "error", message: string) => {
     setToast({ type, message });
@@ -42,7 +83,9 @@ export default function Header({
     if (typeof onCallWaiter === "function") {
       try {
         await onCallWaiter();
-      } catch {}
+      } catch (error) {
+        console.error("onCallWaiter function failed:", error);
+      }
       return;
     }
     try {
@@ -58,7 +101,9 @@ export default function Header({
 
       try {
         sessionStorage.setItem("active_call", JSON.stringify(res));
-      } catch {}
+      } catch (error) {
+        console.error("Failed to set active_call in sessionStorage:", error);
+      }
 
       if (res?.status === "active") setCallActive(true);
       showToast("success", "Waiter called");

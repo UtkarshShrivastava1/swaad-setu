@@ -1,9 +1,10 @@
 import { AlertCircle, Bell, History, Receipt, Utensils } from "lucide-react";
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { toast } from 'react-toastify';
 
 import BillingView from "./components/BillingView";
-import Header from "./components/Header";
+import Header from "../../components/common/Header";
 import OrdersComponent from "./components/OrdersComponent";
 import TableDetail from "./components/TableDetail";
 import TablesComponent from "./components/TablesComponent";
@@ -13,6 +14,7 @@ import NotificationsView from "./components/NotificationsView";
 import { formatINR } from "./utils/formatters";
 
 import { getBillByOrderId } from "../../api/staff/staff.operations.api";
+import { getRestaurantByRid, type Restaurant } from "../../api/restaurant.api";
 import { useTenant } from "../../context/TenantContext";
 
 import { useBilling } from "./hooks/useBilling";
@@ -28,14 +30,28 @@ import type { Order, Table, ApiTable } from "./types";
 export default function StaffDashboard() {
   const navigate = useNavigate();
   const { rid: ridFromUrl } = useParams();
-  const { rid: ridFromContext, admin, setRid } = useTenant();
-
-  const tenant = useMemo(
-    () => ({ rid: ridFromContext, admin }),
-    [ridFromContext, admin]
-  );
+  const {
+    rid: ridFromContext,
+    admin,
+    setRid,
+    tenant,
+    setTenant,
+  } = useTenant();
 
   const rid = ridFromUrl || ridFromContext || "";
+
+  useEffect(() => {
+    if (rid && !tenant) {
+      getRestaurantByRid(rid)
+        .then((restaurantData) => {
+          setTenant(restaurantData);
+        })
+        .catch((err) => {
+          console.error("Failed to fetch restaurant data:", err);
+          setError("Failed to load restaurant information.");
+        });
+    }
+  }, [rid, tenant, setTenant]);
 
   useEffect(() => {
     if (ridFromUrl && ridFromUrl !== ridFromContext) {
@@ -74,9 +90,7 @@ export default function StaffDashboard() {
     orderHistory,
     fetchActiveOrders,
     isLoading: ordersLoading,
-    isHistoryLoading,
     error: ordersError,
-    historyError,
     setActiveOrders,
   } = useOrders(fetchTables as () => Promise<Table[]>, setTables);
 
@@ -89,7 +103,7 @@ export default function StaffDashboard() {
     handleUpdateCallStatus,
     isLoading: callsLoading,
     error: callsError,
-  } = useCalls(tenant);
+  } = useCalls(rid);
 
   useEffect(() => {
     if (callsLoading) {
@@ -124,6 +138,16 @@ export default function StaffDashboard() {
     if (calls.length > previousCalls.length) {
       setNewCall(true);
       setTimeout(() => setNewCall(false), 3000);
+
+      const newIncomingCalls = calls.filter(
+        (call) => !previousCalls.some((prevCall: any) => prevCall._id === call._id)
+      );
+
+      newIncomingCalls.forEach((newCallItem: any) => {
+        const table = tables.find(t => String(t._id || t.id) === String(newCallItem.tableId));
+        const tableNumber = table ? table.tableNumber : 'Unknown';
+        toast.info(`New call from Table ${tableNumber}! Type: ${newCallItem.type}`);
+      });
     }
     sessionStorage.setItem("calls", JSON.stringify(calls));
   }, [calls]);
@@ -148,6 +172,8 @@ export default function StaffDashboard() {
 
   const {
     billHistory,
+    summary,
+    pagination,
     fetchBillHistory,
     isHistoryLoading: isBillHistoryLoading,
     historyError: billHistoryError,
@@ -171,6 +197,10 @@ export default function StaffDashboard() {
     fetchWaiters();
     fetchCalls();
 
+    console.log("Staff Dashboard useEffect - rid:", rid);
+    console.log("Staff Dashboard useEffect - tenant:", tenant);
+    console.log("Staff Dashboard useEffect - callsError:", callsError);
+
     const interval = setInterval(() => {
       if (view === "dashboard") {
         fetchActiveOrders();
@@ -182,11 +212,7 @@ export default function StaffDashboard() {
     return () => clearInterval(interval);
   }, [navigate, view, rid, fetchActiveOrders, fetchWaiters, fetchCalls]);
 
-  useEffect(() => {
-    if (activeTab === "history") {
-      fetchBillHistory({ limit: 50 });
-    }
-  }, [activeTab, fetchBillHistory]);
+
 
   useEffect(() => {
     const fn = () => {
@@ -322,11 +348,13 @@ export default function StaffDashboard() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
       <Header
         key={rid}
+        tenant={tenant}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         onOpenNotifications={() => setActiveTab("notifications")}
         onLogout={handleLogout}
         waiterCallCount={calls.length}
+        role="staff"
       />
 
       <main className="max-w-7xl mx-auto px-4 py-6">
@@ -375,7 +403,7 @@ export default function StaffDashboard() {
                 <button
                   key={key}
                   onClick={() => setActiveTab(key as any)}
-                  className={`px-4 py-2.5 rounded-lg text-sm flex items-center ${
+                  className={`px-4 py-2.5 rounded-lg text-sm flex items-center cursor-pointer ${
                     activeTab === key
                       ? "bg-indigo-600 text-white"
                       : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50"
@@ -430,9 +458,12 @@ export default function StaffDashboard() {
                   <BillHistory
                     billHistory={billHistory}
                     fetchBillHistory={fetchBillHistory}
-                    isHistoryLoading={isBillHistoryLoading || isHistoryLoading}
-                    historyError={billHistoryError || historyError}
+                    isHistoryLoading={isBillHistoryLoading}
+                    historyError={billHistoryError}
                     formatINR={formatINR}
+                    summary={summary}
+                    pagination={pagination}
+                    tenant={tenant}
                   />
                 )}
               </>

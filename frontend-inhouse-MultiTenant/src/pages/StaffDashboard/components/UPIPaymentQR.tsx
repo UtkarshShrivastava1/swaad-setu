@@ -1,6 +1,8 @@
 import { CheckCircle2, Copy, ExternalLink } from "lucide-react";
 import QRCode from "qrcode.react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useTenant } from "../../../context/TenantContext";
+import { getRestaurantByRid } from "../../../api/restaurant.api";
 
 export default function UPIPaymentQR({
   amount,
@@ -9,14 +11,40 @@ export default function UPIPaymentQR({
   amount: number;
   note?: string;
 }) {
+  const { rid } = useTenant();
   const [copied, setCopied] = useState(false);
+  const [upiId, setUpiId] = useState("");
+  const [upiName, setUpiName] = useState("");
+  const [currency, setCurrency] = useState("INR");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // 🔧 Fetch static details from env
-  const upiId = import.meta.env.VITE_UPI_ID || "example@upi";
-  const upiName = import.meta.env.VITE_UPI_NAME || "Restaurant";
-  const currency = import.meta.env.VITE_UPI_CURRENCY || "INR";
+  useEffect(() => {
+    const fetchUpiDetails = async () => {
+      if (!rid) {
+        setError("Restaurant context not found.");
+        setLoading(false);
+        return;
+      }
+      try {
+        const restaurant = await getRestaurantByRid(rid);
+        if (restaurant.UPISettings && restaurant.UPISettings.UPI_ID) {
+          setUpiId(restaurant.UPISettings.UPI_ID);
+          setUpiName(restaurant.UPISettings.UPI_NAME || "Restaurant");
+          setCurrency(restaurant.UPISettings.UPI_CURRENCY || "INR");
+        } else {
+          setError("UPI details not configured for this restaurant.");
+        }
+      } catch (err) {
+        setError("Failed to load UPI information.");
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  // 🧾 Build dynamic UPI URL
+    fetchUpiDetails();
+  }, [rid]);
+
   const upiUrl = `upi://pay?pa=${encodeURIComponent(
     upiId
   )}&pn=${encodeURIComponent(
@@ -32,6 +60,18 @@ export default function UPIPaymentQR({
       alert("Failed to copy UPI link");
     }
   };
+
+  if (loading) {
+    return <p className="text-center text-slate-500">Loading QR Code...</p>;
+  }
+
+  if (error || !upiId) {
+    return (
+      <p className="text-center text-red-500 p-4 border border-red-200 rounded-lg bg-red-50">
+        {error || "UPI payments are not set up for this restaurant."}
+      </p>
+    );
+  }
 
   return (
     <div className="mt-4 p-4 border rounded-lg bg-slate-50 text-center">

@@ -167,14 +167,21 @@ exports.getRestaurantByRid = async (req, res, next) => {
 
     const restaurant = await Admin.findOne(
       { restaurantId: rid },
-      "restaurantId restaurantName ownerName phone email subscription"
+      "restaurantId restaurantName ownerName phone email subscription UPISettings"
     ).lean();
 
     if (!restaurant) {
       return res.status(404).json({ error: "Restaurant not found" });
     }
 
-    return res.status(200).json(restaurant);
+    // Transform response to use camelCase for frontend consistency
+    const { UPISettings, ...rest } = restaurant;
+    const response = {
+      ...rest,
+      upiSettings: UPISettings || { UPI_ID: null, UPI_NAME: null, UPI_CURRENCY: 'INR' },
+    };
+
+    return res.status(200).json(response);
   } catch (err) {
     next(err);
   }

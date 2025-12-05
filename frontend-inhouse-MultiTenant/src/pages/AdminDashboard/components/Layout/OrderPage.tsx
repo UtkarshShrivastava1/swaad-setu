@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { FiInbox, FiRefreshCw } from "react-icons/fi";
-import { isToday } from "date-fns";
+import { getBillHistory, type Bill } from "../../../../api/admin/bill.api"; // NEW IMPORT
 import {
   getOrder,
   type Order,
@@ -10,6 +10,51 @@ import { getTables, type ApiTable } from "../../../../api/admin/table.api";
 import { useTenant } from "../../../../context/TenantContext";
 import FooterNav from "./Footer";
 import OrderHeroSection from "./OrderHero";
+
+// Helper function to map Bill to Order
+const mapBillToOrder = (bill: Bill): Order => {
+  const defaultDateString = new Date().toISOString();
+  return {
+    _id: { $oid: bill._id?.$oid || crypto.randomUUID() }, // Ensure $oid is a string
+    restaurantId: bill.restaurantId,
+    tableId: bill.tableId,
+    sessionId: bill.sessionId,
+    items: bill.items.map((item) => ({
+      menuItemId: { $oid: item.itemId || crypto.randomUUID() }, // Ensure $oid is a string for MenuItemId
+      name: item.name,
+      quantity: item.qty,
+      price: item.price,
+      priceAtOrder: item.priceAtOrder,
+      notes: item.notes,
+      status: "served",
+      _id: { $oid: item.itemId || crypto.randomUUID() }, // Ensure $oid is a string for OrderItem _id
+      createdAt: { $date: bill.createdAt?.$date || defaultDateString },
+      updatedAt: { $date: bill.updatedAt?.$date || defaultDateString },
+    })),
+    totalAmount: bill.totalAmount,
+    status: "done",
+    paymentStatus: bill.paymentStatus === "unpaid" ? "unpaid" : "paid",
+    isCustomerOrder: bill.isCustomerOrder,
+    customerName: bill.customerName,
+    customerContact: bill.customerContact, // ✅ ADD THIS
+    customerEmail: bill.customerEmail,
+    staffAlias: bill.staffAlias,
+    overrideToken: bill.overrideToken,
+    version: 0,
+    createdAt: { $date: bill.createdAt?.$date || defaultDateString }, // Ensure $date is a string
+    updatedAt: { $date: bill.updatedAt?.$date || defaultDateString }, // Ensure $date is a string
+    __v: bill.__v,
+    discountAmount: bill.discountAmount,
+    serviceChargeAmount: bill.serviceChargeAmount,
+    orderNumberForDay: bill.orderNumberForDay, // Added this line
+    appliedTaxes: bill.taxes.map((tax) => ({
+      _id: tax._id.$oid,
+      name: tax.name,
+      percent: tax.rate,
+      amount: tax.amount,
+    })),
+  };
+};
 
 const STATUS_CLASSES: Record<string, string> = {
   placed: "bg-slate-50 text-slate-800 border border-slate-200",
@@ -37,11 +82,40 @@ export default function OrdersManagement() {
     if (!rid) return;
     setLoading(true);
     try {
-      const [orderResult, tableResult] = await Promise.all([
-        getOrder(rid),
-        getTables(rid),
-      ]);
-      setOrders(orderResult || []);
+      let fetchedOrders: Order[] = [];
+      if (activeFilter === "done") {
+        const billHistoryResult = await getBillHistory(rid);
+        console.log(
+          "billHistoryResult from getBillHistory:",
+          billHistoryResult
+        ); // Added console.log
+        fetchedOrders = billHistoryResult.bills.map(mapBillToOrder);
+      } else {
+        const filterToApply = activeFilter === "all" ? "all" : activeFilter;
+        const orderResult = await getOrder(rid, filterToApply);
+        fetchedOrders = (orderResult || []).map((order: any) => ({
+          ...order,
+
+          // ✅ Normalize Order Number
+          orderNumberForDay:
+            order.orderNumberForDay ?? order.OrderNumberForDay ?? null,
+
+          // ✅ Normalize Customer Contact
+          customerContact:
+            order.customerContact ?? order.customer_contact ?? null,
+
+          _id: { $oid: order._id?.$oid || crypto.randomUUID() },
+          createdAt: {
+            $date: order.createdAt?.$date || new Date().toISOString(),
+          },
+          updatedAt: {
+            $date: order.updatedAt?.$date || new Date().toISOString(),
+          },
+        }));
+      }
+
+      const tableResult = await getTables(rid);
+      setOrders(fetchedOrders);
       const tableMap = new Map(
         tableResult.map((table: ApiTable) => [table._id, table.tableNumber])
       );
@@ -51,7 +125,7 @@ export default function OrdersManagement() {
     } finally {
       setLoading(false);
     }
-  }, [rid]);
+  }, [rid, activeFilter]);
 
   useEffect(() => {
     fetchData();
@@ -61,12 +135,9 @@ export default function OrdersManagement() {
     if (activeFilter === "all") {
       return true;
     }
-    if (activeFilter === "done") {
-      return (
-        order.paymentStatus === "paid" &&
-        isToday(new Date(order.createdAt.$date))
-      );
-    }
+    // "done" orders are now fetched and filtered by date within fetchData,
+    // so no further status filtering is needed here for "done".
+    // For other active filters, proceed as before.
     return order.status === activeFilter;
   });
 
@@ -203,7 +274,10 @@ export default function OrdersManagement() {
                             Order
                           </span>
                           <span className="px-2 py-0.5 rounded-full bg-slate-900 text-amber-300 text-[11px] font-mono">
-                            #{order._id?.$oid?.slice(-6) || "Missing ID"}
+                            #
+                            {order.orderNumberForDay ??
+                              order._id?.$oid?.slice(-6) ??
+                              "Missing ID"}
                           </span>
                         </div>
                         <div className="text-[13px] sm:text-sm text-slate-700">
@@ -217,21 +291,39 @@ export default function OrdersManagement() {
                             )}
                           </span>
                         </div>
-                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-[13px] sm:text-sm">
-                          <span>
-                            Customer:{" "}
-                            <span className="font-semibold">
+                        <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-[13px] sm:text-sm text-slate-600">
+                          {/* Customer Name */}
+                          <span className="flex items-center gap-1">
+                            <span className="text-slate-500">Customer:</span>
+                            <span className="font-semibold text-slate-800">
                               {order.customerName || "Walk-in"}
                             </span>
                           </span>
-                          {order.customerEmail && (
-                            <span className="hidden sm:inline-block">
-                              Email: {order.customerEmail}
+
+                          {/* Contact */}
+                          {order.customerContact && (
+                            <span className="flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded-full text-xs sm:text-[13px] text-slate-700 border border-slate-200">
+                              <span className="opacity-70">📞</span>
+                              <span className="font-medium">
+                                {order.customerContact}
+                              </span>
                             </span>
                           )}
-                          <span>
-                            Table:{" "}
-                            <span className="font-semibold">
+
+                          {/* Email */}
+                          {order.customerEmail && (
+                            <span className="flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded-full text-xs sm:text-[13px] text-slate-700 border border-slate-200">
+                              <span className="opacity-70">✉️</span>
+                              <span className="font-medium truncate max-w-[180px]">
+                                {order.customerEmail}
+                              </span>
+                            </span>
+                          )}
+
+                          {/* Table */}
+                          <span className="flex items-center gap-1">
+                            <span className="text-slate-500">Table:</span>
+                            <span className="font-semibold text-slate-800">
                               {tables.get(order.tableId) ?? "—"}
                             </span>
                           </span>

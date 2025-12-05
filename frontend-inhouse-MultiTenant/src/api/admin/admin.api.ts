@@ -91,12 +91,3 @@ export const addWaiter = async (rid: string, waiter: any) => {
   return response;
 };
 
-export const getRecentBills = async (rid: string) => {
-  try {
-    const response = await client.get(`/api/${rid}/bills/active`);
-    return response;
-  } catch (error) {
-    console.error("Error fetching recent bills:", error);
-    throw error;
-  }
-};

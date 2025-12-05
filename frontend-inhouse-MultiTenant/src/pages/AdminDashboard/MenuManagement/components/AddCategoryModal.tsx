@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import ModalWrapper from "../../components/modals/ModalWrapper";
 import { getMenu, bulkUpdateMenu } from "../../../../api/admin/menu.api";
@@ -6,19 +6,32 @@ import { getMenu, bulkUpdateMenu } from "../../../../api/admin/menu.api";
 interface AddCategoryModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCategoryAdded: (category: any) => void;
+  onCategoryAdded: () => void;
+  initialIsMenuCombo?: boolean; // New optional prop
+  disablePortal?: boolean; // New prop
 }
 
 const AddCategoryModal: React.FC<AddCategoryModalProps> = ({
   isOpen,
   onClose,
   onCategoryAdded,
+  initialIsMenuCombo = false, // Default to false if not provided
+  disablePortal = false, // Default to false
 }) => {
   const { rid } = useParams<{ rid: string }>();
   const [name, setName] = useState("");
-  const [isMenuCombo, setIsMenuCombo] = useState(false);
+  const [isMenuCombo, setIsMenuCombo] = useState(initialIsMenuCombo); // Initialize with prop
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Reset state when modal opens or initialIsMenuCombo changes
+  useEffect(() => {
+    if (isOpen) {
+      setName("");
+      setIsMenuCombo(initialIsMenuCombo);
+      setError(null);
+    }
+  }, [isOpen, initialIsMenuCombo]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,8 +58,7 @@ const AddCategoryModal: React.FC<AddCategoryModalProps> = ({
         categories: updatedCategories,
       });
 
-      onCategoryAdded(newCategory);
-      onClose();
+      onCategoryAdded();
     } catch (err: any) {
       setError(err.message || "Failed to add category.");
     } finally {
@@ -54,8 +66,10 @@ const AddCategoryModal: React.FC<AddCategoryModalProps> = ({
     }
   };
 
+  const modalTitle = initialIsMenuCombo ? "Add New Combo Category" : "Add New Category";
+
   return (
-    <ModalWrapper title="Add New Category1" isOpen={isOpen} onClose={onClose}>
+    <ModalWrapper title={modalTitle} isOpen={isOpen} onClose={onClose} disablePortal={disablePortal}>
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && <div className="text-red-500">{error}</div>}
         <div>
@@ -102,7 +116,7 @@ const AddCategoryModal: React.FC<AddCategoryModalProps> = ({
             disabled={loading}
             className="px-4 py-2 text-sm font-medium text-black bg-yellow-400 border border-transparent rounded-md shadow-sm hover:bg-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 focus:ring-offset-gray-800"
           >
-            {loading ? "Adding..." : "Add Category"}
+            {loading ? "Adding..." : initialIsMenuCombo ? "Add Combo" : "Add Category"}
           </button>
         </div>
       </form>

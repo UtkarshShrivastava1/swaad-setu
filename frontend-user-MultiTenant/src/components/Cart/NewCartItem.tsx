@@ -5,11 +5,9 @@ import { createOrder } from "../../api/order.api";
 import { useTable } from "../../context/TableContext";
 import { useTenant } from "../../context/TenantContext";
 import { useCart } from "../../stores/cart.store"; // Import useCart from Zustand
+import { GENERIC_ITEM_IMAGE_FALLBACK } from "../../utils/constants";
 import FooterNav from "../Layout/Footer";
 import TablePickerModal from "../TableSelect/TablePickerModal";
-import { GENERIC_ITEM_IMAGE_FALLBACK } from "../../utils/constants";
-
-
 
 /** ---------- Types ---------- */
 type CartItemType = {
@@ -57,7 +55,7 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
   const [customerContact, setCustomerContact] = useState("");
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const navigate = useNavigate();
-  const { rid } = useTenant();
+  const { rid, tenant } = useTenant();
   const { tableId } = useTable();
 
   const sessionId =
@@ -77,10 +75,25 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
 
   const orderExists = !!activeOrder;
 
-  const totalAmount = cartItems.reduce(
+  const subtotal = cartItems.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0
   );
+
+  const taxDetails =
+    tenant?.taxes?.map((tax) => ({
+      name: tax.name,
+      amount: subtotal * (tax.percent / 100),
+    })) ?? [];
+
+  const serviceChargeAmount = tenant?.serviceCharge
+    ? subtotal * (tenant.serviceCharge / 100)
+    : 0;
+
+  const grandTotal =
+    subtotal +
+    taxDetails.reduce((sum, tax) => sum + tax.amount, 0) +
+    serviceChargeAmount;
 
   const handleConfirmOrder = async () => {
     const cleanedContact = customerContact.replace(/\s+/g, "").trim();
@@ -106,11 +119,8 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
       sessionId,
       customerName,
       customerContact: cleanedContact,
-      customerEmail,
-      isCustomerOrder: true,
-      ...(activeOrder?.order?._id && { orderId: activeOrder.order._id }), // Conditionally add orderId
       items: cartItems.map((item) => ({
-        menuItemId: item.itemId || item._id,
+        menuItemId: item.itemId,
         name: item.name,
         quantity: item.quantity,
         notes: item.notes || "",
@@ -183,7 +193,7 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
       isCustomerOrder: true,
       ...(activeOrder?.order?._id && { orderId: activeOrder.order._id }), // Conditionally add orderId
       items: cartItems.map((item) => ({
-        menuItemId: item.itemId || item._id,
+        menuItemId: item.itemId,
         name: item.name,
         quantity: item.quantity,
         notes: item.notes || "",
@@ -272,11 +282,12 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
         {/* Cart Items */}
         {cartItems.length > 0 ? (
           cartItems.map((item) => (
-            <div key={item._id} className="p-3 border-t-2 border-b-2 ">
+            <div key={item.itemId} className="p-3 border-t-2 border-b-2 ">
               <div className="flex gap-4 items-center">
                 <img
                   src={
-                    item.image && item.image.startsWith("https://example.com/images/")
+                    item.image &&
+                    item.image.startsWith("https://example.com/images/")
                       ? GENERIC_ITEM_IMAGE_FALLBACK
                       : item.image
                   }
@@ -297,7 +308,7 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
                   {/* Second row: Qty controls */}
                   <div className="flex items-center gap-0 mt-3">
                     <button
-                      onClick={() => updateQty(item._id, -1)}
+                      onClick={() => updateQty(item.itemId, -1)}
                       className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-black text-xl hover:bg-gray-200"
                     >
                       <Minus size={15} strokeWidth={2.5} />
@@ -306,14 +317,14 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
                       {item.quantity}
                     </span>
                     <button
-                      onClick={() => updateQty(item._id, 1)}
+                      onClick={() => updateQty(item.itemId, 1)}
                       className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-black text-xl hover:bg-gray-200"
                     >
                       <Plus size={15} strokeWidth={2.5} />
                     </button>
                     {/* Remove */}
                     <button
-                      onClick={() => removeItem(item._id)}
+                      onClick={() => removeItem(item.itemId)}
                       className="ml-2 p-2 text-gray-500 hover:text-red-500 hover:bg-red-50 rounded-full"
                       title="Remove item"
                     >
@@ -343,15 +354,29 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
           <div className="pt-4 pb-6 px-8 bg-gray-50 rounded-b-2xl">
             <div className="flex justify-between font-medium text-gray-600 mb-2">
               <span>Subtotal</span>
-              <span>₹{totalAmount}</span>
+              <span>₹{subtotal.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between font-medium text-gray-600 mb-2">
-              <span>Delivery</span>
-              <span>₹10.50</span>
-            </div>
-            <div className="flex justify-between font-bold text-gray-900 text-lg mb-1">
+
+            {taxDetails.map((tax) => (
+              <div
+                key={tax.name}
+                className="flex justify-between font-medium text-gray-600 mb-2"
+              >
+                <span>{tax.name}</span>
+                <span>₹{tax.amount.toFixed(2)}</span>
+              </div>
+            ))}
+
+            {serviceChargeAmount > 0 && (
+              <div className="flex justify-between font-medium text-gray-600 mb-2">
+                <span>Service Charge</span>
+                <span>₹{serviceChargeAmount.toFixed(2)}</span>
+              </div>
+            )}
+
+            <div className="flex justify-between font-bold text-gray-900 text-lg pt-2 mt-2 border-t">
               <span>Total</span>
-              <span>₹{(totalAmount + 10.5).toFixed(2)}</span>
+              <span>₹{grandTotal.toFixed(2)}</span>
             </div>
             <button
               className="w-full py-3 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-white font-bold text-lg mt-3 shadow transition"

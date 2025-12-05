@@ -92,7 +92,7 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({ isOpen, onClose, brandi
 
   return (
     <>
-      <div className="fixed inset-0 z-50">
+      <div className="fixed inset-0 z-[52]">
         <div className="absolute inset-0 bg-black bg-opacity-50" onClick={onClose}></div>
         <div className="absolute right-0 top-0 h-full w-full max-w-lg bg-gray-900 shadow-xl text-white">
           <div className="p-6 h-full flex flex-col">

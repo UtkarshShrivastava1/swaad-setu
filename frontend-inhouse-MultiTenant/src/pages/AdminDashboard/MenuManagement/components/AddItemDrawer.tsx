@@ -1,19 +1,23 @@
-import { Flame, Leaf, Trash2, X } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import { Flame, ImageIcon, Leaf, Trash2, X, Loader2, Sparkles } from "lucide-react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import {
   addMenuItem,
   deleteMenuItem,
   updateMenuItem,
 } from "../../../../api/admin/menu.api";
+import { searchPexelsImages } from "../../../../api/pexels.api"; // Import Pexels API
+import useDebounce from "../../hooks/useDebounce"; // Import useDebounce hook
+
+import ImageCropperModal from "./modals/ImageCropperModal"; // Import the cropper modal
+import { generateMenuItemDescription } from "../../../../api/gemini.api"; // Import Gemini API
 
 interface AddItemDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   category: { _id: string; name: string } | null;
   item: any | null;
-  onItemAdded: (item: any) => void;
-  onItemUpdated: (item: any) => void;
+  onItemSuccessfullyAddedAndMenuNeedsRefresh: () => void; // New prop
 }
 
 const AddItemDrawer: React.FC<AddItemDrawerProps> = ({
@@ -21,23 +25,53 @@ const AddItemDrawer: React.FC<AddItemDrawerProps> = ({
   onClose,
   category,
   item,
-  onItemAdded,
-  onItemUpdated,
+  onItemSuccessfullyAddedAndMenuNeedsRefresh, // Destructured new prop
 }) => {
   const { rid } = useParams<{ rid: string }>();
 
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [description, setDescription] = useState("");
-  const [isVeg, setIsVeg] = useState(true);
+  const [isVeg, setIsVeg] = useState(true); // ✅ single source of truth
   const [isActive, setIsActive] = useState(true);
   const [spiceLevel, setSpiceLevel] = useState(0);
   const [prepTime, setPrepTime] = useState("");
+  const [serves, setServes] = useState(""); // New state
+  const [isChefSpecial, setIsChefSpecial] = useState(false); // New state
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isMetadataCollapsed, setIsMetadataCollapsed] = useState(true);
+
+  // State for Pexels images
+  const [pexelsImages, setPexelsImages] = useState<any[]>([]);
+  const [loadingPexelsImages, setLoadingPexelsImages] = useState(false);
+  const [pexelsSearchQuery, setPexelsSearchQuery] = useState(""); // New state for Pexels search
+  const debouncedPexelsSearchQuery = useDebounce(pexelsSearchQuery, 700); // Debounce Pexels search input
+
+  // States for Image Cropper
+  const [showCropper, setShowCropper] = useState(false);
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null);
+  const [croppedImageUrl, setCroppedImageUrl] = useState<string | null>(null);
+
+  // States for Gemini Description
+  const [loadingDescription, setLoadingDescription] = useState(false);
+  const [descriptionGenerationError, setDescriptionGenerationError] = useState<string | null>(null);
+  const debouncedItemName = useDebounce(name, 1000); // Debounce item name for description generation
+
+  // Helper to map numeric spice level to string
+  const getSpiceLevelString = (level: number) => {
+    switch (level) {
+      case 0: return "none";
+      case 1: return "mild";
+      case 2: return "medium";
+      case 3: return "spicy";
+      case 4: return "hot";
+      case 5: return "extreme";
+      default: return "medium"; // Default for unexpected values
+    }
+  };
 
   /* ================= PREFILL ================= */
 
@@ -48,10 +82,16 @@ const AddItemDrawer: React.FC<AddItemDrawerProps> = ({
       setDescription(item.description || "");
       setIsVeg(item.isVegetarian);
       setIsActive(item.isActive);
-      setSpiceLevel(item.metadata?.spiceLevel || 0);
-      setPrepTime(String(item.metadata?.prepTime || ""));
+      setSpiceLevel(Number(item.metadata?.spiceLevel) || 0); // Explicitly convert to number
+      setPrepTime(String(item.metadata?.prepTime || "")); // Ensure it's a string
+      setServes(String(item.metadata?.serves || "")); // New line
+      setIsChefSpecial(item.metadata?.chefSpecial || false); // New line
       setImagePreview(item.image || null);
       setImageFile(null);
+      setPexelsSearchQuery(item.name || ""); // Initialize Pexels search with item name when editing
+      setCroppedImageUrl(item.image || null); // Set existing image as cropped image URL
+      setLoadingDescription(false);
+      setDescriptionGenerationError(null);
     } else {
       setName("");
       setPrice("");
@@ -60,8 +100,15 @@ const AddItemDrawer: React.FC<AddItemDrawerProps> = ({
       setIsActive(true);
       setSpiceLevel(0);
       setPrepTime("");
+      setServes(""); // New line
+      setIsChefSpecial(false); // New line
       setImageFile(null);
       setImagePreview(null);
+      setPexelsImages([]); // Clear Pexels images when adding new item
+      setPexelsSearchQuery(""); // Initialize Pexels search with empty string for new item
+      setCroppedImageUrl(null); // Clear cropped image URL for new item
+      setLoadingDescription(false);
+      setDescriptionGenerationError(null);
     }
   }, [item]);
 
@@ -70,50 +117,162 @@ const AddItemDrawer: React.FC<AddItemDrawerProps> = ({
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files?.[0]) return;
     const file = e.target.files[0];
-    setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
+    const reader = new FileReader();
+    reader.onload = () => {
+      setImageToCrop(reader.result as string);
+      setShowCropper(true);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handlePexelsImageSelect = useCallback(async (imageUrl: string) => {
+    setImageToCrop(imageUrl);
+    setShowCropper(true);
+  }, []);
+
+  const handleCropComplete = useCallback((croppedFile: File) => {
+    setImageFile(croppedFile);
+    setImagePreview(URL.createObjectURL(croppedFile));
+    setCroppedImageUrl(URL.createObjectURL(croppedFile)); // Update croppedImageUrl for display
+    setShowCropper(false);
+    setImageToCrop(null);
+  }, []);
+
+  const handleCloseCropper = useCallback(() => {
+    setShowCropper(false);
+    setImageToCrop(null);
+  }, []);
+
+  // Effect to search Pexels images when debouncedPexelsSearchQuery changes
+  useEffect(() => {
+    const fetchImages = async () => {
+      if (debouncedPexelsSearchQuery.trim()) { // Only search if query is not empty
+        setLoadingPexelsImages(true);
+        setError(null);
+        try {
+          const response = await searchPexelsImages(debouncedPexelsSearchQuery);
+          setPexelsImages(response.photos);
+        } catch (err) {
+          console.error("Failed to fetch Pexels images:", err);
+          setError("Failed to fetch image suggestions.");
+        } finally {
+          setLoadingPexelsImages(false);
+        }
+      } else {
+        setPexelsImages([]); // Clear suggestions if query is empty
+      }
+    };
+    fetchImages();
+  }, [debouncedPexelsSearchQuery]);
+
+  // Effect to generate description when debouncedItemName changes
+  useEffect(() => {
+    const generateDescription = async () => {
+      // Only generate if in "add item" mode, name is not empty, and description is not manually entered
+      if (!item && debouncedItemName.trim() && !description.trim()) {
+        setLoadingDescription(true);
+        setDescriptionGenerationError(null);
+        try {
+          const generatedText = await generateMenuItemDescription(debouncedItemName);
+          setDescription(generatedText);
+        } catch (err) {
+          console.error("Failed to generate description:", err);
+          setDescriptionGenerationError("Failed to auto-generate description.");
+        } finally {
+          setLoadingDescription(false);
+        }
+      }
+    };
+    generateDescription();
+  }, [debouncedItemName, item]); // 'description' is a dependency to prevent regeneration if user types
+
+  const handleGenerateDescription = async () => {
+    if (!name.trim()) {
+      setDescriptionGenerationError("Please enter an item name to generate a description.");
+      return;
+    }
+    setLoadingDescription(true);
+    setDescriptionGenerationError(null);
+    try {
+      const generatedText = await generateMenuItemDescription(name);
+      setDescription(generatedText);
+    } catch (err) {
+      console.error("Failed to generate description:", err);
+      setDescriptionGenerationError("Failed to auto-generate description.");
+    } finally {
+      setLoadingDescription(false);
+    }
   };
 
   /* ================= SUBMIT ================= */
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!rid || !category) return;
+      const handleSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!rid || !category) {
+        setError("Restaurant ID or Category is missing.");
+        return;
+      }
+  
+      // Client-side validation
+      if (!name.trim()) {
+        setError("Item name is required.");
+        return;
+      }
+      const parsedPrice = parseFloat(price);
+      if (isNaN(parsedPrice) || parsedPrice <= 0) {
+        setError("Valid price (greater than 0) is required.");
+        return;
+      }
+  
+      setLoading(true);
+      setError(null);
+const itemData = {
+  name,
+  price: parsedPrice,
+  description,
+  isVegetarian: isVeg,
+  isActive,
+  category: category.name,
 
-    setLoading(true);
-    setError(null);
+  preparationTime: parseInt(prepTime || "0", 10), // ✅ ALWAYS PRESENT
 
-    const payload = {
-      item: {
-        name,
-        price: parseFloat(price),
-        description,
-        isVegetarian: isVeg,
-        isActive,
-        category: category.name, // ✅ BACKEND EXPECTS NAME
-        metadata: {
-          spiceLevel,
-          prepTime: parseInt(prepTime || "0", 10),
-        },
-      },
-    };
+  metadata: {
+    spiceLevel: getSpiceLevelString(spiceLevel),
+    ...(serves && parseInt(serves, 10) > 0 ? { serves: parseInt(serves, 10) } : {}),
+    ...(isChefSpecial ? { chefSpecial: true } : {}),
+  },
+};
+
+
+    // Handle explicit image removal for existing items
+    if (item && imageFile === null && croppedImageUrl === null) {
+      itemData.image = null; // Signal to backend to clear image
+    }
+
+    console.log("AddItemDrawer: Payload being sent:", itemData); // Log payload
 
     try {
       if (item) {
         const res = await updateMenuItem(
-          rid,
-          item.itemId,
-          payload,
-          imageFile || undefined
-        );
+  rid,
+  item.itemId,
+  itemData,
+  imageFile || undefined
+);
 
-        onItemUpdated(res.data?.item || res.data);
+        console.log("AddItemDrawer: updateMenuItem API response:", res); // Log the API response
+        onItemSuccessfullyAddedAndMenuNeedsRefresh(); // Call the new prop
+        console.log("AddItemDrawer: onItemSuccessfullyAddedAndMenuNeedsRefresh called after update."); // Log after update
       } else {
-        const res = await addMenuItem(rid, payload, imageFile || undefined);
-
-        onItemAdded(res.data?.item || res.data);
+const res = await addMenuItem(
+  rid,
+  itemData,
+  imageFile || undefined
+);
+        console.log("AddItemDrawer: addMenuItem API response:", res); // Log the API response for add
+        onItemSuccessfullyAddedAndMenuNeedsRefresh(); // Call the new prop
+        console.log("AddItemDrawer: onItemSuccessfullyAddedAndMenuNeedsRefresh called after add."); // Log after add
       }
-
       onClose();
     } catch (err: any) {
       setError(
@@ -134,7 +293,7 @@ const AddItemDrawer: React.FC<AddItemDrawerProps> = ({
 
     try {
       await deleteMenuItem(rid, item.itemId);
-      onItemUpdated({ ...item, isActive: false });
+
       onClose();
     } catch (err: any) {
       setError(err?.response?.data?.error || "Failed to delete item");
@@ -143,184 +302,287 @@ const AddItemDrawer: React.FC<AddItemDrawerProps> = ({
 
   if (!isOpen) return null;
 
-  /* ================= UI ================= */
+  /* ================= PREMIUM UI ================= */
 
   return (
-    <div className="fixed inset-0 z-50">
+    <div className="fixed inset-0 z-[51] flex justify-end">
+      {/* GLASS OVERLAY */}
       <div
-        className="absolute inset-0 bg-black bg-opacity-50"
+        className="absolute inset-0 bg-black/40 backdrop-blur-md"
         onClick={onClose}
       />
 
-      <div className="absolute right-0 top-0 h-full w-full max-w-lg bg-gray-900 shadow-xl text-white">
-        <div className="p-6 h-full flex flex-col">
-          {/* HEADER */}
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-yellow-400">
-              {item ? "Edit Item" : "Add Item"} — {category?.name}
-            </h2>
-            <button
-              onClick={onClose}
-              className="p-2 rounded-full hover:bg-gray-700 text-gray-200"
-            >
-              <X size={24} />
-            </button>
-          </div>
+      {/* DRAWER */}
+      <div className="relative h-full w-full max-w-xl bg-gradient-to-br from-gray-950 via-gray-900 to-black text-white shadow-2xl border-l border-white/10 flex flex-col">
+        {/* ✅ HEADER (FIXED) */}
+        <div className="p-6 flex justify-between items-center border-b border-white/10 shrink-0">
+          <h2 className="text-2xl font-bold bg-gradient-to-r from-yellow-300 to-orange-400 text-transparent bg-clip-text">
+            {item ? "Edit Item" : "Add Item"} — {category?.name}
+          </h2>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-full hover:bg-white/10 text-gray-200"
+          >
+            <X size={24} />
+          </button>
+        </div>
 
-          {/* FORM */}
-          <form onSubmit={handleSubmit} className="flex-grow flex flex-col">
-            <div className="flex-grow overflow-y-auto pr-4">
-              {/* IMAGE PICKER */}
-              <div className="relative w-full h-48 border-2 border-dashed border-gray-600 rounded-lg flex items-center justify-center text-gray-400 overflow-hidden bg-gray-800">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="absolute inset-0 opacity-0 cursor-pointer z-10"
-                />
-
-                {imagePreview ? (
-                  <img
-                    src={imagePreview}
-                    alt="Preview"
-                    className="h-full w-full object-cover pointer-events-none"
-                  />
-                ) : (
-                  <p className="pointer-events-none text-gray-300">Click to select image</p>
-                )}
-              </div>
-
-              {/* FIELDS */}
-              <div className="grid grid-cols-2 gap-4 mt-4">
+        {/* ✅ SCROLLABLE BODY */}
+        <form
+          onSubmit={handleSubmit}
+          className="flex flex-col flex-grow overflow-hidden"
+        >
+          <div className="flex-grow overflow-y-auto px-6 py-5 space-y-5">
+            {/* PEXELS IMAGE SEARCH BAR AND SUGGESTIONS */}
+            <div className="pt-4 space-y-3">
                 <input
                   type="text"
-                  placeholder="Name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="col-span-2 p-2 border border-gray-600 rounded bg-gray-800 text-white focus:border-yellow-500 focus:ring-yellow-500"
-                  required
+                  placeholder="Search stock images (e.g., 'Pizza')"
+                  value={pexelsSearchQuery}
+                  onChange={(e) => setPexelsSearchQuery(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/30 outline-none"
                 />
 
-                <input
-                  type="number"
-                  placeholder="Price"
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
-                  className="p-2 border border-gray-600 rounded bg-gray-800 text-white focus:border-yellow-500 focus:ring-yellow-500"
-                  required
-                />
-
-                <textarea
-                  placeholder="Description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="col-span-2 p-2 border border-gray-600 rounded bg-gray-800 text-white focus:border-yellow-500 focus:ring-yellow-500"
-                />
-              </div>
-
-              {/* TOGGLES */}
-              <div className="flex justify-between items-center mt-4">
-                <div className="flex items-center gap-2">
-                  <Leaf
-                    className={isVeg ? "text-green-500" : "text-gray-400"}
-                  />
-                  <span>Vegetarian</span>
-                  <input
-                    type="checkbox"
-                    checked={isVeg}
-                    onChange={(e) => setIsVeg(e.target.checked)}
-                    className="h-4 w-4 text-yellow-600 focus:ring-yellow-500 border-gray-600 rounded"
-                  />
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span>Active</span>
-                  <input
-                    type="checkbox"
-                    checked={isActive}
-                    onChange={(e) => setIsActive(e.target.checked)}
-                    className="h-4 w-4 text-yellow-600 focus:ring-yellow-500 border-gray-600 rounded"
-                  />
-                </div>
-              </div>
-
-              {/* METADATA */}
-              <div className="mt-4">
-                <button
-                  type="button"
-                  onClick={() => setIsMetadataCollapsed(!isMetadataCollapsed)}
-                  className="w-full text-left font-semibold text-yellow-400 hover:text-yellow-500"
-                >
-                  Metadata
-                </button>
-
-                {!isMetadataCollapsed && (
-                  <div className="grid grid-cols-2 gap-4 mt-2">
-                    <div className="flex items-center gap-2">
-                      <Flame />
-                      <span>Spice</span>
-                      <input
-                        type="range"
-                        min="0"
-                        max="5"
-                        value={spiceLevel}
-                        onChange={(e) => setSpiceLevel(Number(e.target.value))}
-                      />
+                {loadingPexelsImages && <p className="text-sm text-gray-400 mt-2">Loading suggestions...</p>}
+                {pexelsImages.length > 0 && (
+                  <>
+                    <h3 className="text-sm font-semibold mb-2 text-gray-300">Image Suggestions:</h3>
+                    <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+                      {pexelsImages.map((img) => (
+                        <img
+                          key={img.id}
+                          src={img.src.small}
+                          alt={img.alt}
+                          className="w-20 h-20 object-cover rounded-md cursor-pointer border border-transparent hover:border-yellow-400 transition-colors"
+                          onClick={() => handlePexelsImageSelect(img.src.large)}
+                        />
+                      ))}
                     </div>
-
-                    <input
-                      type="number"
-                      placeholder="Prep Time"
-                      value={prepTime}
-                      onChange={(e) => setPrepTime(e.target.value)}
-                      className="p-2 border border-gray-600 rounded bg-gray-800 text-white focus:border-yellow-500 focus:ring-yellow-500"
-                    />
-                  </div>
+                  </>
+                )}
+                {!loadingPexelsImages && pexelsImages.length === 0 && pexelsSearchQuery.trim() && (
+                  <p className="text-sm text-gray-400">No image suggestions found for "{pexelsSearchQuery}".</p>
                 )}
               </div>
 
-              {error && <div className="text-red-500 mt-4">{error}</div>}
-            </div>
+            {/* IMAGE PICKER */}
+            <div className="relative w-full h-52 rounded-xl overflow-hidden border border-dashed border-white/20 bg-white/5">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="absolute inset-0 opacity-0 cursor-pointer z-10"
+              />
 
-            {/* FOOTER */}
-            <div className="mt-6 flex justify-between items-center">
-              {item && (
-                <button
-                  type="button"
-                  onClick={handleDelete}
-                  className="px-4 py-2 rounded-md bg-red-500 text-white flex items-center gap-2"
-                >
-                  <Trash2 size={16} />
-                  Delete Item
-                </button>
+              {croppedImageUrl ? (
+                <img
+                  src={croppedImageUrl}
+                  alt="Preview"
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="h-full w-full flex flex-col items-center justify-center text-gray-400 gap-2">
+                  <ImageIcon />
+                  <span className="text-sm">Click to upload image</span>
+                </div>
               )}
-
-              <div className="flex gap-4">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="px-4 py-2 text-sm font-medium text-white bg-gray-700 border border-gray-600 rounded-md shadow-sm hover:bg-gray-600 focus:outline-none"
-                >
-                  Cancel
-                </button>
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="px-4 py-2 text-sm font-medium text-black bg-yellow-400 border border-transparent rounded-md shadow-sm hover:bg-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 focus:ring-offset-gray-800"
-                >
-                  {loading
-                    ? item
-                      ? "Updating..."
-                      : "Adding..."
-                    : item
-                    ? "Update Item"
-                    : "Add Item"}
-                </button>
-              </div>
             </div>
-          </form>
-        </div>
+
+
+            {/* NAME */}
+            <input
+              type="text"
+              placeholder="Item Name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/30 outline-none"
+              required
+            />
+
+            {/* PRICE */}
+            <input
+              type="number"
+              placeholder="Price"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/30 outline-none"
+              required
+            />
+
+            {/* DESCRIPTION */}
+            <div className="flex items-center gap-2">
+              <textarea
+                placeholder="Description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/30 outline-none min-h-[80px]"
+              />
+              <button
+                type="button"
+                onClick={handleGenerateDescription}
+                disabled={loadingDescription || !name.trim()}
+                className="p-3 rounded-xl bg-gradient-to-r from-yellow-400 to-orange-500 text-black font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity duration-200"
+                title="Generate description with AI"
+              >
+                <Sparkles size={20} />
+              </button>
+            </div>
+            {loadingDescription && (
+              <div className="flex items-center text-yellow-300">
+                <Loader2 className="mr-2 h-4 w-4 animate-spin-slow" />
+                <span>Generating description...</span>
+              </div>
+            )}
+            {descriptionGenerationError && (
+              <p className="text-sm text-red-400">{descriptionGenerationError}</p>
+            )}
+
+            {/* ✅ MUTUAL EXCLUSIVE VEG / NON-VEG */}
+            <div className="flex items-center justify-between gap-6">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <Leaf className="text-emerald-400" />
+                <span>Veg</span>
+                <input
+                  type="checkbox"
+                  checked={isVeg === true}
+                  onChange={() => setIsVeg(true)}
+                  className="h-5 w-5 accent-emerald-400"
+                />
+              </label>
+
+              <label className="flex items-center gap-3 cursor-pointer">
+                <Flame className="text-red-400" />
+                <span>Non-Veg</span>
+                <input
+                  type="checkbox"
+                  checked={isVeg === false}
+                  onChange={() => setIsVeg(false)}
+                  className="h-5 w-5 accent-red-400"
+                />
+              </label>
+
+              <label className="flex items-center gap-3 cursor-pointer">
+                <span>Active</span>
+                <input
+                  type="checkbox"
+                  checked={isActive}
+                  onChange={(e) => setIsActive(e.target.checked)}
+                  className="h-5 w-5 accent-yellow-400"
+                />
+              </label>
+            </div>
+
+            {/* METADATA */}
+            <div className="rounded-xl border border-white/10 bg-white/5 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setIsMetadataCollapsed(!isMetadataCollapsed)}
+                className="w-full px-4 py-3 flex justify-between items-center text-sm font-semibold text-yellow-300 hover:bg-white/5"
+              >
+                Advanced Metadata
+                <span className="text-xs opacity-70">
+                  {isMetadataCollapsed ? "Expand" : "Collapse"}
+                </span>
+              </button>
+
+              {!isMetadataCollapsed && (
+                <div className="p-4 grid gap-4">
+                  {/* Spice Level */}
+                  <div className="flex items-center gap-3">
+                    <Flame className="text-orange-400" />
+                    <input
+                      type="range"
+                      min="0"
+                      max="5"
+                      value={spiceLevel}
+                      onChange={(e) => setSpiceLevel(Number(e.target.value))}
+                      className="w-full"
+                    />
+                    <span>{getSpiceLevelString(spiceLevel)}</span>
+                  </div>
+
+                  {/* Prep Time */}
+                  <input
+                    type="number"
+                    placeholder="Prep Time (min)"
+                    value={prepTime}
+                    onChange={(e) => setPrepTime(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 focus:border-yellow-400 outline-none"
+                  />
+
+                  {/* Serves */}
+                  <input
+                    type="number"
+                    placeholder="Serves (e.g., 1, 2)"
+                    value={serves}
+                    onChange={(e) => setServes(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 focus:border-yellow-400 outline-none"
+                  />
+
+                  {/* Chef Special */}
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <Sparkles className="text-yellow-400" />
+                    <span>Chef Special</span>
+                    <input
+                      type="checkbox"
+                      checked={isChefSpecial}
+                      onChange={(e) => setIsChefSpecial(e.target.checked)}
+                      className="h-5 w-5 accent-yellow-400"
+                    />
+                  </label>
+                </div>
+              )}
+            </div>
+
+            {error && <div className="text-red-400">{error}</div>}
+          </div>
+
+          {/* ✅ FOOTER (FIXED, NO SCROLL) */}
+          <div className="px-6 py-4 border-t border-white/10 flex justify-between items-center shrink-0">
+            {item && (
+              <button
+                type="button"
+                onClick={handleDelete}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500/90 hover:bg-red-500 text-white"
+              >
+                <Trash2 size={16} />
+                Delete
+              </button>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="submit"
+                disabled={loading || loadingPexelsImages || showCropper || loadingDescription}
+                className="px-5 py-2 rounded-xl bg-gradient-to-r from-yellow-400 to-orange-500 text-black font-semibold hover:opacity-90"
+              >
+                {loading
+                  ? item
+                    ? "Updating..."
+                    : "Adding..."
+                  : item
+                  ? "Update Item"
+                  : "Add Item"}
+              </button>
+            </div>
+          </div>
+        </form>
+        {showCropper && imageToCrop && (
+          <ImageCropperModal
+            imageSrc={imageToCrop}
+            onCropComplete={handleCropComplete}
+            onClose={handleCloseCropper}
+            aspectRatio={4 / 3} // Example aspect ratio, adjust as needed
+          />
+        )}
       </div>
     </div>
   );

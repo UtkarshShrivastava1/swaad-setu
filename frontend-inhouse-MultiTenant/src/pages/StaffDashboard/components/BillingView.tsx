@@ -17,6 +17,7 @@ import type { ApiBill } from "../../../api/staff/bill.api";
 import {
   deleteOrderById,
   getBillByOrderId,
+  resetTable,
 } from "../../../api/staff/staff.operations.api";
 import { useTenant } from "../../../context/TenantContext";
 import BillModalComponent from "./BillModalComponent";
@@ -24,6 +25,22 @@ import ConfirmModal from "./ConfirmModal";
 import EditBillModal from "./EditBillModal";
 import PaymentModal from "./PaymentModal";
 import type { Order } from "../types";
+
+/**
+ * Normalize any possible id/tableNumber to a string.
+ */
+function toIdString(x: any): string {
+  if (x == null) return "";
+  if (typeof x === "string" || typeof x === "number") return String(x);
+
+  if (typeof x === "object") {
+    if (x._id) return String(x._id);
+    if (x.id) return String(x.id);
+    if (x.tableNumber) return String(x.tableNumber);
+  }
+
+  return "";
+}
 
 // Constants
 const AUTO_REFRESH_MS = 15000; // 15s auto-refresh interval
@@ -269,6 +286,24 @@ export default function BillingViewCompact({
         if (!restaurantId) throw new Error("Restaurant ID missing");
         // Use deleteOrderById to remove the order
         await deleteOrderById(restaurantId, orderId);
+
+        // Reset the associated table
+        const tableId = toIdString(bill?.tableId || order.tableId);
+        if (restaurantId && tableId) {
+          resetTable(restaurantId, tableId)
+            .then(() =>
+              console.log(
+                `[BillingView] Table ${tableId} reset on order rejection.`
+              )
+            )
+            .catch((err) =>
+              console.error(
+                `[BillingView] Failed to reset table ${tableId}:`,
+                err
+              )
+            );
+        }
+
         setSuccess("✅ Order rejected successfully");
         setTimeout(goBack, 1000);
       } catch (err: any) {
@@ -296,6 +331,24 @@ export default function BillingViewCompact({
       try {
         if (!orderId) throw new Error("Order ID missing");
         await handleUpdateOrderStatus(orderId, "done");
+
+        // Reset the associated table
+        const tableId = toIdString(bill?.tableId || order.tableId);
+        if (restaurantId && tableId) {
+          resetTable(restaurantId, tableId)
+            .then(() =>
+              console.log(
+                `[BillingView] Table ${tableId} reset on order close.`
+              )
+            )
+            .catch((err) =>
+              console.error(
+                `[BillingView] Failed to reset table ${tableId}:`,
+                err
+              )
+            );
+        }
+
         setSuccess("✅ Order closed successfully");
         setTimeout(goBack, 1000);
       } catch (err: any) {

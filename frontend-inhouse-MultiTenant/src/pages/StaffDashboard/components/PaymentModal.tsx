@@ -8,7 +8,10 @@ import {
 } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { markBillPaid as apiMarkBillPaid } from "../../../api/staff/staff.operations.api";
+import {
+  markBillPaid as apiMarkBillPaid,
+  resetTable,
+} from "../../../api/staff/staff.operations.api";
 import { useTenant } from "../../../context/TenantContext";
 
 type PaymentModalProps = {
@@ -33,7 +36,7 @@ export default function PaymentModal({
   handleUpdateOrderStatus,
   staffAlias,
 }: PaymentModalProps) {
-  const { rid } = useTenant();
+  const { rid, tenant, admin } = useTenant();
   const [method, setMethod] = useState<string>("CASH");
   const [txId, setTxId] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
@@ -65,12 +68,11 @@ export default function PaymentModal({
   const serviceChargeAmount = bill?.serviceChargeAmount ?? 0;
 
   // UPI config
-  const env = import.meta?.env || {};
-  const upiId = env.VITE_UPI_ID || "restaurant@upi";
-  const upiName = env.VITE_UPI_NAME || "Restaurant";
-  const upiCurrency = env.VITE_UPI_CURRENCY || "INR";
-  const upiNote =
-    env.VITE_UPI_NOTE || `Bill Payment ${bill?._id?.slice(-5) ?? ""}`;
+  const upiSettings = tenant?.upiSettings || admin?.upiSettings;
+  const upiId = upiSettings?.UPI_ID || "restaurant@upi";
+  const upiName = upiSettings?.UPI_NAME || "Restaurant";
+  const upiCurrency = upiSettings?.UPI_CURRENCY || "INR";
+  const upiNote = `Bill Payment ${bill?._id?.slice(-5) ?? ""}`;
 
   const upiUrl = `upi://pay?pa=${encodeURIComponent(
     upiId
@@ -125,6 +127,23 @@ export default function PaymentModal({
 
       onPaid(updatedBill);
       setSuccessMsg("Payment successful");
+
+      if (rid && bill?.tableId) {
+        resetTable(rid, bill.tableId)
+          .then(() => {
+            console.log(
+              `[PaymentModal] Table ${bill.tableId} reset successfully.`
+            );
+            // Optionally dispatch an event to refresh tables UI if needed
+            window.dispatchEvent(new CustomEvent("staff:refreshTables"));
+          })
+          .catch((err) => {
+            console.error(
+              `[PaymentModal] Failed to reset table ${bill.tableId}:`,
+              err
+            );
+          });
+      }
 
       setTimeout(() => {
         onClose();

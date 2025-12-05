@@ -2,33 +2,36 @@ import { useCallback, useEffect, useState } from "react";
 import { getActiveCalls, resolveCall } from "../../../api/staff/call.api";
 import type { ICall } from "../../../api/staff/call.api";
 
-export const useCalls = (tenant: { rid: string | null } | null) => {
+export const useCalls = (currentRid: string | null) => {
   const [calls, setCalls] = useState<ICall[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchCalls = useCallback(async () => {
-    if (!tenant?.rid) return;
+    if (!currentRid) return;
 
     setIsLoading(true);
     setError(null);
 
     try {
-      const response = await getActiveCalls(tenant);
-      console.log("[useCalls] getActiveCalls response:", response); // Added for debugging
-      setCalls(response);
+      const result = await getActiveCalls({ rid: currentRid });
+      const callsArray = Array.isArray(result)
+        ? result
+        : (result as any)?.data || [];
+      setCalls(callsArray);
     } catch (err: any) {
+      console.error("useCalls - Failed to fetch calls:", err);
       setError(err.message || "Failed to fetch calls");
     } finally {
       setIsLoading(false);
     }
-  }, [tenant?.rid]);
+  }, [currentRid]);
 
   const handleUpdateCallStatus = async (callId: string, staffAlias: string) => {
-    if (!tenant?.rid) return;
+    if (!currentRid) return;
 
     try {
-      await resolveCall(tenant, callId, staffAlias);
+      await resolveCall({ rid: currentRid }, callId, staffAlias);
       await fetchCalls(); // refresh list
     } catch (err: any) {
       setError(err.message || "Failed to resolve call");
@@ -36,8 +39,10 @@ export const useCalls = (tenant: { rid: string | null } | null) => {
   };
 
   useEffect(() => {
-    fetchCalls();
-  }, [fetchCalls]);
+    if (currentRid) {
+      fetchCalls();
+    }
+  }, [fetchCalls, currentRid]);
 
   return {
     calls,

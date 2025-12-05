@@ -1,4 +1,5 @@
 import { extractTableId } from "./extractors";
+import type { ApiBill } from "../../../api/staff/bill.api";
 
 export interface ApiOrderItem {
   menuItemId?: string;
@@ -48,6 +49,40 @@ export interface Order {
   version: number;
   createdAt: string;
 }
+
+/** 🔧 Normalize a single raw bill from the API */
+export const normalizeBill = (rawBill: any): ApiBill => {
+  const nBill = { ...rawBill };
+
+  // Handle _id
+  if (nBill._id && nBill._id.$oid) {
+    nBill._id = nBill._id.$oid;
+  }
+
+  // Handle orderId
+  if (nBill.orderId && nBill.orderId.$oid) {
+    nBill.orderId = nBill.orderId.$oid;
+  }
+  
+  // Handle dates
+  if (nBill.createdAt && nBill.createdAt.$date) {
+    nBill.createdAt = new Date(nBill.createdAt.$date).toISOString();
+  }
+  if (nBill.updatedAt && nBill.updatedAt.$date) {
+    nBill.updatedAt = new Date(nBill.updatedAt.$date).toISOString();
+  }
+  if (nBill.finalizedAt && nBill.finalizedAt.$date) {
+    nBill.finalizedAt = new Date(nBill.finalizedAt.$date).toISOString();
+  }
+
+  // Handle total vs totalAmount
+  if (nBill.totalAmount != null && nBill.total == null) {
+    nBill.total = nBill.totalAmount;
+  }
+
+  return nBill as ApiBill;
+}
+
 
 /** 🔧 Normalize order items */
 export const normalizeBillItems = (items: ApiOrderItem[] = []): BillItem[] =>

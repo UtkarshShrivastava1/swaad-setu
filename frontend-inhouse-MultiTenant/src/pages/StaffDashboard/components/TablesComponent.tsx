@@ -263,88 +263,87 @@ export default function TablesComponent({
             return (
               <article
                 key={key}
-                className={`group relative rounded-xl p-5 shadow-md hover:shadow-xl transition-all transform hover:-translate-y-1 border-2 ${
+                onClick={() => {
+                  const tableWithId = {
+                    ...table,
+id: String(table._id || table.id || table.tableNumber),
+                  };
+                  if (matchingOrders.length > 0) {
+                    onTableSelect(tableWithId, matchingOrders[0]);
+                  } else {
+                    onTableSelect(tableWithId);
+                  }
+                }}
+                className={`group relative rounded-xl p-5 shadow-md hover:shadow-xl transition-all transform hover:-translate-y-1 border-2 cursor-pointer ${
                   waiterCalled
-                    ? "bg-rose-100 border-rose-300 animate-pulse-waiter"
+                    ? "bg-red-200 border-red-400 animate-pulse-waiter"
                     : occupied
-                    ? "bg-gradient-to-br from-white to-indigo-50/50 border-indigo-100"
-                    : "bg-gradient-to-br from-white to-emerald-50/50 border-emerald-100"
+                            ? "bg-gradient-to-br from-white to-blue-100 border-blue-300"
+                    : "bg-gradient-to-br from-white to-green-100 border-green-300"
                 }`}
               >
-                <div
-                  onClick={() => {
-                    const tableWithId = {
-                      ...table,
-                      id: String(table._id || table.id || table.tableNumber),
-                    };
-                    if (matchingOrders.length > 0) {
-                      onTableSelect(tableWithId, matchingOrders[0]);
-                    } else {
-                      onTableSelect(tableWithId);
-                    }
-                  }}
-                >
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="text-lg font-bold text-slate-800 mb-1">
-                        Table {table.tableNumber}
-                      </h3>
-                      <div className="flex items-center gap-1.5 text-sm text-slate-500">
-                        <Users className="h-4 w-4" />
-                        <span>Capacity: {table.capacity}</span>
-                      </div>
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-800 mb-1">
+                      Table {table.tableNumber}
+                    </h3>
+                    <div className="flex items-center gap-1.5 text-sm text-slate-500">
+                      <Users className="h-4 w-4" />
+                      <span>Capacity: {table.capacity}</span>
                     </div>
-
-                    <span
-                      className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold shadow-sm ${
-                        occupied
-                          ? "bg-indigo-100 text-indigo-800 border border-indigo-200"
-                          : "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                      }`}
-                    >
-                      {occupied
-                        ? "Occupied"
-                        : String(table.status).charAt(0).toUpperCase() +
-                          String(table.status).slice(1)}
-                    </span>
                   </div>
 
-                  {table.waiterAssigned && table.waiterAssigned !== "-" && (
-                    <div className="mb-3 pb-3 border-b border-slate-200">
-                      <div className="text-xs text-slate-500 mb-1">
-                        Assigned to
-                      </div>
-                      <div className="text-sm font-medium text-slate-700">
-                        {table.waiterAssigned}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm">
-                      <span className="text-slate-500">Active Orders:</span>
-                      <span className="ml-2 font-semibold text-slate-800">
-                        {matchingOrders.length}
-                      </span>
-                    </div>
-                    <ChevronRight className="h-5 w-5 text-slate-400 group-hover:text-indigo-600 transition-colors" />
-                  </div>
+                  <span
+                    className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold shadow-sm ${
+                      occupied
+                        ? "bg-blue-100 text-blue-800 border border-blue-200"
+                        : "bg-green-100 text-green-800 border border-green-200"
+                    }`}
+                  >
+                    {occupied
+                      ? "Occupied"
+                      : String(table.status).charAt(0).toUpperCase() +
+                        String(table.status).slice(1)}
+                  </span>
                 </div>
 
-                {occupied && (
-                  <button
-                    onClick={() => handleResetTable(key)}
-                    className="absolute bottom-3 right-3 px-3 py-1.5 rounded-lg text-xs font-medium bg-rose-500 text-white hover:bg-rose-600 transition-colors flex items-center gap-1"
-                    disabled={resettingTableId === key}
-                  >
-                    {resettingTableId === key ? (
-                      <RotateCcw className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <RotateCcw className="h-3.5 w-3.5" />
-                    )}
-                    {resettingTableId === key ? "Resetting..." : "Reset"}
-                  </button>
+                {table.waiterAssigned && table.waiterAssigned !== "-" && (
+                  <div className="mb-3 pb-3 border-b border-slate-200">
+                    <div className="text-xs text-slate-500 mb-1">
+                      Assigned to
+                    </div>
+                    <div className="text-sm font-medium text-slate-700">
+                      {table.waiterAssigned}
+                    </div>
+                  </div>
                 )}
+
+                <div className="flex items-center justify-between">
+                  <div className="text-sm">
+                    <span className="text-slate-500">Active Orders:</span>
+                    <span className="ml-2 font-semibold text-slate-800">
+                      {matchingOrders.length}
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation(); // Prevent card click
+                        handleResetTable(String(table._id || table.id));
+                      }}
+                      disabled={resettingTableId === String(table._id || table.id)}
+                      className="p-1.5 rounded-full text-slate-500 hover:bg-slate-200 hover:text-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      aria-label="Reset Table"
+                    >
+                      {resettingTableId === String(table._id || table.id) ? (
+                        <div className="animate-spin h-4 w-4 rounded-full border-t-2 border-b-2 border-slate-600" />
+                      ) : (
+                        <RotateCcw className="h-4 w-4" />
+                      )}
+                    </button>
+                    <ChevronRight className="h-5 w-5 text-slate-400 group-hover:text-blue-600 transition-colors" />
+                  </div>
+                </div>
               </article>
             );
           })}

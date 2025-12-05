@@ -81,29 +81,91 @@ export async function createOrder(rid: string, tableId: string, payload: object)
 }
 
 // ====== GET ALL ORDERS FOR SESSION ======
+
 export async function getOrder(
+
   rid: string,
+
   sessionId: string
+
 ): Promise<Order[]> {
+
   const result = await api<Order[] | Order>(
+
     `/api/${rid}/orders/history?sessionId=${sessionId}`,
+
     {
+
       method: "GET",
+
     }
+
   );
 
+
+
   if (Array.isArray(result)) {
+
     return result;
+
   }
+
   if (result) {
+
     return [result as Order];
+
   }
+
   return [];
+
 }
 
-// ====== GET SINGLE ORDER BY ID (Public) ======
-export async function getOrderById(
+
+
+// ====== GET ORDERS BY TABLE ID ======
+
+export async function getOrdersByTable(
   rid: string,
+  tableId: string,
+  sessionId?: string | null
+): Promise<Order[]> {
+  if (!tableId) return [];
+
+  // Construct URL with sessionId if available
+  const url = sessionId
+    ? `/api/${rid}/orders/history?tableId=${tableId}&sessionId=${sessionId}`
+    : `/api/${rid}/orders/history?tableId=${tableId}`;
+
+  const result = await api<Order[] | Order>(url, {
+    method: "GET",
+  });
+
+
+
+  if (Array.isArray(result)) {
+
+    return result;
+
+  }
+
+  if (result) {
+
+    return [result as Order];
+
+  }
+
+  return [];
+
+}
+
+
+
+// ====== GET SINGLE ORDER BY ID (Public) ======
+
+export async function getOrderById(
+
+  rid: string,
+
   orderId: string,
   sessionId?: string
 ): Promise<{ order: Order }> {

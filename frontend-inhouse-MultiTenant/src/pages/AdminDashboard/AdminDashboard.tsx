@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
-import Header from "../AdminDashboard/components/Layout/Header";
+import Header from "../../components/common/Header";
 import FooterNav from "./components/Layout/Footer";
 
 import CategoryManagement from "../AdminDashboard/components/Layout/CategoryManagement";
@@ -13,19 +13,33 @@ import Dashboard from "./components/Layout/Dashboard";
 import MorePage from "./More/MorePage";
 
 import { getOrder } from "../../../src/api/admin/order.api";
+import { getRestaurantByRid } from "../../api/restaurant.api";
 import { useTenant } from "../../context/TenantContext";
+import { useCalls } from "./hooks/useCalls";
 import { useTables } from "../AdminDashboard/hooks/useTables";
+import NotificationsView from "./components/Layout/NotificationsView";
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const { rid: ridFromUrl } = useParams();
-  const { rid, setRid } = useTenant();
+  const { rid, setRid, tenant, setTenant } = useTenant();
 
   useEffect(() => {
     if (ridFromUrl) {
       setRid(ridFromUrl);
     }
   }, [ridFromUrl, setRid]);
+
+  useEffect(() => {
+    if (rid && !tenant) {
+      getRestaurantByRid(rid)
+        .then(setTenant)
+        .catch((err) => {
+          console.error("Failed to fetch restaurant data:", err);
+          // Optionally set an error state to show in the UI
+        });
+    }
+  }, [rid, tenant, setTenant]);
 
   if (!rid) {
     return (
@@ -50,8 +64,10 @@ export default function AdminDashboard() {
   const [view, setView] = useState<"list" | "edit" | "create">("list");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedMenuItem, setSelectedMenuItem] = useState<any | null>(null);
+  const [isMenuFullscreen, setIsMenuFullscreen] = useState(false);
 
   const { tables } = useTables(rid);
+  const { calls: waiterCalls } = useCalls();
   const [ordersCount, setOrdersCount] = useState(0);
 
   useEffect(() => {
@@ -98,17 +114,20 @@ export default function AdminDashboard() {
   // ====== Render ======
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* ===== Header ===== */}
-      <Header
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        onOpenNotifications={() => setActiveTab("notifications")}
-        onLogout={handleLogout}
-        waiterCallCount={tables.filter((t) => t.waiterCalled).length}
-      />
+      {!isMenuFullscreen && (
+        <Header
+          tenant={tenant}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          onOpenNotifications={() => setActiveTab("notifications")}
+          onLogout={handleLogout}
+          waiterCallCount={waiterCalls.length}
+          role="admin"
+        />
+      )}
 
       {/* ===== Main Content ===== */}
-      <main className={`flex-grow p-4 md:p-8 w-full pb-24 ${activeTab === 'menu' ? '' : 'max-w-7xl mx-auto'}`}>
+      <main className={`flex-grow p-4 md:p-8 w-full ${activeTab === 'menu' || isMenuFullscreen ? '' : 'pb-24 max-w-7xl mx-auto'}`}>
         {/* 🏠 Dashboard */}
         {activeTab === "dashboard" && view === "list" && (
           <Dashboard setActiveTab={setActiveTab} />
@@ -125,6 +144,8 @@ export default function AdminDashboard() {
                   setView("edit");
                 }}
                 onCreate={() => setView("create")}
+                onFullscreenChange={setIsMenuFullscreen}
+                isParentFullscreen={isMenuFullscreen}
               />
             )}
             {view === "edit" && selectedMenuItem && (
@@ -156,17 +177,24 @@ export default function AdminDashboard() {
 
         {/* ⚙️ More */}
         {activeTab === "more" && <MorePage />}
+
+        {/* 🔔 Notifications */}
+        {activeTab === "notifications" && (
+          <NotificationsView onBack={() => setActiveTab("dashboard")} />
+        )}
       </main>
 
       {/* ===== Footer Navigation ===== */}
-      <FooterNav
-        activeTab={activeTab}
-        onTabChange={(newTab) => {
-          setActiveTab(newTab);
-          setView("list");
-        }}
-        ordersCount={ordersCount} // ✅ show live order count
-      />
+      {!isMenuFullscreen && (
+        <FooterNav
+          activeTab={activeTab}
+          onTabChange={(newTab) => {
+            setActiveTab(newTab);
+            setView("list");
+          }}
+          ordersCount={ordersCount} // ✅ show live order count
+        />
+      )}
     </div>
   );
 }

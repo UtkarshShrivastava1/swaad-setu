@@ -41,6 +41,7 @@ async function seedRestaurant({
     zip: null,
     country: null,
   }, // New parameter for address
+  UPISettings = {}, // New parameter for UPI settings
   seedTables = true, // Option to seed default tables
   seedMenu = true, // Option to seed a default menu
 }) {
@@ -70,6 +71,7 @@ async function seedRestaurant({
       phone,
       email,
       address,
+      UPISettings,
       hashedPin,
       staffHashedPin: "", // Added default staffHashedPin
       pricingConfigs: [
@@ -178,6 +180,10 @@ seedRestaurant({
     zip: "12345",
     country: "USA",
   }, // Example address added
+  UPISettings: {
+    UPI_ID: "example@upi",
+    UPI_NAME: "John Doe",
+  },
   seedTables: true, // Set to false to skip creating tables
   seedMenu: true, // Set to false to skip creating a menu
 });

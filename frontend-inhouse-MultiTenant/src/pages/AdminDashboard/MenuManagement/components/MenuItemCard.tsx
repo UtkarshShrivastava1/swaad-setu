@@ -1,5 +1,5 @@
-import React from 'react';
-import { Utensils, Clock, IndianRupee, LeafyGreen, Soup } from 'lucide-react';
+import { Clock, Egg, IndianRupee, LeafyGreen, Pencil, Trash2 } from "lucide-react";
+import React from "react";
 
 export interface MenuItem {
   _id: string;
@@ -17,54 +17,197 @@ export interface MenuItem {
 interface MenuItemCardProps {
   item: MenuItem;
   onClick: () => void;
+  onDeleteItem: () => void;
+  onToggleStatus: () => void;
 }
 
-const MenuItemCard: React.FC<MenuItemCardProps> = ({ item, onClick }) => {
+const MenuItemCard: React.FC<MenuItemCardProps> = ({
+  item,
+  onClick,
+  onDeleteItem,
+  onToggleStatus,
+}) => {
+  const handleActionClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+  };
+
+  /** 🔥 VERY STRONG VISUAL DISTINCTION */
+  const auraWrapper =
+    item.isVegetarian === true
+      ? "bg-gradient-to-br from-emerald-400 via-emerald-500 to-green-600 p-[2px] shadow-[0_0_35px_rgba(16,185,129,0.6)]"
+      : item.isVegetarian === false
+      ? "bg-gradient-to-br from-red-400 via-red-500 to-rose-600 p-[2px] shadow-[0_0_35px_rgba(239,68,68,0.6)]"
+      : "bg-gray-200 dark:bg-gray-700 p-[1px]";
+
+  const topStrip =
+    item.isVegetarian === true
+      ? "bg-gradient-to-r from-emerald-400 to-green-500"
+      : item.isVegetarian === false
+      ? "bg-gradient-to-r from-red-400 to-rose-500"
+      : "bg-gray-300 dark:bg-gray-700";
+
   return (
-    <button
-      onClick={onClick}
-      className={`relative w-full text-left bg-white rounded-lg shadow-md overflow-hidden transition-all duration-200 ease-in-out hover:shadow-lg ${!item.isActive ? 'opacity-60 grayscale' : ''}`}
-    >
-      {!item.isActive && (
-        <div className="absolute inset-0 bg-black bg-opacity-70 flex items-center justify-center z-10">
-          <span className="text-white text-lg font-bold">Deactivated</span>
-        </div>
-      )}
-      {item.image && (
-        <div className="h-40 w-full overflow-hidden">
-          <img
-            src={item.image}
-            alt={item.name}
-            className="w-full h-full object-cover"
-          />
-        </div>
-      )}
-      <div className="p-4">
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="text-lg font-semibold">{item.name}</h3>
+    <div className={`rounded-2xl ${auraWrapper}`}>
+      <div
+        className="relative flex flex-col w-full h-[380px] rounded-2xl 
+        bg-white/90 dark:bg-gray-900/90 
+        border border-white/20 dark:border-gray-800
+        hover:-translate-y-1 transition-all duration-300"
+      >
+        {/* TOP COLOR STRIP */}
+        <div className={`h-[5px] w-full rounded-t-2xl ${topStrip}`} />
+
+        {/* IMAGE */}
+        <div
+          onClick={() => item.isActive && onClick()}
+          className={`relative h-[175px] w-full overflow-hidden 
+          ${item.isActive ? "cursor-pointer" : "opacity-60"}`}
+        >
+          {item.image ? (
+            <>
+              <img
+                src={item.image}
+                alt={item.name}
+                className={`w-full h-full object-cover transition-transform duration-500 
+                ${!item.isActive ? "grayscale" : "hover:scale-110"}`}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+            </>
+          ) : (
+            <div className="flex items-center justify-center h-full bg-gray-200 dark:bg-gray-800">
+              <span className="text-gray-400 text-sm">No Image</span>
+            </div>
+          )}
+
+          {/* STRONG VEG/NONVEG BADGE */}
           {item.isVegetarian !== undefined && (
-            <span className={`p-1 rounded-full ${item.isVegetarian ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`}>
-              {item.isVegetarian ? <LeafyGreen size={16} /> : <Soup size={16} />}
+            <span
+              className={`absolute top-3 right-3 p-2.5 rounded-full shadow-xl ring-2 ring-white/80 ${
+                item.isVegetarian
+                  ? "bg-emerald-500 text-white shadow-emerald-400/70"
+                  : "bg-red-500 text-white shadow-red-400/70"
+              }`}
+            >
+              {item.isVegetarian ? <LeafyGreen size={14} /> : <Egg size={14} />}
             </span>
           )}
         </div>
-        {item.description && (
-          <p className="text-gray-700 text-sm mb-2 line-clamp-2">{item.description}</p>
-        )}
-        <div className="flex items-center justify-between text-gray-800 text-base">
-          <span className="flex items-center gap-1">
-            <IndianRupee size={16} />
-            {item.price} {item.currency || ''}
-          </span>
-          {item.preparationTime && (
-            <span className="flex items-center gap-1 text-sm">
-              <Clock size={14} />
-              {item.preparationTime} min
+
+        {/* CONTENT */}
+        <div
+          onClick={() => item.isActive && onClick()}
+          className={`flex flex-col flex-grow p-4 ${
+            item.isActive ? "cursor-pointer" : "opacity-60"
+          }`}
+        >
+          {/* TITLE */}
+          <h3
+            className="text-[17px] font-bold text-gray-900 dark:text-gray-100 
+            leading-tight line-clamp-2 min-h-[44px]"
+          >
+            {item.name}
+          </h3>
+
+          {/* DESCRIPTION */}
+          <p
+            className="mt-1 text-sm text-gray-600 dark:text-gray-400 
+            line-clamp-2 min-h-[40px]"
+          >
+            {item.description || " "}
+          </p>
+
+          {/* PRICE + TIME */}
+          <div className="mt-auto flex items-center justify-between pt-4">
+            <span
+              className="inline-flex items-center gap-1 px-3 py-1 rounded-full
+              bg-emerald-100 text-emerald-700 
+              dark:bg-emerald-900/50 dark:text-emerald-300
+              text-sm font-semibold min-w-[80px] justify-center"
+            >
+              <IndianRupee size={14} />
+              {item.price}
             </span>
-          )}
+
+            <span className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 min-w-[70px] justify-end">
+              <Clock size={14} />
+              {item.preparationTime || 0} min
+            </span>
+          </div>
+        </div>
+
+        {/* FOOTER */}
+        <div
+          className="h-[56px] flex items-center justify-between px-4 
+          bg-gray-50 dark:bg-gray-950/50 
+          border-t border-gray-200 dark:border-gray-800 
+          rounded-b-2xl"
+        >
+          {/* STATUS TOGGLE */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={(e) => {
+                handleActionClick(e);
+                onToggleStatus();
+              }}
+              className={`relative w-11 h-6 rounded-full transition-colors duration-200
+              ${
+                item.isActive
+                  ? "bg-emerald-500"
+                  : "bg-gray-400 dark:bg-gray-600"
+              }`}
+              aria-label="Toggle Status"
+            >
+              <span
+                className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full 
+                transition-transform duration-200
+                ${item.isActive ? "translate-x-5" : "translate-x-0"}`}
+              />
+            </button>
+
+            <span
+              className={`px-2 py-0.5 rounded-full text-xs font-semibold
+              ${
+                item.isActive
+                  ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300"
+                  : "bg-gray-200 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+              }`}
+            >
+              {item.isActive ? "Active" : "Inactive"}
+            </span>
+          </div>
+
+          {/* ACTION BUTTONS */}
+          <div className="flex items-center rounded-md bg-gray-200 dark:bg-gray-800 shadow-sm">
+            {/* EDIT */}
+            <button
+              onClick={(e) => {
+                handleActionClick(e);
+                onClick();
+              }}
+              disabled={!item.isActive}
+              className="p-2 rounded-l-md text-gray-500 hover:bg-blue-100 hover:text-blue-500
+              dark:hover:bg-blue-500/10 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="Edit Item"
+            >
+              <Pencil size={18} />
+            </button>
+            <div className="w-px h-5 bg-gray-300 dark:bg-gray-700"></div>
+            {/* DELETE */}
+            <button
+              onClick={(e) => {
+                handleActionClick(e);
+                onDeleteItem();
+              }}
+              className="p-2 rounded-r-md text-gray-500 hover:bg-red-100 hover:text-red-500
+              dark:hover:bg-red-500/10 transition-all duration-200"
+              aria-label="Delete Item"
+            >
+              <Trash2 size={18} />
+            </button>
+          </div>
         </div>
       </div>
-    </button>
+    </div>
   );
 };
 

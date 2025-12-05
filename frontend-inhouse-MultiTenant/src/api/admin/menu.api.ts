@@ -1,5 +1,8 @@
-// src/api/admin/menu.api.ts
 import client from "./client";
+
+/* ================================
+   TYPES
+================================ */
 
 export interface MenuItem {
   itemId: string;
@@ -11,7 +14,10 @@ export interface MenuItem {
   isActive?: boolean;
   isVegetarian?: boolean;
   preparationTime?: number;
-  category?: string;
+
+  // ✅ IMPORTANT: Backend usually expects categoryId, not just "category"
+  categoryId?: string;
+
   metadata?: Record<string, any>;
 }
 
@@ -26,33 +32,42 @@ interface CategoryPayload {
   };
 }
 
-// -------------------------------------------------------------
-// 📋 MENU (GET / POST full menu)
-// -------------------------------------------------------------
+/* ================================
+   MENU (FULL MENU)
+================================ */
 
 export async function getMenu(rid: string) {
+  console.log("[getMenu] RID →", rid);
   return client.get(`/api/${rid}/admin/menu`);
 }
 
 export async function createMenu(rid: string, data: any) {
+  console.log("[createMenu] RID →", rid);
+  console.log("[createMenu] Payload →", data);
   return client.post(`/api/${rid}/admin/menu`, data);
 }
 
 export async function bulkUpdateMenu(rid: string, data: any) {
+  console.log("[bulkUpdateMenu] RID →", rid);
+  console.log("[bulkUpdateMenu] Payload →", data);
   return client.post(`/api/${rid}/admin/menu`, data);
 }
 
-// -------------------------------------------------------------
-// 🍽️ MENU ITEMS
-// -------------------------------------------------------------
+/* ================================
+   🍽️ MENU ITEMS
+================================ */
 
 // Add single menu item
 export async function addMenuItem(rid: string, itemData: Omit<MenuItem, 'image'>, imageFile?: File) {
   const formData = new FormData();
+
+  // The backend expects the item data as a JSON string under the 'item' field
   formData.append('item', JSON.stringify(itemData));
+
   if (imageFile) {
     formData.append('image', imageFile);
   }
+
   return client.post(`/api/${rid}/admin/menu/items`, formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
@@ -68,12 +83,13 @@ export async function updateMenuItem(
   imageFile?: File
 ) {
   const formData = new FormData();
+
+  // The backend expects the item data as a JSON string under the 'item' field
   formData.append('item', JSON.stringify(itemData));
+
   if (imageFile) {
     formData.append('image', imageFile);
   }
-  // No need to append 'image' field if imageFile is undefined and image is not null in itemData,
-  // as per backend spec, absence means preserve existing image.
 
   return client.patch(`/api/${rid}/admin/menu/items/${itemId}`, formData, {
     headers: {
@@ -82,38 +98,74 @@ export async function updateMenuItem(
   });
 }
 
-// Delete (soft/hard)
+/**
+ * ✅ DELETE MENU ITEM
+ */
 export async function deleteMenuItem(rid: string, itemId: string, soft = true) {
+  console.log("[deleteMenuItem] RID →", rid);
+  console.log("[deleteMenuItem] ITEM ID →", itemId);
+  console.log("[deleteMenuItem] SOFT DELETE →", soft);
+
   return client.delete(`/api/${rid}/admin/menu/items/${itemId}`, {
     data: { soft },
   });
 }
 
-export async function updateMenu(rid: string, data: any) {
-  return client.post(`/api/${rid}/admin/menu`, data);
+/**
+ * ✅ RESTORE MENU ITEM
+ */
+export async function restoreMenuItem(rid: string, itemId: string) {
+  console.log("[restoreMenuItem] RID →", rid);
+  console.log("[restoreMenuItem] ITEM ID →", itemId);
+
+  return client.patch(`/api/${rid}/admin/menu/items/${itemId}/restore`);
 }
 
-// -------------------------------------------------------------
-// 📂 CATEGORIES
-// -------------------------------------------------------------
+/* ================================
+   📂 CATEGORIES
+================================ */
 
 export async function addCategory(rid: string, categoryData: CategoryPayload) {
+  console.log("[addCategory] RID →", rid);
+  console.log("[addCategory] PAYLOAD →", categoryData);
+
   return client.post(`/api/${rid}/admin/menu/categories`, categoryData);
 }
 
 export async function deleteCategory(rid: string, categoryId: string) {
+  console.log("[deleteCategory] RID →", rid);
+  console.log("[deleteCategory] CATEGORY ID →", categoryId);
+
   return client.delete(`/api/${rid}/admin/menu/categories/${categoryId}`);
 }
 
 export async function fetchCategories(rid: string) {
+  console.log("[fetchCategories] RID →", rid);
   return client.get(`/api/${rid}/admin/menu/categories`);
 }
 
-export async function updateCategory(rid: string, categoryId: string, categoryData: Partial<CategoryPayload>) {
-  return client.patch(`/api/${rid}/admin/menu/categories/${categoryId}`, categoryData);
+export async function updateCategory(
+  rid: string,
+  categoryId: string,
+  categoryData: Partial<CategoryPayload>
+) {
+  console.log("[updateCategory] RID →", rid);
+  console.log("[updateCategory] CATEGORY ID →", categoryId);
+  console.log("[updateCategory] PAYLOAD →", categoryData);
+
+  return client.patch(
+    `/api/${rid}/admin/menu/categories/${categoryId}`,
+    categoryData
+  );
 }
 
-export async function restoreMenuItem(rid: string, itemId: string) {
-  return client.patch(`/api/${rid}/admin/menu/items/${itemId}/restore`);
-}
+/* ================================
+   ✅ DUPLICATE SAFE MENU UPDATE
+================================ */
 
+export async function updateMenu(rid: string, data: any) {
+  console.log("[updateMenu] RID →", rid);
+  console.log("[updateMenu] PAYLOAD →", data);
+
+  return client.post(`/api/${rid}/admin/menu`, data);
+}

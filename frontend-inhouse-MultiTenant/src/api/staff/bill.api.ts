@@ -50,6 +50,7 @@ export interface ApiBill {
   serviceChargePercent: number;
   serviceChargeAmount: number;
   total: number;
+  totalAmount?: number;
   paymentStatus?: string;
   status?: BillStatus;
   staffAlias?: string;
@@ -97,7 +98,7 @@ export async function fetchBillById(rid: string, id: string) {
     headers: getAuthHeaders(),
   });
 
-  return res.data;
+  return res;
 }
 
 export async function getActiveBills(
@@ -147,7 +148,7 @@ export async function createBillFromOrder(
       headers: getAuthHeaders(),
     });
 
-    return res.data.bill || res.data;
+    return res.bill || res;
   } catch (err: any) {
     if (err?.response?.status === 409) {
       const existingBill = err?.response?.data?.bill;

@@ -1,62 +1,37 @@
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import FooterNav from "../Layout/Footer";
 import { ArrowLeft } from "lucide-react";
+import ComboCardShimmer from "./ComboCardShimmer";
+import type { Category } from "../../types/types";
 
-const combos = [
-  {
-    _id: "combo1",
-    title: "Dal Rice Combo",
-    details: "Dal Makhani + Steamed Rice + Roti (2pcs)",
-    originalPrice: 250,
-    offerPrice: 180,
-    save: 70,
-    veg: true,
-  },
-  {
-    _id: "combo2",
-    title: "Chicken Special Combo",
-    details: "Butter Chicken + Rice + Naan + Salad",
-    originalPrice: 420,
-    offerPrice: 350,
-    save: 70,
-    veg: false,
-  },
-  {
-    _id: "combo3",
-    title: "Paneer Delight Combo",
-    details: "Paneer Butter Masala + Rice + Roti (3pcs) + Pickle",
-    originalPrice: 350,
-    offerPrice: 280,
-    save: 70,
-    veg: true,
-  },
-];
-
-type CartItem = {
-  _id: string;
-  name: string;
-  price: number;
-  quantity: number;
-  isVegetarian?: boolean;
+type ComboOffersPageProps = {
+  comboCategories: Category[];
 };
 
-export default function ComboOffersPage() {
-  const [cart, setCart] = useState<Record<string, CartItem>>(() => {
+export default function ComboOffersPage({ comboCategories }: ComboOffersPageProps) {
+  const [cart, setCart] = useState<Record<string, any>>(() => {
     const fromStorage = JSON.parse(localStorage.getItem("cart") || "{}");
     return fromStorage;
   });
   const [showSuccessPop, setShowSuccessPop] = useState(false);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-  
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleAddToCart = (combo) => {
-    const newItem: CartItem = {
+    const newItem = {
       _id: combo._id,
-      name: combo.title,
-      price: combo.offerPrice,
+      name: combo.name,
+      price: combo.comboMeta.discountedPrice,
       quantity: (cart[combo._id]?.quantity || 0) + 1,
-      isVegetarian: combo.veg,
+      isVegetarian: combo.isVegetarian,
     };
     const newCart = { ...cart, [combo._id]: newItem };
     localStorage.setItem("cart", JSON.stringify(newCart));
@@ -65,8 +40,7 @@ export default function ComboOffersPage() {
     setTimeout(() => setShowSuccessPop(false), 1500);
   };
 
-  // For badge:
-  const cartCount = Object.values(cart).reduce((sum, item) => sum + item.quantity, 0);
+  const cartCount = Object.values(cart).reduce((sum, item: any) => sum + item.quantity, 0);
 
   return (
     <div className="bg-[#FAFBF8] min-h-screen pb-32">
@@ -96,34 +70,55 @@ export default function ComboOffersPage() {
       </div>
 
       <div className="space-y-6 px-4 mt-1">
-        {combos.map((combo) => (
-          <div key={combo._id} className="bg-white rounded-xl shadow border border-gray-200 px-6 py-5 relative overflow-hidden flex flex-col">
-            <h3 className="font-bold text-lg text-gray-900 mb-1">{combo.title}</h3>
-            <p className="text-gray-600 mb-2">{combo.details}</p>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="line-through text-gray-400 text-base">₹{combo.originalPrice}</span>
-              <span className="text-orange-600 text-xl font-bold">₹{combo.offerPrice}</span>
-              <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 ml-1 rounded-md">Save ₹{combo.save}</span>
-            </div>
-            <div className="flex items-center gap-2 mb-2">
-              {combo.veg ? (
-                <span className="block w-3 h-3 border-2 border-green-600 bg-green-50 rounded-sm flex items-center justify-center">
-                  <span className="block w-1.5 h-1.5 bg-green-600 rounded-full"></span>
+        {loading ? (
+          Array.from({ length: 3 }).map((_, index) => (
+            <ComboCardShimmer key={index} />
+          ))
+        ) : comboCategories.length > 0 ? (
+          comboCategories.map((combo) => (
+            <div
+              key={combo._id}
+              className="bg-white rounded-xl shadow border border-gray-200 px-6 py-5 relative overflow-hidden flex flex-col"
+            >
+              <h3 className="font-bold text-lg text-gray-900 mb-1">{combo.name}</h3>
+              <p className="text-gray-600 mb-2">{combo.comboMeta?.description}</p>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="line-through text-gray-400 text-base">₹{combo.comboMeta?.originalPrice}</span>
+                <span className="text-orange-600 text-xl font-bold">₹{combo.comboMeta?.discountedPrice}</span>
+                <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 ml-1 rounded-md">
+                  Save ₹{combo.comboMeta?.saveAmount}
                 </span>
-              ) : (
-                <span className="block w-3 h-3 border-2 border-red-600 bg-red-50 rounded-sm flex items-center justify-center">
-                  <span className="block w-1.5 h-1.5 bg-red-600 rounded-full"></span>
-                </span>
-              )}
-              <button
-                className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded px-4 py-1 transition-all"
-                onClick={() => handleAddToCart(combo)}
-              >
-                Add Combo
-              </button>
+              </div>
+              <div className="flex items-center gap-2 mb-2">
+                {combo.isVegetarian ? (
+                  <span className="block w-3 h-3 border-2 border-green-600 bg-green-50 rounded-sm flex items-center justify-center">
+                    <span className="block w-1.5 h-1.5 bg-green-600 rounded-full"></span>
+                  </span>
+                ) : (
+                  <span className="block w-3 h-3 border-2 border-red-600 bg-red-50 rounded-sm flex items-center justify-center">
+                    <span className="block w-1.5 h-1.5 bg-red-600 rounded-full"></span>
+                  </span>
+                )}
+                <button
+                  className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded px-4 py-1 transition-all"
+                  onClick={() => handleAddToCart(combo)}
+                >
+                  Add Combo
+                </button>
+              </div>
             </div>
+          ))
+        ) : (
+          <div className="text-center py-12">
+            <div className="inline-block bg-gray-100 p-4 rounded-full">
+              <span role="img" aria-label="sad face" className="text-4xl">😟</span>
+            </div>
+            <h2 className="mt-4 text-xl font-semibold text-gray-700">No Combos Available</h2>
+            <p className="mt-2 text-gray-500">
+              We don't have any special combos at the moment. Please check back later!
+            </p>
           </div>
-        ))}
+        )}
       </div>
       <FooterNav activeTab="combos" cartCount={cartCount} />
     </div>

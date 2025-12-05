@@ -103,12 +103,26 @@ try {
 
 /**
  * Helper to parse item data from form-data.
- * If 'item' field is a JSON string, it parses it. Otherwise, it returns the body directly.
+ * If 'itemData' field is a JSON string, it parses it. Otherwise, it checks 'item' field.
+ * If neither is a JSON string, it returns the body directly.
  * This handles cases where multipart/form-data sends complex objects as JSON strings.
  * @param {object} body - The request body.
  * @returns {object} The parsed item data.
  */
 function parseFormData(body) {
+  if (body.itemData && typeof body.itemData === "string") {
+    try {
+      return JSON.parse(body.itemData);
+    } catch (e) {
+      logger?.warn?.(
+        "Failed to parse 'itemData' field as JSON string, falling back to other fields.",
+        { error: e.message }
+      );
+      // Fallback to other fields or raw body if parsing fails
+    }
+  }
+
+  // Fallback to 'item' if 'itemData' was not found or failed to parse
   if (body.item && typeof body.item === "string") {
     try {
       return JSON.parse(body.item);
@@ -772,6 +786,16 @@ async function addMenuItem(req, res, next) {
       });
     }
 
+    // Parse metadata if it's a JSON string
+    if (item.metadata && typeof item.metadata === 'string') {
+      try {
+        item.metadata = JSON.parse(item.metadata);
+      } catch (e) {
+        logger?.error?.("addMenuItem: Failed to parse metadata JSON:", { error: e.message });
+        item.metadata = {}; // Default to empty object on parse error
+      }
+    }
+
     // ✅ 5. Build new item
     const newItem = {
       _id: new mongoose.Types.ObjectId(),
@@ -893,6 +917,18 @@ async function updateMenuItem(req, res, next) {
     } else if (updates.image === undefined) {
       // If image field is not present in updates (no file uploaded and no explicit null),
       // ensure existing image is not overwritten (this implicitly happens with Object.assign)
+    }
+
+    // Assume `updates.metadata` might be a JSON string from frontend FormData
+    // Needs to be parsed to an object before Object.assign or saving
+    if (updates.metadata && typeof updates.metadata === 'string') {
+      try {
+        updates.metadata = JSON.parse(updates.metadata);
+      } catch (e) {
+        logger && logger.error && logger.error("Failed to parse metadata JSON:", e);
+        // Handle parsing error by setting metadata to an empty object
+        updates.metadata = {};
+      }
     }
 
     Object.assign(item, updates);
@@ -1712,52 +1748,72 @@ async function updateAdminPin(req, res, next) {
     return next(err);
   }
 }
-/** Update Staff PIN */
-// PATCH /api/:rid/admin/staff-pin
+/**
+ * Update the single, shared Staff PIN (admin protected)
+ * PATCH /api/:rid/admin/staff-pin
+ */
 async function updateStaffPin(req, res, next) {
   logger?.info?.("Enter updateStaffPin", { params: req.params });
   try {
     const { rid } = req.params;
-    const { staffAlias, newPin } = req.body || {};
+    const { adminPin, newStaffPin } = req.body || {};
+
     if (req.body) {
       // Remove any client-provided restaurantId
       delete req.body.restaurantId;
     }
+
     if (!rid) {
       logger?.warn?.("updateStaffPin missing rid");
       return res.status(400).json({ error: "Missing restaurant id (rid)" });
     }
-    if (!staffAlias || !newPin) {
-      logger?.warn?.("updateStaffPin missing staffAlias or newPin");
+    if (!adminPin || !newStaffPin) {
+      logger?.warn?.("updateStaffPin missing adminPin or newStaffPin");
       return res
         .status(400)
-        .json({ error: "Staff alias and new PIN required" });
+        .json({ error: "Admin PIN and new Staff PIN required" });
     }
-    if (typeof newPin !== "string" || newPin.length < 4) {
-      logger?.warn?.("updateStaffPin invalid newPin length");
+    if (typeof newStaffPin !== "string" || newStaffPin.length < 4) {
+      logger?.warn?.("updateStaffPin invalid newStaffPin length");
       return res
         .status(400)
-        .json({ error: "New PIN must be at least 4 characters" });
+        .json({ error: "New Staff PIN must be at least 4 characters" });
     }
+
     const admin = await Admin.findOne({ restaurantId: rid });
     if (!admin) {
       logger?.warn?.("updateStaffPin admin not found", { restaurantId: rid });
       return res.status(404).json({ error: "Admin configuration not found" });
     }
+
+    // 1. Verify the admin's PIN to authorize this change
+    const isMatch = await bcrypt.compare(adminPin, admin.hashedPin || "");
+    if (!isMatch) {
+      logger?.warn?.("updateStaffPin invalid admin PIN", { restaurantId: rid });
+      return res.status(401).json({ error: "Invalid Admin PIN. You are not authorized to change the Staff PIN." });
+    }
+    
+    // 2. Hash and save the new SHARED staff pin
     const saltRounds = getBcryptRounds();
-    logger?.debug?.("updateStaffPin hashing new PIN", { saltRounds });
-    const newHash = await bcrypt.hash(newPin, saltRounds);
-    if (!admin.staffPins) admin.staffPins = {};
-    admin.staffPins[staffAlias] = newHash;
+    const newHash = await bcrypt.hash(newStaffPin, saltRounds);
+
+    // This is the correct field used by the staffLogin function
+    admin.staffHashedPin = newHash;
+    
+    // This field is now obsolete and should be removed to prevent confusion
+    admin.staffPins = undefined;
+
     await admin.save();
+
     safePublish(`restaurant:${rid}:staff`, {
       event: "staffPinUpdated",
-      data: { staffAlias, updatedAt: new Date() },
+      data: { updatedAt: new Date() },
     });
+
     logger?.info?.("updateStaffPin completed successfully", {
       restaurantId: rid,
     });
-    return res.json({ message: "Staff PIN updated successfully" });
+    return res.json({ message: "Shared Staff PIN updated successfully" });
   } catch (err) {
     logger?.error?.(
       "Update staff PIN error:",
@@ -2217,76 +2273,79 @@ async function deleteWaiterName(req, res, next) {
 // ----------------------- Config Controllers -----------------------
 
 /**
- * Update global config (taxPercent, globalDiscountPercent, serviceCharge)
+ * Update global config (restaurantName, address, UPISettings, etc.)
  * PATCH /api/:rid/admin/config
- *
- * Stores values under admin.settings to keep a single config location.
  */
 async function updateConfig(req, res, next) {
-  logger &&
-    logger.info &&
-    logger.info("Enter updateConfig", { params: req.params });
+  logger?.info?.("Enter updateConfig", { params: req.params, body: req.body });
   try {
     const { rid } = req.params;
-    const { taxPercent, globalDiscountPercent, serviceCharge } = req.body || {};
+    const updates = req.body || {};
 
     if (req.body) {
-      // Remove any client-provided restaurantId
-      delete req.body.restaurantId;
+      delete req.body.restaurantId; // Prevent changing the restaurantId
     }
 
     if (!rid) {
-      logger && logger.warn && logger.warn("updateConfig missing rid");
+      logger?.warn?.("updateConfig missing rid");
       return res.status(400).json({ error: "Missing restaurant id (rid)" });
     }
 
-    const settings = {};
-    if (typeof taxPercent !== "undefined") {
-      settings.taxPercent = Number(taxPercent);
-    }
-    if (typeof globalDiscountPercent !== "undefined") {
-      settings.globalDiscountPercent = Number(globalDiscountPercent);
-    }
-    if (typeof serviceCharge !== "undefined") {
-      settings.serviceCharge = Number(serviceCharge);
+    const updateFields = {};
+    const allowedUpdates = [
+      "restaurantName",
+      "ownerName",
+      "phone",
+      "email",
+      "address",
+      "UPISettings",
+    ];
+
+    // Build a dynamic $set object based on provided fields
+    for (const key of allowedUpdates) {
+      if (updates[key] !== undefined) {
+        if (typeof updates[key] === 'object' && !Array.isArray(updates[key]) && updates[key] !== null) {
+          // For nested objects like address and UPISettings, update individual fields
+          // This allows PATCH-like behavior, e.g., updating only UPISettings.UPI_ID
+          for (const nestedKey in updates[key]) {
+            if (Object.prototype.hasOwnProperty.call(updates[key], nestedKey)) {
+              updateFields[`${key}.${nestedKey}`] = updates[key][nestedKey];
+            }
+          }
+        } else {
+          // For simple top-level fields
+          updateFields[key] = updates[key];
+        }
+      }
     }
 
-    if (Object.keys(settings).length === 0) {
-      logger &&
-        logger.warn &&
-        logger.warn("updateConfig no config fields provided");
-      return res.status(400).json({ error: "No config fields provided" });
+    if (Object.keys(updateFields).length === 0) {
+      logger?.warn?.("updateConfig no valid fields provided");
+      return res.status(400).json({ error: "No valid config fields provided for update." });
     }
 
-    logger &&
-      logger.debug &&
-      logger.debug("updateConfig persisting settings", {
-        restaurantId: rid,
-        settings,
-      });
-    // Persist settings under admin.settings using updateOne (safe even if schema doesn't define it)
-    const upd = {
-      $setOnInsert: { restaurantId: rid, hashedPin: "" },
-      $set: { updatedAt: Date.now(), settings },
-    };
-    await Admin.updateOne({ restaurantId: rid }, upd, { upsert: true });
+    updateFields.updatedAt = new Date();
+
+    const admin = await Admin.findOneAndUpdate(
+      { restaurantId: rid },
+      { $set: updateFields },
+      { new: true, upsert: true }
+    );
+
+    if (!admin) {
+        return res.status(404).json({ error: "Admin configuration not found" });
+    }
 
     safePublish(`restaurant:${rid}:staff`, {
       event: "configUpdated",
-      data: { settings },
+      data: { updates: updateFields },
     });
 
-    const admin = await Admin.findOne({ restaurantId: rid }).lean();
-    logger &&
-      logger.info &&
-      logger.info("updateConfig returning sanitized admin", {
-        restaurantId: rid,
-      });
+    logger?.info?.("updateConfig completed successfully", { restaurantId: rid });
     return res.json(sanitizeAdmin(admin));
+
   } catch (err) {
-    logger &&
-      logger.error &&
-      logger.error("Update config error:", err && err.stack ? err.stack : err);
+    logger?.error?.("Update config error:", err?.stack || err);
     return next(err);
   }
 }

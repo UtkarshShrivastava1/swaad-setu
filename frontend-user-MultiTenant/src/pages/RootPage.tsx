@@ -1,10 +1,9 @@
-
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { FaUtensils } from 'react-icons/fa';
+import { useState } from "react";
+import { FaUtensils } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 
 export default function RootPage() {
-  const [rid, setRid] = useState('');
+  const [rid, setRid] = useState("");
   const navigate = useNavigate();
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -32,7 +31,10 @@ export default function RootPage() {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="rid" className="block text-sm font-medium text-gray-300 mb-2">
+              <label
+                htmlFor="rid"
+                className="block text-sm font-medium text-gray-300 mb-2"
+              >
                 Restaurant ID
               </label>
               <input

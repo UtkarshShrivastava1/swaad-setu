@@ -1,6 +1,8 @@
 // App.tsx
 import { Suspense, lazy } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 // Context + Guards
 import { Outlet } from "react-router-dom";
@@ -87,6 +89,7 @@ function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
+      <ToastContainer />
     </TenantProvider>
   );
 }

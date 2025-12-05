@@ -1,6 +1,6 @@
 import type { DropResult } from "@hello-pangea/dnd";
-import { DragDropContext, Draggable, Droppable } from "@hello-pangea/dnd";
-import { GripVertical, Pencil, Plus } from "lucide-react";
+import { Draggable, Droppable } from "@hello-pangea/dnd";
+import { GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
 import React, { useState } from "react";
 import { useParams } from "react-router-dom";
 import { bulkUpdateMenu } from "../../../../api/admin/menu.api";
@@ -10,7 +10,7 @@ import ComboBuilderModal from "./ComboBuilderModal";
 export interface MenuItem {
   _id: string;
   itemId: string;
-  name: string;
+  name:string;
   description?: string;
   price: number;
   currency?: string;
@@ -32,6 +32,9 @@ interface MenuSidebarProps {
   items: MenuItem[];
   onCategoriesUpdate: (categories: Category[]) => void;
   onCategorySelect: (category: Category) => void;
+  selectedCategory: Category | null;
+  onDeleteCategory: (category: Category) => void;
+  onRefreshMenu: () => void;
 }
 
 const MenuSidebar: React.FC<MenuSidebarProps> = ({
@@ -39,51 +42,21 @@ const MenuSidebar: React.FC<MenuSidebarProps> = ({
   items,
   onCategoriesUpdate,
   onCategorySelect,
+  selectedCategory,
+  onDeleteCategory,
+  onRefreshMenu,
 }) => {
-  const { rid } = useParams<{ rid: string }>();
   const [isAddCategoryModalOpen, setIsAddCategoryModalOpen] = useState(false);
+  const [isAddingComboCategory, setIsAddingComboCategory] = useState(false); // New state
   const [isComboBuilderModalOpen, setIsComboBuilderModalOpen] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<Category | null>(
-    null
-  );
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [showToast, setShowToast] = useState(false);
-  const [activeTab, setActiveTab] = useState<'categories' | 'combos'>('categories'); // New state for tabs
-
-  /* ================= DRAG END ================= */
-
-  const onDragEnd = async (result: DropResult) => {
-    const { destination, source } = result;
-    if (!destination) return;
-    if (
-      destination.droppableId === source.droppableId &&
-      destination.index === source.index
-    ) {
-      return;
-    }
-
-    const newCategories = Array.from(categories);
-    const [reorderedItem] = newCategories.splice(source.index, 1);
-    newCategories.splice(destination.index, 0, reorderedItem);
-
-    onCategoriesUpdate(newCategories);
-
-    if (!rid) return;
-    try {
-      await bulkUpdateMenu(rid, { categories: newCategories });
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 2000);
-    } catch (error) {
-      console.error("Failed to save category order:", error);
-      onCategoriesUpdate(categories);
-    }
-  };
-
-  const handleAddCategory = (newCategory: Category) => {
-    onCategoriesUpdate([...categories, newCategory]);
-  };
+  const [activeTab, setActiveTab] = useState<"categories" | "combos">(
+    "categories"
+  );
 
   const handleOpenComboBuilder = (category: Category) => {
-    setSelectedCategory(category);
+    setEditingCategory(category);
     setIsComboBuilderModalOpen(true);
   };
 
@@ -94,74 +67,151 @@ const MenuSidebar: React.FC<MenuSidebarProps> = ({
     onCategoriesUpdate(newCategories);
   };
 
-  const tabButtonClass = (tabName: 'categories' | 'combos') =>
-    `flex-1 py-2 text-center font-medium ${
-      activeTab === tabName
-        ? 'border-b-2 border-yellow-500 text-yellow-400'
-        : 'text-gray-400 hover:text-white'
-    }`;
+  const tabButtonClass = (tabName: "categories" | "combos") => {
+    const baseClasses =
+      "flex-1 py-2 px-4 rounded-lg text-center font-semibold transition-all duration-300 shadow-sm cursor-pointer";
+    if (activeTab === tabName) {
+      return `${baseClasses} bg-yellow-400 text-black`;
+    }
+    return `${baseClasses} bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white`;
+  };
 
-  const regularCategories = categories.filter(cat => !cat.isMenuCombo);
-  const comboCategories = categories.filter(cat => cat.isMenuCombo);
+  const regularCategories = categories.filter(
+    (cat) => cat && cat._id && !cat.isMenuCombo
+  );
+  const comboCategories = categories.filter(
+    (cat) => cat && cat._id && cat.isMenuCombo
+  );
 
   return (
-    <div className="p-4 h-full flex flex-col bg-black text-white">
-      <div className="flex mb-4 border-b border-gray-700">
+    <div className="p-2 sm:p-4 h-full flex flex-col bg-black text-white border-r border-gray-700">
+      <div className="flex mb-4 gap-2">
         <button
-          className={tabButtonClass('categories')}
-          onClick={() => setActiveTab('categories')}
+          className={tabButtonClass("categories")}
+          onClick={() => setActiveTab("categories")}
         >
           Categories
         </button>
         <button
-          className={tabButtonClass('combos')}
-          onClick={() => setActiveTab('combos')}
+          className={tabButtonClass("combos")}
+          onClick={() => setActiveTab("combos")}
         >
           Combos
         </button>
       </div>
 
-      {activeTab === 'categories' && (
-        <>
-          <h2 className="text-xl font-semibold mb-4 text-yellow-400">Categories</h2>
-
-          <DragDropContext onDragEnd={onDragEnd}>
-            <Droppable droppableId="categories">
+      {activeTab === "categories" && (
+        <div className="flex flex-col flex-grow min-h-0">
+          <div className="flex justify-between items-center mb-4 shrink-0">
+            <h2 className="text-lg sm:text-xl font-semibold text-yellow-400">
+              Categories
+            </h2>
+            <button
+              onClick={() => {
+                setIsAddingComboCategory(false); // Ensure false for regular category
+                setIsAddCategoryModalOpen(true);
+              }}
+              className="flex items-center justify-center gap-1 px-2 py-1 bg-yellow-400 text-black rounded-md hover:bg-yellow-500 cursor-pointer"
+            >
+              <Plus className="h-4 w-4" />
+              <span className="text-xs sm:text-sm">Add Category</span>
+            </button>
+          </div>
+          <div className="flex-grow overflow-y-auto">
+            <Droppable droppableId="categories-list" type="category">
               {(provided) => (
                 <ul
                   {...provided.droppableProps}
                   ref={provided.innerRef}
-                  className="flex-grow"
                 >
+                  {/* Static All Items */}
+                  <li
+                    onClick={() => onCategorySelect({ _id: 'all', name: 'All Items', itemIds: items.map(i => i.itemId), isMenuCombo: false })}
+                    className={`flex items-center justify-between p-1 sm:p-2 rounded-md cursor-pointer select-none transition-colors mb-2 ${
+                      selectedCategory?._id === 'all'
+                        ? "bg-yellow-400 text-black"
+                        : "bg-gray-800 hover:bg-gray-700"
+                    }`}
+                  >
+                    <div className="flex items-center gap-1 sm:gap-2">
+                      <span className="text-sm sm:text-base">All Items</span>
+                    </div>
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs ${
+                        selectedCategory?._id === 'all'
+                          ? "bg-yellow-500"
+                          : "bg-gray-600 text-gray-300"
+                      }`}
+                    >
+                      {items.length}
+                    </span>
+                  </li>
                   {regularCategories.map((category, index) => {
-                    if (!category || !category._id) return null;
-
+                    const isSelected = selectedCategory?._id === category._id;
+                    const isUncategorized = category._id === 'uncategorized';
                     return (
                       <Draggable
-                        key={category._id}
-                        draggableId={category._id}
+                        key={`category-${category._id}`}
+                        draggableId={`category-${category._id}`}
                         index={index}
+                        isDragDisabled={isUncategorized}
+                        type="category"
                       >
                         {(provided) => (
-                          <li
+                          <div
                             ref={provided.innerRef}
                             {...provided.draggableProps}
-                            onClick={() => onCategorySelect(category)}
-                            className="flex items-center justify-between p-2 rounded-md bg-gray-800 hover:bg-gray-700 cursor-pointer select-none mb-2" // Themed list item
+                            className="mb-2"
                           >
-                            <div className="flex items-center gap-2">
-                              <span {...provided.dragHandleProps}>
-                                <GripVertical className="h-5 w-5 text-gray-400 cursor-grab" />
-                              </span>
-                              <span>{category.name}</span>
-                            </div>
+                            <Droppable droppableId={`category-${category._id}`} type="item">
+                              {(dropProvided, dropSnapshot) => (
+                                <li
+                                  ref={dropProvided.innerRef}
+                                  {...dropProvided.droppableProps}
+                                  onClick={() => onCategorySelect(category)}
+                                  className={`flex items-center justify-between p-1 sm:p-2 rounded-md cursor-pointer select-none transition-colors ${
+                                    isSelected
+                                      ? "bg-yellow-400 text-black"
+                                      : "bg-gray-800 hover:bg-gray-700"
+                                  } ${dropSnapshot.isDraggingOver ? 'bg-green-500' : ''}`}
+                                >
+                                  <div className="flex items-center gap-1 sm:gap-2">
+                                    {!isUncategorized && (
+                                      <span {...provided.dragHandleProps}>
+                                        <GripVertical className="h-5 w-5 text-gray-400 cursor-grab" />
+                                      </span>
+                                    )}
+                                    <span className="text-sm sm:text-base">{category.name}</span>
+                                  </div>
 
-                            <div className="flex items-center gap-2">
-                              <span className="bg-gray-600 text-gray-300 px-2 py-1 rounded-full text-xs"> {/* Themed count span */}
-                                {(category.itemIds || []).length}
-                              </span>
-                            </div>
-                          </li>
+                                  <div className="flex items-center gap-1 sm:gap-2">
+                                    <span
+                                      className={`px-2 py-1 rounded-full text-xs ${
+                                        isSelected
+                                          ? "bg-yellow-500"
+                                          : "bg-gray-600 text-gray-300"
+                                      }`}
+                                    >
+                                      {(category.itemIds || []).length}
+                                    </span>
+                                    {!isUncategorized && (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          onDeleteCategory(category);
+                                        }}
+                                        className="p-1 rounded-full hover:bg-red-500/20 text-gray-400 hover:text-red-500"
+                                        aria-label="Delete category"
+                                      >
+                                        <Trash2 size={16} />
+                                      </button>
+                                    )}
+                                  </div>
+                                  {dropProvided.placeholder}
+                                </li>
+                              )}
+                            </Droppable>
+                          </div>
                         )}
                       </Draggable>
                     );
@@ -170,97 +220,102 @@ const MenuSidebar: React.FC<MenuSidebarProps> = ({
                 </ul>
               )}
             </Droppable>
-          </DragDropContext>
-
-          <button
-            onClick={() => setIsAddCategoryModalOpen(true)}
-            className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-2 bg-yellow-400 text-black rounded-md hover:bg-yellow-500" // Themed Add Category button
-          >
-            <Plus className="h-5 w-5" />
-            Add Category
-          </button>
-        </>
+          </div>
+        </div>
       )}
 
-      {activeTab === 'combos' && (
-        <>
-          <h2 className="text-xl font-semibold mb-4 text-yellow-400">Combos</h2>
-          <DragDropContext onDragEnd={onDragEnd}>
-            <Droppable droppableId="combos">
-              {(provided) => (
-                <ul
-                  {...provided.droppableProps}
-                  ref={provided.innerRef}
-                  className="flex-grow"
-                >
-                  {comboCategories.map((category, index) => {
-                    if (!category || !category._id) return null;
+      {activeTab === "combos" && (
+        <div className="flex flex-col flex-grow min-h-0">
+          <div className="flex justify-between items-center mb-4 shrink-0">
+            <h2 className="text-lg sm:text-xl font-semibold text-yellow-400">
+              Combos
+            </h2>
+            <button
+              onClick={() => {
+                setIsAddingComboCategory(true); // Indicate combo category creation
+                setIsAddCategoryModalOpen(true); // Open AddCategoryModal
+              }}
+              className="flex items-center justify-center gap-1 px-2 py-1 bg-yellow-400 text-black rounded-md hover:bg-yellow-500 cursor-pointer"
+            >
+              <Plus className="h-4 w-4" />
+              <span className="text-xs sm:text-sm">Create Combo</span>
+            </button>
+          </div>
+          <div className="flex-grow overflow-y-auto">
+            <ul>
+              {comboCategories.map((category) => {
+                const isSelected = selectedCategory?._id === category._id;
+                return (
+                  <li
+                    key={category._id}
+                    onClick={() => onCategorySelect(category)}
+                    className={`flex items-center justify-between p-1 sm:p-2 rounded-md cursor-pointer select-none transition-colors mb-2 ${
+                      isSelected
+                        ? "bg-yellow-400 text-black"
+                        : "bg-gray-800 hover:bg-gray-700"
+                    }`}
+                  >
+                    <div className="flex items-center gap-1 sm:gap-2">
+                      <span className="text-sm sm:text-base">{category.name}</span>
+                    </div>
 
-                    return (
-                      <Draggable
-                        key={category._id}
-                        draggableId={category._id}
-                        index={index}
+                    <div className="flex items-center gap-1 sm:gap-2">
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs ${
+                          isSelected
+                            ? "bg-yellow-500"
+                            : "bg-gray-600 text-gray-300"
+                        }`}
                       >
-                        {(provided) => (
-                          <li
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            onClick={() => onCategorySelect(category)}
-                            className="flex items-center justify-between p-2 rounded-md bg-gray-800 hover:bg-gray-700 cursor-pointer select-none mb-2" // Themed list item
-                          >
-                            <div className="flex items-center gap-2">
-                              <span {...provided.dragHandleProps}>
-                                <GripVertical className="h-5 w-5 text-gray-400 cursor-grab" />
-                              </span>
-                              <span>{category.name} (Combo)</span>
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleOpenComboBuilder(category);
-                                }}
-                                className="p-1 bg-gray-700 hover:bg-gray-600 rounded-full text-white" // Themed edit button
-                              >
-                                <Pencil size={16} />
-                              </button>
-                              <span className="bg-gray-600 text-gray-300 px-2 py-1 rounded-full text-xs"> {/* Themed count span */}
-                                {(category.itemIds || []).length}
-                              </span>
-                            </div>
-                          </li>
-                        )}
-                      </Draggable>
-                    );
-                  })}
-                  {provided.placeholder}
-                </ul>
-              )}
-            </Droppable>
-          </DragDropContext>
-
-          <button
-            onClick={() => setIsComboBuilderModalOpen(true)} // Open ComboBuilderModal for new combo
-            className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-2 bg-yellow-400 text-black rounded-md hover:bg-yellow-500" // Themed Add Combo button
-          >
-            <Plus className="h-5 w-5" />
-            Add Combo
-          </button>
-        </>
+                        {(category.itemIds || []).length}
+                      </span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenComboBuilder(category);
+                        }}
+                        className="p-1 rounded-full hover:bg-blue-500/20 text-gray-400 hover:text-blue-500"
+                        aria-label="Edit combo"
+                      >
+                        <Pencil size={16} />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDeleteCategory(category);
+                        }}
+                        className="p-1 rounded-full hover:bg-red-500/20 text-gray-400 hover:text-red-500"
+                        aria-label="Delete combo"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </div>
       )}
 
       <AddCategoryModal
         isOpen={isAddCategoryModalOpen}
-        onClose={() => setIsAddCategoryModalOpen(false)}
-        onCategoryAdded={handleAddCategory}
+        onClose={() => {
+          setIsAddCategoryModalOpen(false);
+          setIsAddingComboCategory(false); // Reset on close
+        }}
+        onCategoryAdded={() => {
+          onRefreshMenu();
+          setIsAddCategoryModalOpen(false);
+          setIsAddingComboCategory(false); // Reset on category added
+        }}
+        initialIsMenuCombo={isAddingComboCategory} // Pass the new prop
       />
 
       <ComboBuilderModal
         isOpen={isComboBuilderModalOpen}
         onClose={() => setIsComboBuilderModalOpen(false)}
-        category={selectedCategory}
+        category={editingCategory}
         items={items}
         onCategoryUpdate={handleCategoryUpdate}
       />

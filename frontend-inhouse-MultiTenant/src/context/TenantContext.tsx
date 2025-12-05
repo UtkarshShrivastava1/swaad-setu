@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
+import type { Restaurant } from "../api/restaurant.api";
 
 export interface PricingConfig {
   version: number;
@@ -14,6 +15,8 @@ export interface Admin {
   restaurantId: string;
   pricingConfigs: PricingConfig[];
   username: string;
+  // This may contain other properties like upiSettings, but they are not strictly typed here
+  [key: string]: any;
 }
 
 export interface TenantContextType {
@@ -22,6 +25,8 @@ export interface TenantContextType {
   clearRid: () => void;
   admin: Admin | null;
   setAdmin: (admin: Admin) => void;
+  tenant: Restaurant | null;
+  setTenant: (tenant: Restaurant) => void;
 }
 
 export const TenantContext = createContext<TenantContextType | undefined>(
@@ -38,6 +43,11 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     return storedAdmin ? JSON.parse(storedAdmin) : null;
   });
 
+  const [tenant, setTenantState] = useState<Restaurant | null>(() => {
+    const storedTenant = sessionStorage.getItem("tenant");
+    return storedTenant ? JSON.parse(storedTenant) : null;
+  });
+
   const setRid = (newRid: string) => {
     localStorage.setItem("currentRid", newRid);
     setRidState(newRid);
@@ -48,6 +58,11 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     setAdminState(newAdmin);
   };
 
+  const setTenant = (newTenant: Restaurant) => {
+    sessionStorage.setItem("tenant", JSON.stringify(newTenant));
+    setTenantState(newTenant);
+  };
+
   const clearRid = () => {
     if (rid) {
       localStorage.removeItem(`adminToken_${rid}`);
@@ -56,13 +71,25 @@ export function TenantProvider({ children }: { children: ReactNode }) {
 
     localStorage.removeItem("currentRid");
     sessionStorage.removeItem("admin");
+    sessionStorage.removeItem("tenant");
 
     setRidState(null);
     setAdminState(null);
+    setTenantState(null);
   };
 
   return (
-    <TenantContext.Provider value={{ rid, setRid, clearRid, admin, setAdmin }}>
+    <TenantContext.Provider
+      value={{
+        rid,
+        setRid,
+        clearRid,
+        admin,
+        setAdmin,
+        tenant,
+        setTenant,
+      }}
+    >
       {children}
     </TenantContext.Provider>
   );

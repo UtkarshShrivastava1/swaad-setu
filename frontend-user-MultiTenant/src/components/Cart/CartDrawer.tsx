@@ -1,7 +1,7 @@
 import { Phone } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { createOrder, getOrder } from "../../api/order.api";
+import { createOrder, getOrdersByTable } from "../../api/order.api";
 import { useTable } from "../../context/TableContext";
 import { useTenant } from "../../context/TenantContext";
 import { useCart } from "../../stores/cart.store";
@@ -9,10 +9,7 @@ import TablePickerModal from "../TableSelect/TablePickerModal";
 
 type ApiOrder =
   | {
-      order?: {
-        _id?: string;
-        sessionId?: string;
-      };
+      order?: { _id?: string; sessionId?: string };
       data?: { _id?: string; order?: { _id?: string; sessionId?: string } };
       _id?: string;
     }
@@ -50,6 +47,7 @@ export default function CartDrawer() {
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerContact, setCustomerContact] = useState("");
+  const [hasActiveOrder, setHasActiveOrder] = useState(false);
 
   const sessionId =
     sessionStorage.getItem("resto_session_id") ||
@@ -58,6 +56,19 @@ export default function CartDrawer() {
   useEffect(() => {
     sessionStorage.setItem("resto_session_id", sessionId);
   }, [sessionId]);
+
+  useEffect(() => {
+    if (tableId && rid) {
+      getOrdersByTable(rid, tableId).then((ordersForTable) => {
+        const activeOrder = ordersForTable.find(
+          (o) => o.status !== "completed" && o.status !== "cancelled"
+        );
+        setHasActiveOrder(!!activeOrder);
+      });
+    } else {
+      setHasActiveOrder(false);
+    }
+  }, [rid, tableId]);
 
   useEffect(() => {
     if (tableId) {
@@ -76,26 +87,13 @@ export default function CartDrawer() {
   }, [tableId]);
 
   const initiatePlaceOrder = async () => {
-    if (items.length === 0) {
-      alert("Your cart is empty.");
-      return;
-    }
-    if (!tableId) {
-      setShowTablePicker(true);
-      return;
-    }
+    if (items.length === 0) return alert("Your cart is empty.");
+    if (!tableId) return setShowTablePicker(true);
 
-    // Check for existing active order
+    setLoading(true);
     try {
-      setLoading(true);
-      const ordersResponse = await getOrder(rid, sessionId);
-      const existingOrders = Array.isArray(ordersResponse)
-        ? ordersResponse
-        : ordersResponse
-          ? [ordersResponse]
-          : [];
-
-      const activeOrder = existingOrders.find(
+      const ordersForTable = await getOrdersByTable(rid, tableId);
+      const activeOrder = ordersForTable.find(
         (o) => o.status !== "completed" && o.status !== "cancelled"
       );
 
@@ -107,63 +105,25 @@ export default function CartDrawer() {
           false,
           activeOrder
         );
-        return;
+      } else {
+        const savedInfo = sessionStorage.getItem(`customerInfo_${tableId}`);
+        if (savedInfo) {
+          const { name, contact, email } = safeParse<any>(savedInfo, {});
+          if (name && contact && email) {
+            await placeOrderWithDetails(name, contact, email, false);
+          } else {
+            setShowCustomerModal(true);
+          }
+        } else {
+          setShowCustomerModal(true);
+        }
       }
-    } catch (error) {
-      console.warn(
-        "No existing order found or failed to fetch, proceeding to new order flow:",
-        error
-      );
+    } catch (err) {
+      console.error("Failed to initiate order placement:", err);
+      alert("Could not place order. Please try again.");
     } finally {
       setLoading(false);
     }
-
-    const savedInfo = sessionStorage.getItem(`customerInfo_${tableId}`);
-    if (savedInfo) {
-      const { name, contact, email } = safeParse<{
-        name: string;
-        contact: string;
-        email: string;
-      }>(savedInfo, { name: "", contact: "", email: "" });
-      if (name && contact && email) {
-        handleConfirmOrderWithSavedInfo(name, contact, email);
-        return;
-      }
-    }
-    setShowCustomerModal(true);
-  };
-
-  const handleConfirmOrder = async () => {
-    const cleanedContact = customerContact.replace(/\s+/g, "").trim();
-    if (
-      !customerName.trim() ||
-      !customerEmail.trim() ||
-      !cleanedContact.trim()
-    ) {
-      alert("Please fill in all details (name, contact, email).");
-      return;
-    }
-
-    if (!/^[6-9]\d{9}$/.test(cleanedContact)) {
-      alert("Please enter a valid 10-digit contact number.");
-      return;
-    }
-
-    setShowCustomerModal(false);
-    await placeOrderWithDetails(
-      customerName,
-      cleanedContact,
-      customerEmail,
-      true
-    );
-  };
-
-  const handleConfirmOrderWithSavedInfo = async (
-    name: string,
-    contact: string,
-    email: string
-  ) => {
-    await placeOrderWithDetails(name, contact, email, false);
   };
 
   const placeOrderWithDetails = async (
@@ -179,7 +139,7 @@ export default function CartDrawer() {
       customerContact: contact,
       customerEmail: email,
       isCustomerOrder: true,
-      ...(activeOrder?.order?._id && { orderId: activeOrder.order._id }), // Conditionally add orderId
+      ...(activeOrder?._id && { orderId: activeOrder._id }),
       items: items.map((i) => ({
         menuItemId: i.itemId,
         name: i.name,
@@ -189,63 +149,42 @@ export default function CartDrawer() {
     };
 
     try {
-      setLoading(true);
       const res = await createOrder(rid, tableId!, payload);
 
       if (isNewCustomer) {
         sessionStorage.setItem(
           `customerInfo_${tableId}`,
-          JSON.stringify({
-            name,
-            contact,
-            email,
-          })
+          JSON.stringify({ name, contact, email })
         );
       }
 
       const orderId = getOrderId(res);
-
       if (orderId) {
         sessionStorage.setItem("active_order_id", orderId);
-        console.log("Active order ID set in CartDrawer:", orderId);
         clear();
         navigate(`/t/${rid}/order/${orderId}`);
       } else {
-        alert(
-          `Order placed but no order ID returned. Please check your orders. Response: ${JSON.stringify(
-            res
-          )}`
-        );
+        throw new Error("Order placed but no order ID returned.");
       }
     } catch (err: any) {
-      console.error("Failed to place order:", err);
-      alert("Failed to place order: " + (err?.message || "Unknown error"));
-    } finally {
-      setLoading(false);
+      console.error("Order placement failed:", err);
+      alert(`Failed to place order: ${err.message}`);
     }
   };
 
-  useEffect(() => {
-    const handleClearCustomerInfo = () => {
-      if (tableId) {
-        sessionStorage.removeItem(`customerInfo_${tableId}`);
-      }
-      sessionStorage.removeItem("ongoingOrders");
-    };
-    window.addEventListener("clearTableSession", handleClearCustomerInfo);
-    return () =>
-      window.removeEventListener("clearTableSession", handleClearCustomerInfo);
-  }, [tableId]);
+  /* ================= DARK UI ================= */
 
   return (
     <>
       {showTablePicker && (
         <TablePickerModal onClose={() => setShowTablePicker(false)} />
       )}
+
+      {/* ================= CUSTOMER MODAL ================= */}
       {showCustomerModal && (
-        <div className="fixed inset-0 text-black bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white p-6 rounded-xl max-w-md w-full space-y-5 shadow-lg animate-in fade-in">
-            <h2 className="text-2xl font-bold text-gray-900 text-center">
+        <div className="fixed inset-0 z-[9999] bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-gray-900 text-white p-6 rounded-2xl max-w-md w-full space-y-5 shadow-2xl border border-white/10">
+            <h2 className="text-2xl font-bold text-yellow-400 text-center">
               Enter your details
             </h2>
 
@@ -254,8 +193,7 @@ export default function CartDrawer() {
               placeholder="Your Name"
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
-              className="w-full border px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-400"
-              autoFocus
+              className="w-full bg-gray-800 border border-white/10 px-4 py-2 rounded-xl focus:outline-none"
             />
 
             <div className="relative">
@@ -266,117 +204,122 @@ export default function CartDrawer() {
                 onChange={(e) =>
                   setCustomerContact(e.target.value.replace(/[^0-9]/g, ""))
                 }
-                className="w-full border px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-400"
+                className="w-full bg-gray-800 border border-white/10 px-4 py-2 rounded-xl focus:outline-none"
                 maxLength={10}
-                inputMode="numeric"
-                pattern="[0-9]*"
               />
               <Phone
-                className="absolute right-3 top-3 text-gray-400"
+                className="absolute right-3 top-3 text-gray-500"
                 size={18}
               />
             </div>
 
             <input
               type="email"
-              placeholder="Your Email for billing"
+              placeholder="Your Email"
               value={customerEmail}
               onChange={(e) => setCustomerEmail(e.target.value)}
-              className="w-full border px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-400"
+              className="w-full bg-gray-800 border border-white/10 px-4 py-2 rounded-xl focus:outline-none"
             />
 
             <div className="flex gap-4 pt-2">
               <button
                 onClick={() => setShowCustomerModal(false)}
-                className="flex-1 py-2 rounded-md border text-gray-700 hover:bg-gray-100 transition"
+                className="flex-1 py-2 rounded-xl bg-gray-800 hover:bg-gray-700"
               >
                 Cancel
               </button>
               <button
-                onClick={handleConfirmOrder}
+                onClick={() =>
+                  placeOrderWithDetails(
+                    customerName,
+                    customerContact,
+                    customerEmail,
+                    true
+                  )
+                }
                 disabled={loading}
-                className={`flex-1 py-2 rounded-md text-white ${
-                  loading
-                    ? "bg-yellow-400 cursor-not-allowed"
-                    : "bg-yellow-600 hover:bg-yellow-700"
-                } transition`}
+                className="flex-1 py-2 rounded-xl bg-yellow-500 text-black font-bold"
               >
-                {loading ? "Placing..." : "Confirm Order"}
+                {loading ? "Placing..." : "Confirm"}
               </button>
             </div>
           </div>
         </div>
       )}
-      <aside className="fixed right-4 bottom-4 w-80 bg-white rounded-xl shadow-lg p-4 border border-gray-100">
-        <h4 className="font-semibold mb-2">Your Cart</h4>
 
-        {/* Items */}
-        <div className="divide-y divide-gray-100 max-h-56 overflow-auto mb-3">
+      {/* ================= FLOATING DARK CART ================= */}
+      <aside className="fixed right-4 bottom-4 w-80 bg-gray-950/95 border border-white/10 rounded-2xl shadow-2xl p-4 backdrop-blur-xl text-white">
+        <h4 className="font-bold mb-3 text-yellow-400">Your Cart</h4>
+
+        <div className="divide-y divide-white/10 max-h-56 overflow-auto mb-3">
           {items.length === 0 && (
             <div className="text-sm text-gray-500 py-4 text-center">
               Cart is empty
             </div>
           )}
+
           {items.map((it) => (
-            <div
-              key={it.itemId}
-              className="py-2 flex items-center justify-between gap-2"
-            >
+            <div key={it.itemId} className="py-2 flex justify-between gap-2">
               <div>
                 <div className="font-medium text-sm">{it.name}</div>
-                <div className="text-xs text-gray-500">
+                <div className="text-xs text-gray-400">
                   ₹{it.price} × {it.quantity}
                 </div>
-                <div className="flex gap-2 mt-1">
+
+                <div className="flex items-center gap-2 mt-1">
                   <button
                     onClick={() =>
                       updateQty(it.itemId, Math.max(1, it.quantity - 1))
                     }
-                    className="px-2 text-sm border rounded"
+                    className="px-2 text-sm border border-white/10 rounded"
                   >
-                    -
+                    −
                   </button>
                   <button
                     onClick={() => updateQty(it.itemId, it.quantity + 1)}
-                    className="px-2 text-sm border rounded"
+                    className="px-2 text-sm border border-white/10 rounded"
                   >
                     +
                   </button>
                   <button
                     onClick={() => remove(it.itemId)}
-                    className="text-xs text-red-500 ml-2"
+                    className="text-xs text-red-400 ml-2"
                   >
                     Remove
                   </button>
                 </div>
               </div>
-              <div className="text-sm font-medium">
+
+              <div className="text-sm font-semibold">
                 ₹{(it.price * it.quantity).toFixed(0)}
               </div>
             </div>
           ))}
         </div>
 
-        {/* Summary + Actions */}
+        {/* SUMMARY */}
         <div className="flex items-center justify-between mb-3">
           <div>
-            <div className="text-xs text-gray-500">Subtotal</div>
-            <div className="font-semibold">₹{subtotal.toFixed(0)}</div>
+            <div className="text-xs text-gray-400">Subtotal</div>
+            <div className="font-bold text-lg text-yellow-400">
+              ₹{subtotal.toFixed(0)}
+            </div>
           </div>
+
           <button
             onClick={initiatePlaceOrder}
             disabled={loading || items.length === 0}
-            className={`px-3 py-2 rounded text-white font-medium ${
-              loading
-                ? "bg-gray-400 cursor-wait"
-                : "bg-green-600 hover:bg-green-500"
-            } disabled:opacity-50`}
+            className="px-4 py-2 rounded-xl bg-emerald-500 text-black font-bold hover:bg-emerald-400 disabled:opacity-40"
           >
-            {loading ? "Placing..." : "Place Order"}
+            {loading
+              ? "Placing..."
+              : hasActiveOrder
+              ? "Add More Items"
+              : "Place Order"}
           </button>
         </div>
 
-        <div className="text-xs text-gray-400">
+        <div className="text-xs text-gray-500">
           Table: {tableId || "Not selected"}
         </div>
       </aside>

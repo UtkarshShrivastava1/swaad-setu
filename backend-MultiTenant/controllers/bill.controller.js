@@ -1471,19 +1471,49 @@ async function getActiveBills(req, res, next) {
     const { rid } = req.params;
 
     // Remove any client-provided restaurantId
-    delete req.body.restaurantId;
-    delete req.query.restaurantId;
+    if (req.body) delete req.body.restaurantId;
+    if (req.query) delete req.query.restaurantId;
 
     if (!rid) {
       logger && logger.warn && logger.warn("[getActiveBills] missing rid");
       return res.status(400).json({ error: "Missing rid" });
     }
-    const bills = await Bill.find({
-      restaurantId: rid,
-      status: { $in: ["draft", "finalized"] },
-    })
-      .sort({ createdAt: -1 })
-      .lean();
+    const bills = (
+      await Bill.find({
+        restaurantId: rid,
+        status: { $in: ["draft", "finalized"] },
+      })
+        .sort({ createdAt: -1 })
+        .lean()
+    ).filter(bill => bill != null).map((bill) => {
+      // ULTRA SAFETY NORMALIZATION — NOTHING CAN BE NULL OR UNDEFINED
+              const safeBill = {
+                ...(bill || {}),
+                items: Array.isArray(bill?.items) ? bill.items : [],        extras: Array.isArray(bill?.extras) ? bill.extras : [],
+        taxes: Array.isArray(bill?.taxes) ? bill.taxes : [],
+        subtotal: Number(bill?.subtotal || 0),
+        discountAmount: Number(bill?.discountAmount || 0),
+        taxAmount: Number(bill?.taxAmount || 0),
+        serviceChargeAmount: Number(bill?.serviceChargeAmount || 0),
+        appliedDiscountPercent: Number(
+          bill?.appliedDiscountPercent ?? bill?.discountPercent ?? 0
+        ),
+        appliedServiceChargePercent: Number(
+          bill?.appliedServiceChargePercent ?? bill?.serviceChargePercent ?? 0
+        ),
+        // Add other properties that might be null/undefined and are expected by the frontend
+        customerName: bill?.customerName || null,
+        customerContact: bill?.customerContact || null,
+        customerEmail: bill?.customerEmail || null,
+        tableNumber: bill?.tableNumber || null,
+        orderId: bill?.orderId || null,
+        // Ensure totalAmount is always a number
+        totalAmount: Number(bill?.totalAmount || 0),
+        // Add an 'id' field for consistency with frontend expectations if it uses 'id' instead of '_id'
+        id: bill?._id,
+      };
+      return safeBill;
+    });
     logger &&
       logger.info &&
       logger.info("[getActiveBills] returning active bills", {

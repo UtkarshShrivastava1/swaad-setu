@@ -7,7 +7,17 @@ export interface Restaurant {
     $oid: string;
   };
   restaurantId: string;
+  name?: string;
   restaurantName: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  upiSettings?: {
+    UPI_ID?: string;
+    UPI_NAME?: string;
+    UPI_CURRENCY?: string;
+  };
   // Add other fields as needed
 }
 

@@ -8,14 +8,17 @@ type FooterNavProps = {
   cartCount?: number;
 };
 
+type TabId = "menu" | "cart" | "myorder";
+
 export default function FooterNav({ cartCount = 0 }: FooterNavProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { rid } = useTenant();
 
-  const activeTab = useMemo(() => {
+  const activeTab = useMemo<TabId>(() => {
     const path = location.pathname.split("/").pop();
     if (location.pathname.includes("/order/")) return "myorder";
+
     switch (path) {
       case "menu":
         return "menu";
@@ -38,7 +41,6 @@ export default function FooterNav({ cartCount = 0 }: FooterNavProps) {
 
     try {
       const ongoing = JSON.parse(ongoingRaw);
-
       const activeOrderId = ongoing?.[0]?.order?._id;
 
       if (activeOrderId) {
@@ -54,7 +56,12 @@ export default function FooterNav({ cartCount = 0 }: FooterNavProps) {
     }
   };
 
-  const tabs = [
+  const tabs: {
+    id: TabId;
+    label: string;
+    icon: any;
+    action: () => void;
+  }[] = [
     {
       id: "menu",
       label: "Menu",
@@ -78,17 +85,17 @@ export default function FooterNav({ cartCount = 0 }: FooterNavProps) {
   return (
     <footer
       className="
-        fixed bottom-4 left-1/2 -translate-x-1/2
-        w-[92%] sm:w-[80%] md:w-[60%] lg:w-[50%] xl:w-[40%]
-        bg-white/80 backdrop-blur-xl
-        border border-yellow-200/40
-        shadow-[0_8px_25px_rgba(255,200,0,0.25)]
-        rounded-3xl z-50
+        fixed bottom-0 left-0 right-0
+        bg-gray-900/80 backdrop-blur-xl
+        border-t border-white/10
+        shadow-2xl shadow-black/40
+        z-50
         transition-all duration-300
-        px-2 sm:px-4
+        px-1 sm:px-2 md:px-3
+        pb-[env(safe-area-inset-bottom)]
       "
     >
-      <div className="grid grid-cols-3 py-2 sm:py-3">
+      <div className="flex items-center justify-around py-2 sm:py-3">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -97,60 +104,90 @@ export default function FooterNav({ cartCount = 0 }: FooterNavProps) {
             <button
               key={tab.id}
               onClick={tab.action}
-              className={`relative flex flex-col items-center justify-center transition-all duration-300 ${
-                isActive
-                  ? "text-yellow-500 scale-105"
-                  : "text-gray-500 hover:text-yellow-500 hover:scale-105"
-              }`}
+              className={`relative flex flex-col items-center justify-center
+                w-16 sm:w-20 md:w-24
+                h-12 sm:h-14 md:h-16
+                rounded-xl sm:rounded-2xl
+                transition-all duration-300
+                z-10
+                ${isActive ? "" : "hover:bg-white/10 active:scale-95"}
+              `}
             >
-              {/* Glow behind active icon */}
+              {/* ===== Sliding Active Pill ===== */}
               {isActive && (
-                <div className="absolute -z-10 w-10 h-10 bg-yellow-100 rounded-full blur-md opacity-70 animate-pulse" />
+                <motion.div
+                  layoutId="active-pill-customer"
+                  className="
+                    absolute inset-0
+                    bg-gradient-to-br from-yellow-400 to-amber-500
+                    rounded-xl sm:rounded-2xl
+                    shadow-md
+                  "
+                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                />
               )}
 
-              {/* Icon with badge */}
+              {/* ===== Icon + Badge ===== */}
               <div className="relative">
                 <Icon
-                  size={window.innerWidth < 640 ? 22 : 26}
+                  size={22}
+                  className={`
+                    relative z-10
+                    transition-all duration-300
+                    sm:w-7 sm:h-7
+                    ${isActive ? "text-gray-900" : "text-gray-100"}
+                  `}
                   strokeWidth={isActive ? 2.5 : 2}
-                  className="mb-1"
                 />
 
                 {/* ===== Cart Badge ===== */}
                 {tab.id === "cart" && cartCount > 0 && (
-                  <AnimatePresence mode="popLayout">
+                  <AnimatePresence>
                     <motion.div
                       key={cartCount}
-                      initial={{ scale: 0.6, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0.6, opacity: 0 }}
-                      transition={{ duration: 0.3 }}
-                      className="absolute -top-1 -right-1"
+                      initial={{ scale: 0.5, opacity: 0, y: -5 }}
+                      animate={{ scale: 1, opacity: 1, y: 0 }}
+                      exit={{ scale: 0.5, opacity: 0 }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 400,
+                        damping: 20,
+                      }}
+                      className="absolute -top-1.5 -right-2"
                     >
-                      <div className="relative flex items-center justify-center">
-                        <span className="animate-ping absolute inline-flex h-4 w-4 rounded-full bg-red-400 opacity-75"></span>
-                        <span className="relative inline-flex min-w-[16px] h-4 px-[4px] bg-red-500 text-white text-[10px] font-bold rounded-full items-center justify-center shadow-md">
+                      <span className="relative flex h-4 w-4 sm:h-5 sm:w-5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                        <span
+                          className="
+                          relative inline-flex items-center justify-center
+                          rounded-full
+                          h-4 w-4 sm:h-5 sm:w-5
+                          bg-red-500 text-white
+                          text-[9px] sm:text-[10px]
+                          font-bold
+                        "
+                        >
                           {cartCount > 9 ? "9+" : cartCount}
                         </span>
-                      </div>
+                      </span>
                     </motion.div>
                   </AnimatePresence>
                 )}
               </div>
 
-              {/* Label */}
+              {/* ===== Label ===== */}
               <span
-                className={`text-[11px] sm:text-xs md:text-sm font-semibold transition ${
-                  isActive ? "text-yellow-600" : "text-gray-600"
-                }`}
+                className={`
+                  relative z-10
+                  mt-1
+                  text-xs sm:text-sm
+                  font-bold
+                  transition-colors duration-300
+                  ${isActive ? "text-gray-900" : "text-gray-100"}
+                `}
               >
                 {tab.label}
               </span>
-
-              {/* Bottom Indicator Bar */}
-              {isActive && (
-                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-[3px] rounded-full bg-gradient-to-r from-yellow-400 to-amber-300 shadow-sm" />
-              )}
             </button>
           );
         })}

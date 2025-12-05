@@ -271,12 +271,11 @@ async function createOrder(req, res, next) {
         });
       }
     } else {
-      // Otherwise, use the existing logic to find an order by tableId and sessionId
+      // Otherwise, find any existing, mergeable order for the table
       existingOrder = await Order.findOne({
         restaurantId: rid,
-        tableId,
-        sessionId,
-        status: { $nin: ["completed", "cancelled"] },
+        tableId, // Find by table, not session
+        status: { $nin: ["completed", "cancelled", "done", "paid"] }, // Only merge into active orders
       });
     }
 
@@ -306,6 +305,20 @@ async function createOrder(req, res, next) {
         if (!m) continue;
         const ids = [m._id, m.itemId].filter(Boolean).map(normalizeId);
         ids.forEach((id) => byId.set(id, m));
+      }
+
+      // Also map combos by their category ID
+      for (const cat of menuDoc.categories || []) {
+        if (cat && cat.isMenuCombo) {
+          const comboAsItem = {
+            _id: cat._id,
+            name: cat.name,
+            price: cat.comboMeta.discountedPrice,
+            isCombo: true, // Flag to identify combo
+          };
+          const ids = [cat._id].filter(Boolean).map(normalizeId);
+          ids.forEach((id) => byId.set(id, comboAsItem));
+        }
       }
 
       // Merge items
@@ -472,6 +485,20 @@ async function createOrder(req, res, next) {
       if (!m) continue;
       const ids = [m._id, m.itemId].filter(Boolean).map(normalizeId);
       ids.forEach((id) => byId.set(id, m));
+    }
+
+    // Also map combos by their category ID
+    for (const cat of menuDoc.categories || []) {
+      if (cat && cat.isMenuCombo) {
+        const comboAsItem = {
+          _id: cat._id,
+          name: cat.name,
+          price: cat.comboMeta.discountedPrice,
+          isCombo: true, // Flag to identify combo
+        };
+        const ids = [cat._id].filter(Boolean).map(normalizeId);
+        ids.forEach((id) => byId.set(id, comboAsItem));
+      }
     }
 
     const today = new Date();
@@ -835,6 +862,7 @@ async function getOrderHistory(req, res, next) {
       limit,
       page,
       sort,
+      status: queryStatus, // Capture status from query
     } = req.query || {};
     if (!rid)
       return res.status(400).json({ error: "Missing restaurant id (rid)" });
@@ -898,7 +926,15 @@ async function getOrderHistory(req, res, next) {
       dateFilter.createdAt = { $gte: ss, $lte: ee };
     }
 
-    const baseQuery = { restaurantId: rid, status: "done", ...dateFilter };
+    // Handle single or multiple statuses
+    let statusesToQuery = [];
+    if (queryStatus) {
+      statusesToQuery = queryStatus.split(",").map((s) => s.trim());
+    } else {
+      statusesToQuery = ["done"]; // Default to 'done' if no status is provided
+    }
+
+    const baseQuery = { restaurantId: rid, status: { $in: statusesToQuery }, ...dateFilter };
     if (!isStaff) baseQuery.sessionId = querySessionId;
     else if (querySessionId) baseQuery.sessionId = querySessionId;
 

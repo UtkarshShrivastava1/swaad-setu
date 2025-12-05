@@ -47,6 +47,15 @@ const OfferSchema = new Schema(
 );
 
 /* ----------------------------------------------------------
+   UPI Settings Schema
+---------------------------------------------------------- */
+const UPISettingsSchema = new Schema({
+  UPI_ID: { type: String, trim: true, default: null },
+  UPI_NAME: { type: String, trim: true, default: null },
+  UPI_CURRENCY: { type: String, default: 'INR' },
+}, { _id: false });
+
+/* ----------------------------------------------------------
    Pricing config versions
 ---------------------------------------------------------- */
 const PricingConfigSchema = new Schema({
@@ -138,6 +147,8 @@ const AdminSchema = new Schema({
     zip: { type: String, default: null },
     country: { type: String, default: null },
   },
+
+  UPISettings: { type: UPISettingsSchema, default: () => ({}) },
 
   /* ---------------------
         AUTH SYSTEM
