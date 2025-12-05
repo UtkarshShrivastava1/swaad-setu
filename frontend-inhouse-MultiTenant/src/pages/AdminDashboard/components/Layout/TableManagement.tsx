@@ -1,16 +1,16 @@
 import { useEffect, useState } from "react";
 import {
   getTables,
-  toggleTableActive,
   resetTable,
+  toggleTableActive,
 } from "../../../../api/admin/table.api";
+import { useTenant } from "../../../../context/TenantContext";
 import MenuLayout from "../../MenuLayout";
 import AddTableModal from "../modals/AddTableModal";
+import QRCodeModal from "../modals/QRCodeModal";
+import SuccessModal from "../modals/SuccessModal";
 import FooterNav from "./Footer";
 import TableHeroSection from "./TableHero";
-import SuccessModal from "../modals/SuccessModal";
-import { useTenant } from "../../../../context/TenantContext";
-import QRCodeModal from "../modals/QRCodeModal";
 
 export default function TableManagementPage() {
   const { rid } = useTenant();
@@ -46,32 +46,20 @@ export default function TableManagementPage() {
 
   async function handleToggleActive(tableId: string, isActive: boolean) {
     if (!rid) return;
-
-    try {
-      const updatedTable = await toggleTableActive(rid, tableId, isActive);
-      setTables((prev) =>
-        prev.map((t) => (t._id === tableId ? updatedTable : t))
-      );
-      setSuccessOpen(true);
-    } catch (err: any) {
-      console.error("❌ Toggle active failed:", err);
-      alert(err.message || "Failed to toggle table status.");
-    }
+    const updatedTable = await toggleTableActive(rid, tableId, isActive);
+    setTables((prev) =>
+      prev.map((t) => (t._id === tableId ? updatedTable : t))
+    );
+    setSuccessOpen(true);
   }
 
   async function handleResetTable(tableId: string) {
     if (!rid) return;
-
-    try {
-      const updatedTable = await resetTable(rid, tableId);
-      setTables((prev) =>
-        prev.map((t) => (t._id === tableId ? updatedTable : t))
-      );
-      setSuccessOpen(true);
-    } catch (err: any) {
-      console.error("❌ Reset table failed:", err);
-      alert(err.message || "Failed to reset table.");
-    }
+    const updatedTable = await resetTable(rid, tableId);
+    setTables((prev) =>
+      prev.map((t) => (t._id === tableId ? updatedTable : t))
+    );
+    setSuccessOpen(true);
   }
 
   const handleOpenQrModal = (table: any) => {
@@ -81,91 +69,106 @@ export default function TableManagementPage() {
 
   return (
     <MenuLayout>
-      <div className="w-full flex flex-col items-center py-8 min-h-screen bg-gradient-to-br from-yellow-50 via-white to-orange-50">
-        <div className="w-full max-w-6xl space-y-10 text-black animate-fadeIn">
+      <div className="min-h-screen w-full flex justify-center bg-gradient-to-br from-slate-100 via-amber-50 to-slate-100 py-8">
+        <div className="w-full max-w-7xl px-4 space-y-8 animate-fadeIn">
           <TableHeroSection />
 
           <SuccessModal
             isOpen={successOpen}
             message="Table status updated successfully!"
             onClose={() => setSuccessOpen(false)}
-            autoCloseDurationMs={1000} // auto close after 1 second
+            autoCloseDurationMs={1200}
           />
 
-          <section className="bg-white shadow-lg rounded-2xl border border-gray-200 p-6 relative">
-            <div className="flex flex-col sm:flex-row justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                🪑 Table Management
-                {refreshing && (
-                  <span className="text-xs text-gray-500 animate-pulse">
-                    (Refreshing…)
-                  </span>
-                )}
-              </h3>
+          {/* =================== TABLE PANEL =================== */}
+          <section className="rounded-3xl border border-white/60 bg-white/90 backdrop-blur-xl shadow-2xl p-6">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+              <div>
+                <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                  Table Control Center
+                  {refreshing && (
+                    <span className="text-xs text-slate-500 animate-pulse">
+                      Syncing…
+                    </span>
+                  )}
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Live status of your entire restaurant floor
+                </p>
+              </div>
 
               <div className="flex gap-2">
                 <button
-                  className="px-4 py-1.5 rounded-md bg-yellow-400 hover:bg-yellow-500 text-black font-medium shadow transition"
-                  onClick={() => setModalType("table")}
-                >
-                  ➕ Add New Table
-                </button>
-                <button
-                  className="px-4 py-1.5 rounded-md bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium shadow transition"
                   onClick={() => loadTables(true)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium shadow transition"
                 >
                   🔄 Refresh
                 </button>
               </div>
             </div>
 
-            <hr className="mb-4" />
+            {/* States */}
+            {loading && (
+              <div className="py-20 text-center text-slate-500">
+                <div className="h-10 w-10 mx-auto mb-3 border-2 border-dashed rounded-full animate-spin" />
+                Loading floor data…
+              </div>
+            )}
 
-            {loading ? (
-              <p className="text-center text-gray-500 py-5">Loading Tables...</p>
-            ) : error ? (
-              <p className="text-center text-red-500 py-5">{error}</p>
-            ) : tables.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {error && (
+              <div className="py-10 text-center text-red-500 font-medium">
+                {error}
+              </div>
+            )}
+
+            {/* =================== TABLE GRID =================== */}
+            {!loading && !error && tables.length > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-5">
                 {tables.map((table) => (
                   <div
                     key={table._id}
-                    className={`relative p-4 rounded-xl border text-center transition-all transform hover:scale-[1.03] hover:shadow-xl ${
+                    className={`relative group rounded-2xl border p-4 text-center transition-all hover:shadow-2xl hover:-translate-y-1 ${
                       !table.isActive
-                        ? "bg-gray-200 border-gray-300 filter grayscale opacity-60"
+                        ? "bg-slate-200 border-slate-300 opacity-60 grayscale"
                         : table.status === "occupied"
-                        ? "bg-red-50 border-red-300"
+                        ? "bg-rose-50 border-rose-200"
                         : table.status === "reserved"
-                        ? "bg-yellow-50 border-yellow-300"
-                        : "bg-yellow-50 border-yellow-300"
+                        ? "bg-amber-50 border-amber-200"
+                        : "bg-emerald-50 border-emerald-200"
                     }`}
                   >
-                    <div className="text-lg font-semibold text-gray-800 mb-1">
-                      🪑 Table {table.tableNumber}
+                    {/* Table Number */}
+                    <div className="text-lg font-extrabold text-slate-900 mb-1">
+                      Table {table.tableNumber}
                     </div>
-                    <div className="text-sm text-gray-500">
+
+                    <div className="text-xs text-slate-500">
                       Capacity: {table.capacity}
                     </div>
 
+                    {/* Status Pill */}
                     <div
-                      className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-semibold capitalize ${
+                      className={`inline-block mt-2 px-3 py-1 rounded-full text-[11px] font-semibold capitalize ${
                         table.status === "available"
-                          ? "bg-green-100 text-green-700"
+                          ? "bg-emerald-100 text-emerald-700"
                           : table.status === "occupied"
-                          ? "bg-red-100 text-red-700"
-                          : "bg-yellow-100 text-yellow-700"
+                          ? "bg-rose-100 text-rose-700"
+                          : "bg-amber-100 text-amber-700"
                       }`}
                     >
                       {table.status || "available"}
                     </div>
 
                     {table.currentSessionId && (
-                      <div className="text-[11px] text-gray-400 mt-1 italic">
+                      <div className="text-[10px] text-slate-400 mt-1 truncate">
                         Session: {table.currentSessionId}
                       </div>
                     )}
 
-                    <div className="flex justify-center flex-wrap gap-2 mt-3">
+                    {/* Controls */}
+                    <div className="mt-4 flex flex-col items-center gap-2">
+                      {/* Toggle */}
                       <label className="inline-flex items-center cursor-pointer">
                         <input
                           type="checkbox"
@@ -175,60 +178,62 @@ export default function TableManagementPage() {
                           }
                           className="sr-only peer"
                         />
-                        <div className="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-yellow-300 dark:peer-focus:ring-yellow-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-yellow-400"></div>
-                        <span className="ms-3 text-sm font-medium text-gray-900 dark:text-gray-300">
+                        <div className="relative w-11 h-6 bg-slate-300 rounded-full peer peer-checked:bg-amber-400 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:w-5 after:h-5 after:bg-white after:rounded-full after:transition peer-checked:after:translate-x-full"></div>
+                        <span className="ml-2 text-xs font-medium text-slate-700">
                           {table.isActive ? "Active" : "Inactive"}
                         </span>
                       </label>
-                      {table.status !== "available" && (
+
+                      <div className="flex gap-2 flex-wrap justify-center">
+                        {table.status !== "available" && (
+                          <button
+                            onClick={() => handleResetTable(table._id)}
+                            className="px-2 py-1 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-[11px] font-semibold shadow transition"
+                          >
+                            Reset
+                          </button>
+                        )}
                         <button
-                          onClick={() => handleResetTable(table._id)}
-                          className="px-2 py-1 rounded-md bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium shadow transition"
+                          onClick={() => handleOpenQrModal(table)}
+                          className="px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-amber-300 text-[11px] font-semibold shadow transition"
                         >
-                          Reset
+                          QR Code
                         </button>
-                      )}
-                      <button
-                        onClick={() => handleOpenQrModal(table)}
-                        className="px-2 py-1 rounded-md bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium shadow transition"
-                      >
-                        QR Code
-                      </button>
+                      </div>
                     </div>
 
+                    {/* Live Dot */}
                     <div
-                      className={`absolute top-1 right-1 h-2 w-2 rounded-full animate-pulse transition-all ${
+                      className={`absolute top-2 right-2 h-2 w-2 rounded-full animate-pulse ${
                         table.status === "available"
-                          ? "bg-green-500"
-                          : "bg-red-500"
+                          ? "bg-emerald-500"
+                          : "bg-rose-500"
                       }`}
-                    ></div>
+                    />
                   </div>
                 ))}
               </div>
-            ) : (
-              <p className="text-center text-gray-400 py-4">
-                No tables available.
-              </p>
+            )}
+
+            {!loading && !error && tables.length === 0 && (
+              <div className="py-14 text-center text-slate-400">
+                No tables configured yet.
+              </div>
             )}
           </section>
+
+          {/* MODALS */}
+
+
+          <QRCodeModal
+            isOpen={modalType === "qr"}
+            onClose={() => setModalType(null)}
+            table={selectedTable}
+            restaurantId={rid}
+          />
+
+          <FooterNav activeTab="tables" />
         </div>
-
-        <AddTableModal
-          isOpen={modalType === "table"}
-          onClose={() => setModalType(null)}
-          rid={rid}
-          onTableCreated={() => loadTables()}
-        />
-
-        <QRCodeModal
-          isOpen={modalType === "qr"}
-          onClose={() => setModalType(null)}
-          table={selectedTable}
-          restaurantId={rid}
-        />
-
-        <FooterNav activeTab="tables" />
       </div>
     </MenuLayout>
   );
