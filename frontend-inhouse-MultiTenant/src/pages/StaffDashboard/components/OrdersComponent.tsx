@@ -622,26 +622,33 @@ export default function OrdersComponent({
                     <h4 className="text-sm font-semibold text-slate-700 mb-2">
                       Ordered Items
                     </h4>
-                    <ul className="space-y-1.5">
+                    <div className="space-y-3">
                       {order.items.map((item, i) => (
-                        <li
+                        <div
                           key={i}
-                          className="flex justify-between text-sm text-slate-700"
+                          className="flex items-start justify-between p-3 bg-slate-50 rounded-lg border border-slate-200"
                         >
-                          <div className="flex flex-col">
-                            <span className="font-medium">{item.name}</span>
+                          <div className="flex flex-col flex-grow pr-2">
+                            <span className="font-semibold text-slate-800 text-base">
+                              {item.name}
+                            </span>
                             {item.notes && (
                               <span className="text-xs text-slate-500 italic mt-0.5">
                                 {item.notes}
                               </span>
                             )}
                           </div>
-                          <div className="text-slate-600">
-                            ×{item.qty} — ₹{item.price * item.qty}
+                          <div className="flex-shrink-0 text-right">
+                            <span className="font-medium text-slate-700">
+                              ×{item.qty}
+                            </span>
+                            <div className="text-sm font-bold text-slate-800 mt-0.5">
+                              ₹{formatINR(item.price * item.qty)}
+                            </div>
                           </div>
-                        </li>
+                        </div>
                       ))}
-                    </ul>
+                    </div>
                   </div>
                 )}
 
