@@ -48,7 +48,7 @@ export interface Order {
   customerName?: string;
   staffAlias?: string;
   version: number;
-  createdAt: string;
+  createdAt: string | { $date: string };
 }
 
 type Props = {
@@ -603,7 +603,11 @@ export default function OrdersComponent({
                         Time
                       </div>
                       <div className="text-sm sm:text-base font-medium text-slate-700">
-                        {new Date(order.createdAt).toLocaleTimeString([], {
+                        {new Date(
+                          typeof order.createdAt === "object"
+                            ? order.createdAt.$date
+                            : order.createdAt
+                        ).toLocaleTimeString([], {
                           hour: "2-digit",
                           minute: "2-digit",
                         })}
