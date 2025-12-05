@@ -624,11 +624,11 @@ export default function OrdersComponent({
                           key={i}
                           className="flex justify-between text-sm text-slate-700"
                         >
-                          <div className="flex-1">
+                          <div className="flex flex-col">
                             <span className="font-medium">{item.name}</span>
                             {item.notes && (
-                              <span className="ml-1 text-slate-500 italic">
-                                ({item.notes})
+                              <span className="text-xs text-slate-500 italic mt-0.5">
+                                {item.notes}
                               </span>
                             )}
                           </div>
