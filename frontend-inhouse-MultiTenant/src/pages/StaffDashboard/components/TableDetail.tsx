@@ -6,7 +6,8 @@ import {
   CreditCard,
   IndianRupee,
   Loader2,
-  Receipt, // Added RotateCcw for reset button icon
+  Receipt,
+  RotateCcw, // Added RotateCcw for reset button icon
   User,
   Users,
 } from "lucide-react";
@@ -120,16 +121,27 @@ export default function TableDetailView({
   /* --------------------------------------------------
    * Handle Table Reset
    * -------------------------------------------------- */
-  const handleResetTable = async () => {
+  const handleResetTable = () => {
+    setConfirmResetModalOpen(true);
+  };
+
+  const confirmResetAction = async () => {
+    setConfirmResetModalOpen(false);
     if (!rid || !table._id) return;
+
+    setResettingTable(true);
     try {
       await resetTable(rid, table._id);
+      window.dispatchEvent(new CustomEvent("staff:refreshTables")); // Trigger refresh in parent
       if (onTableReset) {
-        onTableReset();
+        onTableReset(); // Notify parent component (e.g., TableView)
       }
+      console.log(`Table ${table.tableNumber} reset successfully.`);
     } catch (err: any) {
       console.error("❌ Failed to reset table:", err);
-      alert(err.message || "Failed to reset table.");
+      alert(err.message || "Failed to reset table."); // Simple alert for error feedback
+    } finally {
+      setResettingTable(false);
     }
   };
 
@@ -195,59 +207,77 @@ export default function TableDetailView({
    * RENDER
    * -------------------------------------------------- */
   return (
-    <div className="max-w-6xl mx-auto p-4 sm:p-6">
-      <button
-        onClick={onBack}
-        className="mb-4 inline-flex items-center gap-2 text-indigo-600 hover:text-indigo-800 font-medium"
-      >
-        <ChevronLeft className="h-4 w-4" /> Back to Dashboard
-      </button>
+    <>
+      <ConfirmModal
+        isOpen={confirmResetModalOpen}
+        onConfirm={confirmResetAction}
+        onCancel={() => setConfirmResetModalOpen(false)}
+        message={`Are you sure you want to reset Table ${table.tableNumber}? This will clear its status, session, and active orders.`}
+        confirmLabel="Reset Table"
+        cancelLabel="Cancel"
+      />
+      <div className="max-w-6xl mx-auto p-4 sm:p-6">
+        <button
+          onClick={onBack}
+          className="mb-4 inline-flex items-center gap-2 text-indigo-600 hover:text-indigo-800 font-medium"
+        >
+          <ChevronLeft className="h-4 w-4" /> Back to Dashboard
+        </button>
 
-      {/* HEADER */}
-      <div className="bg-gradient-to-br from-indigo-50 to-slate-50 border border-slate-200 rounded-2xl p-5 shadow-sm mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h2 className="text-2xl sm:text-3xl font-bold text-slate-800">
-            Table {table.tableNumber}
-          </h2>
+        {/* HEADER */}
+        <div className="bg-gradient-to-br from-indigo-50 to-slate-50 border border-slate-200 rounded-2xl p-5 shadow-sm mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h2 className="text-2xl sm:text-3xl font-bold text-slate-800">
+              Table {table.tableNumber}
+            </h2>
 
-          <p className="text-sm text-slate-600 flex items-center gap-2 mt-1">
-            <Users className="h-4 w-4" />
-            Capacity: {table.capacity}
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 flex-wrap">
-          <div
-            className={`px-4 py-2 rounded-lg text-sm font-semibold border ${
-              table.status === "occupied"
-                ? "bg-indigo-50 text-indigo-700 border-indigo-200"
-                : "bg-emerald-50 text-emerald-700 border-emerald-200"
-            }`}
-          >
-            {table.status === "occupied" ? "Occupied" : "Available"}
+            <p className="text-sm text-slate-600 flex items-center gap-2 mt-1">
+              <Users className="h-4 w-4" />
+              Capacity: {table.capacity}
+            </p>
           </div>
-          {table.status !== "available" && (
-            <button
-              onClick={handleResetTable}
-              className="px-4 py-2 rounded-lg text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white transition"
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <div
+              className={`px-4 py-2 rounded-lg text-sm font-semibold border ${
+                table.status === "occupied"
+                  ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+                  : "bg-emerald-50 text-emerald-700 border-emerald-200"
+              }`}
             >
-              Reset Table
+              {table.status === "occupied" ? "Occupied" : "Available"}
+            </div>
+            {table.status !== "available" && (
+              <button
+                onClick={handleResetTable}
+                className="px-4 py-2 rounded-lg text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white transition flex items-center gap-1"
+                disabled={resettingTable}
+              >
+                {resettingTable ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" /> Resetting...
+                  </>
+                ) : (
+                  <>
+                    <RotateCcw className="h-4 w-4" /> Reset Table
+                  </>
+                )}
+              </button>
+            )}
+            <button
+              onClick={() => onOpenQrModal(table)}
+              className="px-4 py-2 rounded-lg text-sm font-semibold bg-blue-500 hover:bg-blue-600 text-white transition"
+            >
+              QR Code
             </button>
-          )}
-          <button
-            onClick={() => onOpenQrModal(table)}
-            className="px-4 py-2 rounded-lg text-sm font-semibold bg-blue-500 hover:bg-blue-600 text-white transition"
-          >
-            QR Code
-          </button>
+          </div>
         </div>
-      </div>
 
       {/* ORDERS */}
       <div>
         <h3 className="text-lg sm:text-xl font-semibold text-slate-800 mb-3 flex items-center gap-2">
           <Receipt className="h-5 w-5 text-indigo-600" />
-          Active Orders
+          Active Orders1
         </h3>
 
         {loading ? (
