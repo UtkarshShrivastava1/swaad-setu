@@ -1,4 +1,3 @@
-// src/components/staff/TableDetailView.tsx
 import {
   AlertCircle,
   CheckCircle2,
@@ -7,23 +6,68 @@ import {
   CreditCard,
   IndianRupee,
   Loader2,
-  Receipt,
+  Receipt, // Added RotateCcw for reset button icon
   User,
   Users,
 } from "lucide-react";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react"; // Added React import and useState
 import { useParams } from "react-router-dom";
 
 import {
-
   getOrdersByTable,
-
   resetTable, // Import resetTable from staff operations
-
 } from "../../../api/staff/staff.operations.api";
 
 import { useTenant } from "../../../context/TenantContext";
+
+/* ---------------------------------------------
+   Simple ConfirmModal Component
+--------------------------------------------- */
+interface ConfirmModalProps {
+  isOpen: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+  message: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+}
+
+const ConfirmModal: React.FC<ConfirmModalProps> = ({
+  isOpen,
+  onConfirm,
+  onCancel,
+  message,
+  confirmLabel = "Confirm",
+  cancelLabel = "Cancel",
+}) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+        <h3 className="text-lg font-semibold text-slate-800 mb-3">
+          Confirm Action
+        </h3>
+        <p className="text-slate-600 mb-6">{message}</p>
+        <div className="flex gap-3 justify-end">
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-slate-200 text-slate-700 hover:bg-slate-300 transition-all"
+          >
+            {cancelLabel}
+          </button>
+          <button
+            onClick={onConfirm}
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-rose-600 text-white hover:bg-rose-700 transition-all"
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export default function TableDetailView({
   table,
@@ -41,6 +85,9 @@ export default function TableDetailView({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [expandedOrderId, setExpandedOrderId] = useState(null);
+
+  const [confirmResetModalOpen, setConfirmResetModalOpen] = useState(false);
+  const [resettingTable, setResettingTable] = useState(false);
 
   const tableId =
     table?._id || table?.id || table?.tableNumber?.toString() || "";
@@ -169,7 +216,7 @@ export default function TableDetailView({
           </p>
         </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
           <div
             className={`px-4 py-2 rounded-lg text-sm font-semibold border ${
               table.status === "occupied"
