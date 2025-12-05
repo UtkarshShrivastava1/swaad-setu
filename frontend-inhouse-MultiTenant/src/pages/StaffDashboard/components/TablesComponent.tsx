@@ -1,10 +1,66 @@
 // src/components/staff/TablesComponent.tsx
-import { ChevronRight, Users } from "lucide-react";
+import { ChevronRight, Users, RotateCcw } from "lucide-react";
+import React, { useState } from "react";
+import { resetTable } from "../../../api/staff/staff.operations.api"; // Import resetTable
+import { useTenant } from "../../../context/TenantContext";
 
-/**
- * The exact flexible types your single-tenant version used.
- * These remain intentionally loose to support all tenants.
- */
+// Simple ConfirmModal Component (Re-using from OrdersComponent for consistency)
+interface ConfirmModalProps {
+  isOpen: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+  message: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+}
+
+const ConfirmModal: React.FC<ConfirmModalProps> = ({
+  isOpen,
+  onConfirm,
+  onCancel,
+  message,
+  confirmLabel = "Confirm",
+  cancelLabel = "Cancel",
+}) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+        <h3 className="text-lg font-semibold text-slate-800 mb-3">
+          Confirm Action
+        </h3>
+        <p className="text-slate-600 mb-6">{message}</p>
+        <div className="flex gap-3 justify-end">
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-slate-200 text-slate-700 hover:bg-slate-300 transition-all"
+          >
+            {cancelLabel}
+          </button>
+          <button
+            onClick={onConfirm}
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-rose-600 text-white hover:bg-rose-700 transition-all"
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export type OrderStatus =
+  | "placed"
+  | "accepted"
+  | "preparing"
+  | "ready"
+  | "served"
+  | "done"
+  | "closed";
+
+export type PaymentStatus = "unpaid" | "paid";
+
 export interface BillItem {
   name: string;
   qty: number;
@@ -23,12 +79,13 @@ export interface Order {
   subtotal: number;
   totalAmount: number;
   amount: number;
-  status: string;
-  paymentStatus: string;
+  status: OrderStatus;
+  paymentStatus: PaymentStatus;
+  OrderNumberForDay?: number;
   customerName?: string;
   staffAlias?: string;
   version: number;
-  createdAt: string;
+  createdAt: string | { $date: string };
 }
 
 export interface Table {
@@ -128,6 +185,37 @@ export default function TablesComponent({
   isLoading,
   onTableSelect,
 }: Props) {
+  const { rid } = useTenant();
+  const [resettingTableId, setResettingTableId] = useState<string | null>(null);
+  const [confirmResetModalOpen, setConfirmResetModalOpen] = useState(false);
+  const [pendingResetTableId, setPendingResetTableId] = useState<string | null>(null);
+
+  const handleResetTable = (tableId: string) => {
+    setPendingResetTableId(tableId);
+    setConfirmResetModalOpen(true);
+  };
+
+  const confirmResetAction = async () => {
+    if (!pendingResetTableId || !rid) return;
+
+    setResettingTableId(pendingResetTableId);
+    setConfirmResetModalOpen(false);
+
+    try {
+      await resetTable(rid, pendingResetTableId);
+      // Optimistic UI update or trigger a re-fetch
+      window.dispatchEvent(new CustomEvent("staff:refreshTables"));
+      console.log(`Table ${pendingResetTableId} reset successfully.`);
+    } catch (error) {
+      console.error("Failed to reset table:", error);
+      // Display an error message to the user
+      alert("Failed to reset table. Please try again.");
+    } finally {
+      setResettingTableId(null);
+      setPendingResetTableId(null);
+    }
+  };
+
   // debug inspection
   try {
     console.debug("[TablesComponent] tables:", tables?.length);
@@ -143,91 +231,124 @@ export default function TablesComponent({
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-      {tables
-        .filter((t) => t.isActive)
-        .map((table) => {
-          const key = String(table._id || table.id || table.tableNumber);
+    <>
+      <ConfirmModal
+        isOpen={confirmResetModalOpen}
+        onConfirm={confirmResetAction}
+        onCancel={() => setConfirmResetModalOpen(false)}
+        message={`Are you sure you want to reset Table ${
+          tables.find((t) => (t._id || t.id) === pendingResetTableId)
+            ?.tableNumber || ""
+        }? This will clear its status and session.`}
+        confirmLabel="Reset Table"
+        cancelLabel="Cancel"
+      />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+        {tables
+          .filter((t) => t.isActive)
+          .map((table) => {
+            const key = String(table._id || table.id || table.tableNumber);
 
-          const matchingOrders = activeOrders.filter((o) =>
-            matchesOrderToTable(o, table)
-          );
+            const matchingOrders = activeOrders.filter((o) =>
+              matchesOrderToTable(o, table)
+            );
 
-          const occupied =
-            Boolean(table.currentSessionId) ||
-            matchingOrders.length > 0 ||
-            String(table.status).toLowerCase() === "occupied";
+            const occupied =
+              Boolean(table.currentSessionId) ||
+              matchingOrders.length > 0 ||
+              String(table.status).toLowerCase() === "occupied";
 
-          const waiterCalled = table.waiterCalled;
+            const waiterCalled = table.waiterCalled;
 
-          return (
-            <article
-              key={key}
-              onClick={() => {
-                const tableWithId = {
-                  ...table,
-                  id: String(table._id || table.id || table.tableNumber),
-                };
-                if (matchingOrders.length > 0) {
-                  onTableSelect(tableWithId, matchingOrders[0]);
-                } else {
-                  onTableSelect(tableWithId);
-                }
-              }}
-              className={`group cursor-pointer relative rounded-xl p-5 shadow-md hover:shadow-xl transition-all transform hover:-translate-y-1 border-2 ${
-                waiterCalled
-                  ? "bg-rose-100 border-rose-300 animate-pulse-waiter"
-                  : occupied
-                  ? "bg-gradient-to-br from-white to-indigo-50/50 border-indigo-100"
-                  : "bg-gradient-to-br from-white to-emerald-50/50 border-emerald-100"
-              }`}
-            >
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h3 className="text-lg font-bold text-slate-800 mb-1">
-                    Table {table.tableNumber}
-                  </h3>
-                  <div className="flex items-center gap-1.5 text-sm text-slate-500">
-                    <Users className="h-4 w-4" />
-                    <span>Capacity: {table.capacity}</span>
-                  </div>
-                </div>
-
-                <span
-                  className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold shadow-sm ${
-                    occupied
-                      ? "bg-indigo-100 text-indigo-800 border border-indigo-200"
-                      : "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                  }`}
+            return (
+              <article
+                key={key}
+                className={`group relative rounded-xl p-5 shadow-md hover:shadow-xl transition-all transform hover:-translate-y-1 border-2 ${
+                  waiterCalled
+                    ? "bg-rose-100 border-rose-300 animate-pulse-waiter"
+                    : occupied
+                    ? "bg-gradient-to-br from-white to-indigo-50/50 border-indigo-100"
+                    : "bg-gradient-to-br from-white to-emerald-50/50 border-emerald-100"
+                }`}
+              >
+                <div
+                  onClick={() => {
+                    const tableWithId = {
+                      ...table,
+                      id: String(table._id || table.id || table.tableNumber),
+                    };
+                    if (matchingOrders.length > 0) {
+                      onTableSelect(tableWithId, matchingOrders[0]);
+                    } else {
+                      onTableSelect(tableWithId);
+                    }
+                  }}
                 >
-                  {occupied
-                    ? "Occupied"
-                    : String(table.status).charAt(0).toUpperCase() +
-                      String(table.status).slice(1)}
-                </span>
-              </div>
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <h3 className="text-lg font-bold text-slate-800 mb-1">
+                        Table {table.tableNumber}
+                      </h3>
+                      <div className="flex items-center gap-1.5 text-sm text-slate-500">
+                        <Users className="h-4 w-4" />
+                        <span>Capacity: {table.capacity}</span>
+                      </div>
+                    </div>
 
-              {table.waiterAssigned && table.waiterAssigned !== "-" && (
-                <div className="mb-3 pb-3 border-b border-slate-200">
-                  <div className="text-xs text-slate-500 mb-1">Assigned to</div>
-                  <div className="text-sm font-medium text-slate-700">
-                    {table.waiterAssigned}
+                    <span
+                      className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold shadow-sm ${
+                        occupied
+                          ? "bg-indigo-100 text-indigo-800 border border-indigo-200"
+                          : "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                      }`}
+                    >
+                      {occupied
+                        ? "Occupied"
+                        : String(table.status).charAt(0).toUpperCase() +
+                          String(table.status).slice(1)}
+                    </span>
+                  </div>
+
+                  {table.waiterAssigned && table.waiterAssigned !== "-" && (
+                    <div className="mb-3 pb-3 border-b border-slate-200">
+                      <div className="text-xs text-slate-500 mb-1">
+                        Assigned to
+                      </div>
+                      <div className="text-sm font-medium text-slate-700">
+                        {table.waiterAssigned}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm">
+                      <span className="text-slate-500">Active Orders:</span>
+                      <span className="ml-2 font-semibold text-slate-800">
+                        {matchingOrders.length}
+                      </span>
+                    </div>
+                    <ChevronRight className="h-5 w-5 text-slate-400 group-hover:text-indigo-600 transition-colors" />
                   </div>
                 </div>
-              )}
 
-              <div className="flex items-center justify-between">
-                <div className="text-sm">
-                  <span className="text-slate-500">Active Orders:</span>
-                  <span className="ml-2 font-semibold text-slate-800">
-                    {matchingOrders.length}
-                  </span>
-                </div>
-                <ChevronRight className="h-5 w-5 text-slate-400 group-hover:text-indigo-600 transition-colors" />
-              </div>
-            </article>
-          );
-        })}
-    </div>
+                {occupied && (
+                  <button
+                    onClick={() => handleResetTable(key)}
+                    className="absolute bottom-3 right-3 px-3 py-1.5 rounded-lg text-xs font-medium bg-rose-500 text-white hover:bg-rose-600 transition-colors flex items-center gap-1"
+                    disabled={resettingTableId === key}
+                  >
+                    {resettingTableId === key ? (
+                      <RotateCcw className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <RotateCcw className="h-3.5 w-3.5" />
+                    )}
+                    {resettingTableId === key ? "Resetting..." : "Reset"}
+                  </button>
+                )}
+              </article>
+            );
+          })}
+      </div>
+    </>
   );
 }
