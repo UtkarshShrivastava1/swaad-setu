@@ -2,13 +2,15 @@ import { useEffect, useState } from 'react';
 import { ArrowRight, Star, TrendingUp } from 'lucide-react';
 import { getMenuItems, getCombos } from '../services/api';
 import  type { MenuItem, Combo } from '../types';
-import { useNavigate } from 'react-router-dom';
 
-export default function HomePage() {
+interface HomePageProps {
+  onNavigate: (page: string) => void;
+}
+
+export default function HomePage({ onNavigate }: HomePageProps) {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [combos, setCombos] = useState<Combo[]>([]);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
 
   useEffect(() => {
     const loadData = async () => {
@@ -51,7 +53,7 @@ export default function HomePage() {
             Authentic Indian Flavours Delivered to Your Doorstep
           </p>
           <button
-            onClick={() => navigate('/gallery')}
+            onClick={() => onNavigate('gallery')}
             className="group bg-yellow-400 text-black px-8 py-4 rounded-full text-lg font-bold hover:bg-yellow-300 transition-all duration-300 transform hover:scale-105 animate-slideUp inline-flex items-center gap-2"
             style={{ animationDelay: '0.6s' }}
           >
@@ -191,7 +193,7 @@ export default function HomePage() {
             Join thousands of happy customers who trust Swaadsetu for their daily meals
           </p>
           <button
-            onClick={() => navigate('/contact')}
+            onClick={() => onNavigate('contact')}
             className="bg-yellow-400 text-black px-10 py-4 rounded-full text-xl font-bold hover:bg-yellow-300 transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-3"
           >
             Get in Touch

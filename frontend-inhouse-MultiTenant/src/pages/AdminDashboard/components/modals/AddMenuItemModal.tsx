@@ -61,7 +61,7 @@ export default function AddMenuItemModal({
         name,
         description,
         price,
-        category,
+        categoryId: category,
         isVegetarian,
         preparationTime,
       };

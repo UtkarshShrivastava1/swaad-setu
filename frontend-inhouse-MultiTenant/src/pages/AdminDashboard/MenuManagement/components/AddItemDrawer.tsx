@@ -232,7 +232,8 @@ const itemData = {
   description,
   isVegetarian: isVeg,
   isActive,
-  category: category.name,
+  categoryId: category._id,
+  category: category.name, // Also include category name as per backend error hint
 
   preparationTime: parseInt(prepTime || "0", 10), // ✅ ALWAYS PRESENT
 
@@ -250,6 +251,10 @@ const itemData = {
     }
 
     console.log("AddItemDrawer: Payload being sent:", itemData); // Log payload
+    console.log(
+      "AddItemDrawer: Full payload string:",
+      JSON.stringify(itemData, null, 2)
+    );
 
     try {
       if (item) {

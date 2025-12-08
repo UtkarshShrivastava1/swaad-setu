@@ -5,7 +5,7 @@ import client from "./client";
 ================================ */
 
 export interface MenuItem {
-  itemId: string;
+  itemId?: string;
   name: string;
   description?: string;
   price: number;
@@ -58,21 +58,43 @@ export async function bulkUpdateMenu(rid: string, data: any) {
 ================================ */
 
 // Add single menu item
-export async function addMenuItem(rid: string, itemData: Omit<MenuItem, 'image'>, imageFile?: File) {
+export async function addMenuItem(rid: string, itemData: Omit<MenuItem, 'image' | 'itemId'>, imageFile?: File) {
   const formData = new FormData();
-
-  // The backend expects the item data as a JSON string under the 'item' field
   formData.append('item', JSON.stringify(itemData));
 
   if (imageFile) {
     formData.append('image', imageFile);
   }
 
-  return client.post(`/api/${rid}/admin/menu/items`, formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
+  const token = localStorage.getItem(`adminToken_${rid}`);
+  const headers: HeadersInit = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  // Use VITE_API_BASE_URL from environment variables, fallback to empty string
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+
+  const response = await fetch(`${API_BASE}/api/${rid}/admin/menu/items`, {
+    method: 'POST',
+    body: formData,
+    headers: headers,
   });
+
+  if (!response.ok) {
+    // Try to parse error response as JSON
+    try {
+      const err = await response.json();
+      console.error('Error response from server:', err);
+      // Use a more specific error message if available
+      throw new Error(err.message || err.error || `HTTP error! status: ${response.status}`);
+    } catch (e) {
+      // If parsing fails, fall back to status text
+      throw new Error(response.statusText);
+    }
+  }
+
+  return response.json();
 }
 
 // Update existing item
@@ -91,11 +113,7 @@ export async function updateMenuItem(
     formData.append('image', imageFile);
   }
 
-  return client.patch(`/api/${rid}/admin/menu/items/${itemId}`, formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  });
+  return client.patch(`/api/${rid}/admin/menu/items/${itemId}`, formData);
 }
 
 /**
