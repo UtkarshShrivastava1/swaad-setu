@@ -1,15 +1,15 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // s,? Frontend-only public key (exposed in browser)
-const GEMINI_API_KEY = import.meta.env.GEMINI_API_KEY;
+const VITE_GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
-if (!GEMINI_API_KEY) {
+if (!VITE_GEMINI_API_KEY) {
   console.warn(
-    "GEMINI_API_KEY is not defined. Auto-description will not work."
+    "VITE_GEMINI_API_KEY is not defined. Auto-description will not work."
   );
 }
 
-const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
+const genAI = VITE_GEMINI_API_KEY ? new GoogleGenerativeAI(VITE_GEMINI_API_KEY) : null;
 
 // o. USE A STABLE MODEL THAT ACTUALLY WORKS IN ALL REGIONS
 const GEMINI_MODEL_NAME = "gemini-2.5-flash";
