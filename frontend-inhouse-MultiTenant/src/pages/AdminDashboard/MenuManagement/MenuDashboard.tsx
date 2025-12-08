@@ -1,6 +1,7 @@
 import { Maximize, Menu, Minimize, Sparkles, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
+import { toast } from "react-toastify";
 import {
   bulkUpdateMenu,
   deleteCategory,
