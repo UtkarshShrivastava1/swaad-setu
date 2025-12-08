@@ -1,11 +1,11 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // s,? Frontend-only public key (exposed in browser)
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+const GEMINI_API_KEY = import.meta.env.GEMINI_API_KEY;
 
 if (!GEMINI_API_KEY) {
   console.warn(
-    "VITE_GEMINI_API_KEY is not defined. Auto-description will not work."
+    "GEMINI_API_KEY is not defined. Auto-description will not work."
   );
 }
 
@@ -35,10 +35,11 @@ export const generateDailyBriefing = async (
     topItems.map((item) => `${item.name} (${item.count} sold)`).join(", ") ||
     "N/A";
 
-  const peakHoursString = peakHours
-    .filter((h) => h.orders > 0)
-    .map((h) => `${h.hour}:00 (${h.orders} orders)`)
-    .join(", ") || "N/A";
+  const peakHoursString =
+    peakHours
+      .filter((h) => h.orders > 0)
+      .map((h) => `${h.hour}:00 (${h.orders} orders)`)
+      .join(", ") || "N/A";
 
   const prompt = `
 You are an expert restaurant operations analyst AI. Your goal is to provide a single, practical, management-focused insight for the restaurant manager based on today's live data.
@@ -90,7 +91,6 @@ Generate one practical, management-focused insight now.
   }
 };
 
-
 export const generateBillBriefing = async (
   activeBills: number,
   paidToday: number,
@@ -139,7 +139,6 @@ Average Bill Value: ,1${avgBillValue}
     return "Failed to generate bill briefing.";
   }
 };
-
 
 export const generateMenuItemDescription = async (
   itemName: string
