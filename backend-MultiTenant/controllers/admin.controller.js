@@ -685,7 +685,7 @@ async function addMenuItem(req, res, next) {
   try {
     const { rid } = req.params;
     const parsedBody = parseFormData(req.body);
-    const { item } = parsedBody || {};
+    const item = parsedBody.item || parsedBody;
 
     if (!rid) {
       return res.status(400).json({ error: "Missing restaurant id (rid)" });
