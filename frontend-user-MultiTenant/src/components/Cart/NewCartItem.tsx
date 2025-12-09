@@ -54,6 +54,7 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerContact, setCustomerContact] = useState("");
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const [localOrderId, setLocalOrderId] = useState<string | null>(null);
   const navigate = useNavigate();
   const { rid, tenant } = useTenant();
   const { tableId } = useTable();
@@ -73,7 +74,16 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
     );
   }, [cartItems]);
 
-  const orderExists = !!activeOrder;
+  // Sync localOrderId with activeOrder from parent
+  useEffect(() => {
+    if (activeOrder?._id) {
+      setLocalOrderId(activeOrder._id);
+    }
+  }, [activeOrder]);
+
+  // Determine if we have an active order - check both activeOrder prop and local tracking
+  // This ensures we show "Add More Items" immediately after creating an order
+  const orderExists = !!activeOrder || !!localOrderId;
 
   const subtotal = cartItems.reduce(
     (sum, item) => sum + item.price * item.quantity,
@@ -130,6 +140,12 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
     try {
       const res: ApiOrder = await createOrder(rid, tableId!, payload);
       console.log("✅ Order created/merged:", res);
+
+      const orderId = getOrderId(res);
+      if (orderId) {
+        setLocalOrderId(orderId); // Track order locally for immediate UI update
+      }
+
       clear();
       setShowSuccessPop(true);
 
@@ -142,8 +158,6 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
           email: customerEmail,
         })
       );
-
-      const orderId = getOrderId(res);
 
       setTimeout(() => {
         setShowSuccessPop(false);
@@ -191,7 +205,7 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
       customerContact: cleanedContact,
       customerEmail: email,
       isCustomerOrder: true,
-      ...(activeOrder?.order?._id && { orderId: activeOrder.order._id }), // Conditionally add orderId
+      ...(activeOrder?._id && { orderId: activeOrder._id }), // Conditionally add orderId
       items: cartItems.map((item) => ({
         menuItemId: item.itemId,
         name: item.name,
@@ -204,10 +218,13 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
       const res: ApiOrder = await createOrder(rid, tableId!, payload);
       console.log("✅ Order merged or created:", res);
 
+      const orderId = getOrderId(res);
+      if (orderId) {
+        setLocalOrderId(orderId); // Track order locally for immediate UI update
+      }
+
       clear();
       setShowSuccessPop(true);
-
-      const orderId = getOrderId(res);
 
       setTimeout(() => {
         setShowSuccessPop(false);
@@ -251,6 +268,7 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
         sessionStorage.removeItem(`customerInfo_${tableId}`);
       }
       sessionStorage.removeItem("ongoingOrders");
+      setLocalOrderId(null);
     };
     window.addEventListener("clearTableSession", handleClearCustomerInfo);
     return () =>

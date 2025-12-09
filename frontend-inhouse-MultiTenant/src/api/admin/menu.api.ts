@@ -58,25 +58,32 @@ export async function bulkUpdateMenu(rid: string, data: any) {
 ================================ */
 
 // Add single menu item
-export async function addMenuItem(rid: string, itemData: Omit<MenuItem, 'image' | 'itemId'>, imageFile?: File) {
+export async function addMenuItem(
+  rid: string,
+  itemData: Omit<MenuItem, "image" | "itemId">,
+  imageFile?: File
+) {
   const formData = new FormData();
-  formData.append('item', JSON.stringify(itemData));
+  formData.append("item", JSON.stringify(itemData));
 
   if (imageFile) {
-    formData.append('image', imageFile);
+    formData.append("image", imageFile);
   }
 
   const token = localStorage.getItem(`adminToken_${rid}`);
   const headers: HeadersInit = {};
   if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+    headers["Authorization"] = `Bearer ${token}`;
   }
 
-  // Use VITE_API_BASE_URL from environment variables, fallback to empty string
-  const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+  // Use VITE_API_BASE_URL from environment variables with production fallback
+  const API_BASE =
+    import.meta.env.MODE === "production"
+      ? import.meta.env.VITE_API_BASE_URL_PROD || "https://api.swaadsetu.com"
+      : import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
   const response = await fetch(`${API_BASE}/api/${rid}/admin/menu/items`, {
-    method: 'POST',
+    method: "POST",
     body: formData,
     headers: headers,
   });
@@ -85,9 +92,11 @@ export async function addMenuItem(rid: string, itemData: Omit<MenuItem, 'image' 
     // Try to parse error response as JSON
     try {
       const err = await response.json();
-      console.error('Error response from server:', err);
+      console.error("Error response from server:", err);
       // Use a more specific error message if available
-      throw new Error(err.message || err.error || `HTTP error! status: ${response.status}`);
+      throw new Error(
+        err.message || err.error || `HTTP error! status: ${response.status}`
+      );
     } catch (e) {
       // If parsing fails, fall back to status text
       throw new Error(response.statusText);
@@ -101,16 +110,16 @@ export async function addMenuItem(rid: string, itemData: Omit<MenuItem, 'image' 
 export async function updateMenuItem(
   rid: string,
   itemId: string,
-  itemData: Partial<Omit<MenuItem, 'image'>> & { image?: null | string }, // image?: null for explicit removal
+  itemData: Partial<Omit<MenuItem, "image">> & { image?: null | string }, // image?: null for explicit removal
   imageFile?: File
 ) {
   const formData = new FormData();
 
   // The backend expects the item data as a JSON string under the 'item' field
-  formData.append('item', JSON.stringify(itemData));
+  formData.append("item", JSON.stringify(itemData));
 
   if (imageFile) {
-    formData.append('image', imageFile);
+    formData.append("image", imageFile);
   }
 
   return client.patch(`/api/${rid}/admin/menu/items/${itemId}`, formData);

@@ -32,8 +32,9 @@ export default function HomePage() {
       if (!rid || !tableId) return;
 
       try {
-        const sessionId = sessionStorage.getItem("resto_session_id");
-        const data = await getOrdersByTable(rid, tableId, sessionId);
+        // Fetch all orders for the table WITHOUT sessionId filter
+        // This ensures we get the latest active order regardless of sessionId
+        const data = await getOrdersByTable(rid, tableId);
         const foundOrder = data.find(
           (o) => o.status !== "completed" && o.status !== "cancelled"
         );

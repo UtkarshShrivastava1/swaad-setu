@@ -1,6 +1,9 @@
 import { client } from "./client";
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+const BASE_URL =
+  import.meta.env.MODE === "production"
+    ? import.meta.env.VITE_API_BASE_URL_PROD || "https://api.swaadsetu.com"
+    : import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
 export interface Restaurant {
   _id: {

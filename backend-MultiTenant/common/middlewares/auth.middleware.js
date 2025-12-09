@@ -1,4 +1,4 @@
-const { verifyToken } = require("../libs/jwt");
+const { verifyToken, ensureJWTSecretConfigured } = require("../libs/jwt");
 const { randomBytes } = require("crypto");
 
 /**
@@ -54,6 +54,22 @@ module.exports = function authMiddleware(req, res, next) {
   // ============================================================
   // 🔐 PROTECTED PATHS
   // ============================================================
+
+  // First, check if JWT_SECRET is configured (critical check)
+  try {
+    ensureJWTSecretConfigured();
+  } catch (configError) {
+    console.error(`[${now}] [authMiddleware] Configuration error`, {
+      reqId,
+      error: configError.message,
+    });
+    return res.status(500).json({
+      error: "Server configuration error",
+      message: "JWT secret is not configured. Please contact administrator.",
+      details: configError.message,
+    });
+  }
+
   const rawAuth = req.header?.("Authorization");
   const token = rawAuth ? rawAuth.replace(/^Bearer\s+/i, "") : null;
 
@@ -62,7 +78,10 @@ module.exports = function authMiddleware(req, res, next) {
       reqId,
       path,
     });
-    return res.status(401).json({ error: "Access denied. No token provided." });
+    return res.status(401).json({
+      error: "Access denied. No token provided.",
+      code: "NO_TOKEN",
+    });
   }
 
   const tokenPreview =
@@ -78,14 +97,28 @@ module.exports = function authMiddleware(req, res, next) {
     decoded = verifyToken(token);
     console.debug(`[${now}] [authMiddleware] Decoded token payload`, {
       reqId,
-      payload: decoded,
+      payload: {
+        restaurantId: decoded.restaurantId,
+        role: decoded.role,
+        id: decoded.id,
+      },
     });
   } catch (err) {
     console.error(`[${now}] [authMiddleware] Token verify failed`, {
       reqId,
       error: err?.message,
+      code: err?.code,
     });
-    return res.status(400).json({ error: "Invalid token" });
+
+    // Provide specific error codes and messages
+    const statusCode = err?.code === "TOKEN_EXPIRED" ? 401 : 400;
+    const errorCode = err?.code || "INVALID_TOKEN";
+
+    return res.status(statusCode).json({
+      error: "Invalid token",
+      code: errorCode,
+      message: err?.message || "Token verification failed",
+    });
   }
 
   // ============================================================
@@ -99,7 +132,10 @@ module.exports = function authMiddleware(req, res, next) {
       reqId,
       tokenRid,
     });
-    return res.status(400).json({ error: "Missing restaurant id (rid)" });
+    return res.status(400).json({
+      error: "Missing restaurant id (rid)",
+      code: "MISSING_RID",
+    });
   }
 
   if (!tokenRid) {
@@ -107,9 +143,11 @@ module.exports = function authMiddleware(req, res, next) {
       reqId,
       decoded,
     });
-    return res.status(400).json({ error: "Token missing tenant info" });
+    return res.status(400).json({
+      error: "Token missing tenant info",
+      code: "MISSING_TENANT_INFO",
+    });
   }
-
 
   if (tokenRid !== rid) {
     console.warn(`[${now}] [authMiddleware] Tenant mismatch`, {
@@ -118,7 +156,10 @@ module.exports = function authMiddleware(req, res, next) {
       ridParam: rid,
       tokenRid,
     });
-    return res.status(403).json({ error: "Forbidden (cross-tenant)" });
+    return res.status(403).json({
+      error: "Forbidden (cross-tenant access attempted)",
+      code: "CROSS_TENANT_DENIED",
+    });
   }
 
   // ============================================================

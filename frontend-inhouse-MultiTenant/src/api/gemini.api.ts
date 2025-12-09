@@ -1,18 +1,59 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import {
+  geminiRateLimitManager,
+  type GeminiResponse,
+} from "../utils/geminiRateLimitManager";
 
-// s,? Frontend-only public key (exposed in browser)
-const VITE_GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-
-if (!VITE_GEMINI_API_KEY) {
-  console.warn(
-    "VITE_GEMINI_API_KEY is not defined. Auto-description will not work."
-  );
-}
-
-const genAI = VITE_GEMINI_API_KEY ? new GoogleGenerativeAI(VITE_GEMINI_API_KEY) : null;
-
-// o. USE A STABLE MODEL THAT ACTUALLY WORKS IN ALL REGIONS
 const GEMINI_MODEL_NAME = "gemini-2.5-flash";
+const API_BASE_URL =
+  import.meta.env.MODE === "production"
+    ? import.meta.env.VITE_API_BASE_URL_PROD || "https://api.swaadsetu.com"
+    : import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+
+/**
+ * Legacy generateContent function for backward compatibility
+ * Now uses rate limit manager internally
+ * @deprecated Use generateMenuItemDescription instead for new code
+ */
+const generateContent = async (prompt: string): Promise<string> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/gemini`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: GEMINI_MODEL_NAME,
+        prompt,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error("Error from Gemini proxy:", errorData);
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    // Handle both possible response structures
+    return data.content || data.text || JSON.stringify(data);
+  } catch (error) {
+    console.error("Error calling Gemini proxy:", error);
+    return `Failed to generate content.`;
+  }
+};
+
+/**
+ * Generate content with tenant-aware rate limiting
+ * @param tenantId The restaurant ID (from context)
+ * @param prompt The prompt to send to Gemini
+ * @returns Promise with response including content, error, or queue status
+ */
+export const generateContentWithRateLimit = async (
+  tenantId: string,
+  prompt: string
+): Promise<GeminiResponse> => {
+  return geminiRateLimitManager.generateContent(tenantId, prompt);
+};
 
 export const generateDailyBriefing = async (
   todayRevenue: number,
@@ -23,14 +64,6 @@ export const generateDailyBriefing = async (
   topItems: { name: string; count: number }[],
   peakHours: { hour: string; orders: number }[]
 ): Promise<string> => {
-  if (!genAI) {
-    return "Insights unavailable. API key not configured.";
-  }
-
-  const model = genAI.getGenerativeModel({
-    model: GEMINI_MODEL_NAME,
-  });
-
   const topItemsString =
     topItems.map((item) => `${item.name} (${item.count} sold)`).join(", ") ||
     "N/A";
@@ -69,26 +102,19 @@ Bad Examples (Marketing-focused):
 Generate one practical, management-focused insight now.
 `;
 
-  try {
-    const result = await model.generateContent(prompt);
-    const response = result.response;
-    let text = response.text() || "";
+  let text = await generateContent(prompt);
 
-    // Hard client-side safety
-    text = text
-      .replace(/[\n"'`]/g, "")
-      .replace(/\s+/g, " ")
-      .trim();
+  // Hard client-side safety
+  text = text
+    .replace(/[\n"'`]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 
-    if (!text) {
-      return "Unable to generate daily briefing.";
-    }
-
-    return text;
-  } catch (error) {
-    console.error("Error generating daily briefing:", error);
-    return "Failed to generate daily briefing.";
+  if (!text) {
+    return "Unable to generate daily briefing.";
   }
+
+  return text;
 };
 
 export const generateBillBriefing = async (
@@ -97,14 +123,6 @@ export const generateBillBriefing = async (
   revenueToday: number,
   avgBillValue: number
 ): Promise<string> => {
-  if (!genAI) {
-    return "Insights unavailable. API key not configured.";
-  }
-
-  const model = genAI.getGenerativeModel({
-    model: GEMINI_MODEL_NAME,
-  });
-
   const prompt = `
 You are a restaurant bill insights generator.
 Summarize today's bill performance in a concise, engaging sentence (100-150 characters), highlighting key metrics.
@@ -117,39 +135,28 @@ Revenue Today: ,1${revenueToday}
 Average Bill Value: ,1${avgBillValue}
 `;
 
-  try {
-    const result = await model.generateContent(prompt);
-    const response = result.response;
-    let text = response.text() || "";
+  let text = await generateContent(prompt);
 
-    // Hard client-side safety
-    text = text
-      .replace(/[\n"'`]/g, "")
-      .replace(/\s+/g, " ")
-      .trim()
-      .slice(0, 150); // Limit to 150 characters for a concise summary
+  // Hard client-side safety
+  text = text
+    .replace(/[\n"'`]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 150); // Limit to 150 characters for a concise summary
 
-    if (!text) {
-      return "Unable to generate bill briefing.";
-    }
-
-    return text;
-  } catch (error) {
-    console.error("Error generating bill briefing:", error);
-    return "Failed to generate bill briefing.";
+  if (!text) {
+    return "Unable to generate bill briefing.";
   }
+
+  return text;
 };
 
 export const generateMenuItemDescription = async (
   itemName: string
 ): Promise<string> => {
-  if (!genAI || !itemName?.trim()) {
+  if (!itemName?.trim()) {
     return `Classic ${itemName?.slice(0, 16) || "Dish"}`;
   }
-
-  const model = genAI.getGenerativeModel({
-    model: GEMINI_MODEL_NAME,
-  });
 
   // o. CHARACTER-BASED PROMPT (NOT WORD-BASED)
   const prompt = `
@@ -168,26 +175,19 @@ Return only the description text
 Food Item: ${itemName}
 `;
 
-  try {
-    const result = await model.generateContent(prompt);
-    const response = result.response;
-    let text = response.text() || "";
+  let text = await generateContent(prompt);
 
-    // o. HARD CLIENT-SIDE SAFETY
-    text = text
-      .replace(/[\n"'`]/g, "")
-      .replace(/[^\w\s]/g, "")
-      .replace(/\s+/g, " ")
-      .trim()
-      .slice(0, 70);
+  // o. HARD CLIENT-SIDE SAFETY
+  text = text
+    .replace(/[\n"'`]/g, "")
+    .replace(/[^\w\s]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 70);
 
-    if (!text) {
-      return `Classic ${itemName.slice(0, 16)}`;
-    }
-
-    return text;
-  } catch (error) {
-    console.error("Error generating menu item description:", error);
+  if (!text) {
     return `Classic ${itemName.slice(0, 16)}`;
   }
+
+  return text;
 };

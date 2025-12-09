@@ -1,6 +1,9 @@
 import axios, { type AxiosRequestConfig } from "axios";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
+const API_BASE =
+  import.meta.env.MODE === "production"
+    ? import.meta.env.VITE_API_BASE_URL_PROD || "https://api.swaadsetu.com"
+    : import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
 export const client = axios.create({
   baseURL: API_BASE,
@@ -28,13 +31,11 @@ client.interceptors.response.use(
 // Let's export aliases to avoid breaking anything.
 export const api = {
   get: (...args: [string, AxiosRequestConfig?]) => client.get(...args),
-  post: (...args: [string, any?, AxiosRequestConfig?]) =>
-    client.post(...args),
+  post: (...args: [string, any?, AxiosRequestConfig?]) => client.post(...args),
   patch: (...args: [string, any?, AxiosRequestConfig?]) =>
     client.patch(...args),
   put: (...args: [string, any?, AxiosRequestConfig?]) => client.put(...args),
-  delete: (...args: [string, AxiosRequestConfig?]) =>
-    client.delete(...args),
+  delete: (...args: [string, AxiosRequestConfig?]) => client.delete(...args),
 };
 
 export default client;

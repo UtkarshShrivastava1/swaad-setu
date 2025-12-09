@@ -10,7 +10,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.24.1",
     "@hello-pangea/dnd": "^18.0.1",
     "@radix-ui/react-label": "^2.1.8",
     "@tailwindcss/vite": "^4.1.14",
@@ -19,12 +18,13 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
     "framer-motion": "^12.23.24",
     "html2pdf.js": "^0.12.1",
     "lucide-react": "^0.544.0",
     "minimist": "^1.2.8",
     "motion": "^12.23.24",
-
     "qrcode.react": "^4.2.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",

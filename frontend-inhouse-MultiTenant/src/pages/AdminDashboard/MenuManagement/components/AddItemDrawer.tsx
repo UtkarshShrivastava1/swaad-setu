@@ -1,16 +1,27 @@
-import { Flame, ImageIcon, Leaf, Trash2, X, Loader2, Sparkles } from "lucide-react";
-import React, { useEffect, useState, useCallback } from "react";
+import {
+  AlertCircle,
+  Clock,
+  Flame,
+  ImageIcon,
+  Leaf,
+  Loader2,
+  Sparkles,
+  Trash2,
+  X,
+} from "lucide-react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import {
   addMenuItem,
   deleteMenuItem,
   updateMenuItem,
 } from "../../../../api/admin/menu.api";
+import { generateContentWithRateLimit } from "../../../../api/gemini.api";
 import { searchPexelsImages } from "../../../../api/pexels.api"; // Import Pexels API
+import { handleGeminiError } from "../../../../utils/geminiErrorHandler";
 import useDebounce from "../../hooks/useDebounce"; // Import useDebounce hook
 
 import ImageCropperModal from "./modals/ImageCropperModal"; // Import the cropper modal
-import { generateMenuItemDescription } from "../../../../api/gemini.api"; // Import Gemini API
 
 interface AddItemDrawerProps {
   isOpen: boolean;
@@ -57,19 +68,36 @@ const AddItemDrawer: React.FC<AddItemDrawerProps> = ({
 
   // States for Gemini Description
   const [loadingDescription, setLoadingDescription] = useState(false);
-  const [descriptionGenerationError, setDescriptionGenerationError] = useState<string | null>(null);
+  const [descriptionGenerationError, setDescriptionGenerationError] = useState<
+    string | null
+  >(null);
+  const [descriptionRetryCountdown, setDescriptionRetryCountdown] = useState<
+    number | null
+  >(null);
+  const [isDescriptionQueued, setIsDescriptionQueued] = useState(false);
+  const [descriptionQueuePosition, setDescriptionQueuePosition] = useState<
+    number | null
+  >(null);
+  const [descriptionFromCache, setDescriptionFromCache] = useState(false);
   const debouncedItemName = useDebounce(name, 1000); // Debounce item name for description generation
 
   // Helper to map numeric spice level to string
   const getSpiceLevelString = (level: number) => {
     switch (level) {
-      case 0: return "none";
-      case 1: return "mild";
-      case 2: return "medium";
-      case 3: return "spicy";
-      case 4: return "hot";
-      case 5: return "extreme";
-      default: return "medium"; // Default for unexpected values
+      case 0:
+        return "none";
+      case 1:
+        return "mild";
+      case 2:
+        return "medium";
+      case 3:
+        return "spicy";
+      case 4:
+        return "hot";
+      case 5:
+        return "extreme";
+      default:
+        return "medium"; // Default for unexpected values
     }
   };
 
@@ -92,6 +120,9 @@ const AddItemDrawer: React.FC<AddItemDrawerProps> = ({
       setCroppedImageUrl(item.image || null); // Set existing image as cropped image URL
       setLoadingDescription(false);
       setDescriptionGenerationError(null);
+      setIsDescriptionQueued(false);
+      setDescriptionQueuePosition(null);
+      setDescriptionFromCache(false);
     } else {
       setName("");
       setPrice("");
@@ -104,6 +135,11 @@ const AddItemDrawer: React.FC<AddItemDrawerProps> = ({
       setIsChefSpecial(false); // New line
       setImageFile(null);
       setImagePreview(null);
+      setLoadingDescription(false);
+      setDescriptionGenerationError(null);
+      setIsDescriptionQueued(false);
+      setDescriptionQueuePosition(null);
+      setDescriptionFromCache(false);
       setPexelsImages([]); // Clear Pexels images when adding new item
       setPexelsSearchQuery(""); // Initialize Pexels search with empty string for new item
       setCroppedImageUrl(null); // Clear cropped image URL for new item
@@ -146,7 +182,8 @@ const AddItemDrawer: React.FC<AddItemDrawerProps> = ({
   // Effect to search Pexels images when debouncedPexelsSearchQuery changes
   useEffect(() => {
     const fetchImages = async () => {
-      if (debouncedPexelsSearchQuery.trim()) { // Only search if query is not empty
+      if (debouncedPexelsSearchQuery.trim()) {
+        // Only search if query is not empty
         setLoadingPexelsImages(true);
         setError(null);
         try {
@@ -172,30 +209,75 @@ const AddItemDrawer: React.FC<AddItemDrawerProps> = ({
       if (!item && debouncedItemName.trim() && !description.trim()) {
         setLoadingDescription(true);
         setDescriptionGenerationError(null);
+        setIsDescriptionQueued(false);
+        setDescriptionQueuePosition(null);
+        setDescriptionFromCache(false);
+
         try {
-          const generatedText = await generateMenuItemDescription(debouncedItemName);
-          setDescription(generatedText);
+          // Use rate-limited version with tenant awareness
+          const response = await generateContentWithRateLimit(
+            rid || "unknown",
+            debouncedItemName
+          );
+
+          if (response.success && response.content) {
+            setDescription(response.content);
+            setDescriptionFromCache(response.fromCache || false);
+          } else {
+            // Handle error gracefully
+            const feedback = handleGeminiError(response);
+            setDescriptionGenerationError(feedback.userMessage);
+            setIsDescriptionQueued(response.isQueued || false);
+            setDescriptionQueuePosition(response.queuePosition || null);
+
+            // If queued, don't show as error
+            if (response.isQueued) {
+              console.log("[AddItemDrawer] Description generation queued");
+            }
+          }
         } catch (err) {
           console.error("Failed to generate description:", err);
-          setDescriptionGenerationError("Failed to auto-generate description.");
+          setDescriptionGenerationError(
+            "Failed to auto-generate description. You can describe manually."
+          );
         } finally {
           setLoadingDescription(false);
         }
       }
     };
     generateDescription();
-  }, [debouncedItemName, item]); // 'description' is a dependency to prevent regeneration if user types
+  }, [debouncedItemName, item, rid, description]);
 
   const handleGenerateDescription = async () => {
     if (!name.trim()) {
-      setDescriptionGenerationError("Please enter an item name to generate a description.");
+      setDescriptionGenerationError(
+        "Please enter an item name to generate a description."
+      );
       return;
     }
     setLoadingDescription(true);
     setDescriptionGenerationError(null);
+    setIsDescriptionQueued(false);
+    setDescriptionQueuePosition(null);
+    setDescriptionFromCache(false);
+
     try {
-      const generatedText = await generateMenuItemDescription(name);
-      setDescription(generatedText);
+      // Use rate-limited version with tenant awareness
+      const response = await generateContentWithRateLimit(
+        rid || "unknown",
+        name
+      );
+
+      if (response.success && response.content) {
+        setDescription(response.content);
+        setDescriptionFromCache(response.fromCache || false);
+      } else {
+        // Handle error gracefully
+        const feedback = handleGeminiError(response);
+        setDescriptionGenerationError(feedback.userMessage);
+        setIsDescriptionQueued(response.isQueued || false);
+        setDescriptionQueuePosition(response.queuePosition || null);
+      }
     } catch (err) {
       console.error("Failed to generate description:", err);
       setDescriptionGenerationError("Failed to auto-generate description.");
@@ -206,44 +288,45 @@ const AddItemDrawer: React.FC<AddItemDrawerProps> = ({
 
   /* ================= SUBMIT ================= */
 
-      const handleSubmit = async (e: React.FormEvent) => {
-      e.preventDefault();
-      if (!rid || !category) {
-        setError("Restaurant ID or Category is missing.");
-        return;
-      }
-  
-      // Client-side validation
-      if (!name.trim()) {
-        setError("Item name is required.");
-        return;
-      }
-      const parsedPrice = parseFloat(price);
-      if (isNaN(parsedPrice) || parsedPrice <= 0) {
-        setError("Valid price (greater than 0) is required.");
-        return;
-      }
-  
-      setLoading(true);
-      setError(null);
-const itemData = {
-  name,
-  price: parsedPrice,
-  description,
-  isVegetarian: isVeg,
-  isActive,
-  categoryId: category._id,
-  category: category.name, // Also include category name as per backend error hint
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!rid || !category) {
+      setError("Restaurant ID or Category is missing.");
+      return;
+    }
 
-  preparationTime: parseInt(prepTime || "0", 10), // ✅ ALWAYS PRESENT
+    // Client-side validation
+    if (!name.trim()) {
+      setError("Item name is required.");
+      return;
+    }
+    const parsedPrice = parseFloat(price);
+    if (isNaN(parsedPrice) || parsedPrice <= 0) {
+      setError("Valid price (greater than 0) is required.");
+      return;
+    }
 
-  metadata: {
-    spiceLevel: getSpiceLevelString(spiceLevel),
-    ...(serves && parseInt(serves, 10) > 0 ? { serves: parseInt(serves, 10) } : {}),
-    ...(isChefSpecial ? { chefSpecial: true } : {}),
-  },
-};
+    setLoading(true);
+    setError(null);
+    const itemData = {
+      name,
+      price: parsedPrice,
+      description,
+      isVegetarian: isVeg,
+      isActive,
+      categoryId: category._id,
+      category: category.name, // Also include category name as per backend error hint
 
+      preparationTime: parseInt(prepTime || "0", 10), // ✅ ALWAYS PRESENT
+
+      metadata: {
+        spiceLevel: getSpiceLevelString(spiceLevel),
+        ...(serves && parseInt(serves, 10) > 0
+          ? { serves: parseInt(serves, 10) }
+          : {}),
+        ...(isChefSpecial ? { chefSpecial: true } : {}),
+      },
+    };
 
     // Handle explicit image removal for existing items
     if (item && imageFile === null && croppedImageUrl === null) {
@@ -259,24 +342,24 @@ const itemData = {
     try {
       if (item) {
         const res = await updateMenuItem(
-  rid,
-  item.itemId,
-  itemData,
-  imageFile || undefined
-);
+          rid,
+          item.itemId,
+          itemData,
+          imageFile || undefined
+        );
 
         console.log("AddItemDrawer: updateMenuItem API response:", res); // Log the API response
         onItemSuccessfullyAddedAndMenuNeedsRefresh(); // Call the new prop
-        console.log("AddItemDrawer: onItemSuccessfullyAddedAndMenuNeedsRefresh called after update."); // Log after update
+        console.log(
+          "AddItemDrawer: onItemSuccessfullyAddedAndMenuNeedsRefresh called after update."
+        ); // Log after update
       } else {
-const res = await addMenuItem(
-  rid,
-  itemData,
-  imageFile || undefined
-);
+        const res = await addMenuItem(rid, itemData, imageFile || undefined);
         console.log("AddItemDrawer: addMenuItem API response:", res); // Log the API response for add
         onItemSuccessfullyAddedAndMenuNeedsRefresh(); // Call the new prop
-        console.log("AddItemDrawer: onItemSuccessfullyAddedAndMenuNeedsRefresh called after add."); // Log after add
+        console.log(
+          "AddItemDrawer: onItemSuccessfullyAddedAndMenuNeedsRefresh called after add."
+        ); // Log after add
       }
       onClose();
     } catch (err: any) {
@@ -340,35 +423,45 @@ const res = await addMenuItem(
           <div className="flex-grow overflow-y-auto px-6 py-5 space-y-5">
             {/* PEXELS IMAGE SEARCH BAR AND SUGGESTIONS */}
             <div className="pt-4 space-y-3">
-                <input
-                  type="text"
-                  placeholder="Search stock images (e.g., 'Pizza')"
-                  value={pexelsSearchQuery}
-                  onChange={(e) => setPexelsSearchQuery(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/30 outline-none"
-                />
+              <input
+                type="text"
+                placeholder="Search stock images (e.g., 'Pizza')"
+                value={pexelsSearchQuery}
+                onChange={(e) => setPexelsSearchQuery(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/30 outline-none"
+              />
 
-                {loadingPexelsImages && <p className="text-sm text-gray-400 mt-2">Loading suggestions...</p>}
-                {pexelsImages.length > 0 && (
-                  <>
-                    <h3 className="text-sm font-semibold mb-2 text-gray-300">Image Suggestions:</h3>
-                    <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
-                      {pexelsImages.map((img) => (
-                        <img
-                          key={img.id}
-                          src={img.src.small}
-                          alt={img.alt}
-                          className="w-20 h-20 object-cover rounded-md cursor-pointer border border-transparent hover:border-yellow-400 transition-colors"
-                          onClick={() => handlePexelsImageSelect(img.src.large)}
-                        />
-                      ))}
-                    </div>
-                  </>
+              {loadingPexelsImages && (
+                <p className="text-sm text-gray-400 mt-2">
+                  Loading suggestions...
+                </p>
+              )}
+              {pexelsImages.length > 0 && (
+                <>
+                  <h3 className="text-sm font-semibold mb-2 text-gray-300">
+                    Image Suggestions:
+                  </h3>
+                  <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+                    {pexelsImages.map((img) => (
+                      <img
+                        key={img.id}
+                        src={img.src.small}
+                        alt={img.alt}
+                        className="w-20 h-20 object-cover rounded-md cursor-pointer border border-transparent hover:border-yellow-400 transition-colors"
+                        onClick={() => handlePexelsImageSelect(img.src.large)}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+              {!loadingPexelsImages &&
+                pexelsImages.length === 0 &&
+                pexelsSearchQuery.trim() && (
+                  <p className="text-sm text-gray-400">
+                    No image suggestions found for "{pexelsSearchQuery}".
+                  </p>
                 )}
-                {!loadingPexelsImages && pexelsImages.length === 0 && pexelsSearchQuery.trim() && (
-                  <p className="text-sm text-gray-400">No image suggestions found for "{pexelsSearchQuery}".</p>
-                )}
-              </div>
+            </div>
 
             {/* IMAGE PICKER */}
             <div className="relative w-full h-52 rounded-xl overflow-hidden border border-dashed border-white/20 bg-white/5">
@@ -392,7 +485,6 @@ const res = await addMenuItem(
                 </div>
               )}
             </div>
-
 
             {/* NAME */}
             <input
@@ -425,21 +517,51 @@ const res = await addMenuItem(
               <button
                 type="button"
                 onClick={handleGenerateDescription}
-                disabled={loadingDescription || !name.trim()}
+                disabled={
+                  loadingDescription || !name.trim() || isDescriptionQueued
+                }
                 className="p-3 rounded-xl bg-gradient-to-r from-yellow-400 to-orange-500 text-black font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity duration-200"
-                title="Generate description with AI"
+                title={
+                  isDescriptionQueued
+                    ? "Description is queued..."
+                    : "Generate description with AI"
+                }
               >
                 <Sparkles size={20} />
               </button>
             </div>
+
+            {/* Loading state */}
             {loadingDescription && (
               <div className="flex items-center text-yellow-300">
-                <Loader2 className="mr-2 h-4 w-4 animate-spin-slow" />
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 <span>Generating description...</span>
               </div>
             )}
-            {descriptionGenerationError && (
-              <p className="text-sm text-red-400">{descriptionGenerationError}</p>
+
+            {/* Queued state with position */}
+            {isDescriptionQueued && descriptionQueuePosition && (
+              <div className="flex items-center gap-2 text-blue-300 bg-blue-500/10 px-3 py-2 rounded-lg">
+                <Clock size={16} />
+                <span>
+                  Queued for generation (position: {descriptionQueuePosition})
+                </span>
+              </div>
+            )}
+
+            {/* Cache feedback */}
+            {descriptionFromCache && !loadingDescription && (
+              <div className="text-xs text-green-400">
+                ⚡ Description loaded from cache
+              </div>
+            )}
+
+            {/* Error state */}
+            {descriptionGenerationError && !isDescriptionQueued && (
+              <div className="flex items-start gap-2 text-red-300 bg-red-500/10 px-3 py-2 rounded-lg">
+                <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
+                <div className="text-sm">{descriptionGenerationError}</div>
+              </div>
             )}
 
             {/* ✅ MUTUAL EXCLUSIVE VEG / NON-VEG */}
@@ -566,7 +688,12 @@ const res = await addMenuItem(
 
               <button
                 type="submit"
-                disabled={loading || loadingPexelsImages || showCropper || loadingDescription}
+                disabled={
+                  loading ||
+                  loadingPexelsImages ||
+                  showCropper ||
+                  loadingDescription
+                }
                 className="px-5 py-2 rounded-xl bg-gradient-to-r from-yellow-400 to-orange-500 text-black font-semibold hover:opacity-90"
               >
                 {loading

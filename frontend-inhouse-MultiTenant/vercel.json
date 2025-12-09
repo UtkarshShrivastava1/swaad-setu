@@ -1,9 +1,18 @@
 {
   "version": 2,
+  "functions": {
+    "functions/gemini.proxy.cjs": {
+      "memory": 128
+    }
+  },
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
   "rewrites": [
+    {
+      "source": "/api/gemini",
+      "destination": "/functions/gemini.proxy.cjs"
+    },
     {
       "source": "/(.*)",
       "destination": "/index.html"

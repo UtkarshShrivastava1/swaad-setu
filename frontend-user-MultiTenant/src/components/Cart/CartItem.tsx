@@ -51,6 +51,7 @@ export default function CartItem() {
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerContact, setCustomerContact] = useState("");
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const [hasActiveOrder, setHasActiveOrder] = useState(false);
 
   const navigate = useNavigate();
   const { rid } = useTenant();
@@ -64,6 +65,25 @@ export default function CartItem() {
   useEffect(() => {
     sessionStorage.setItem("resto_session_id", sessionId);
   }, [sessionId]);
+
+  // Check for existing active order on mount
+  useEffect(() => {
+    const checkActiveOrder = async () => {
+      if (rid && sessionId) {
+        try {
+          const existingOrders = await getOrder(rid, sessionId);
+          const active = existingOrders.find(
+            (o) => o.status !== "completed" && o.status !== "cancelled"
+          );
+          setHasActiveOrder(!!active);
+        } catch (error) {
+          console.warn("Failed to check for active order on mount:", error);
+          setHasActiveOrder(false);
+        }
+      }
+    };
+    checkActiveOrder();
+  }, [rid, sessionId]); // Re-run if restaurant or session ID changes
 
   /** ---------- Load cart ---------- */
   useEffect(() => {
@@ -142,31 +162,31 @@ export default function CartItem() {
       return;
     }
 
-    // Check for existing active order
-    try {
-      setIsPlacingOrder(true);
-      const existingOrders = await getOrder(rid, sessionId);
-      const activeOrder = existingOrders.find(
-        (o) => o.status !== "completed" && o.status !== "cancelled"
-      );
+    // If an active order exists, we will attempt to merge.
+    // The hasActiveOrder state tells us this from initial load/previous order.
+    if (hasActiveOrder) {
+      // For merging, we still need customer info. It should have been saved from the initial order.
+      const savedCustomerInfo = safeParse<{
+        name: string;
+        contact: string;
+        email: string;
+      }>(sessionStorage.getItem(`customerInfo_${tableId}`), null);
 
-      if (activeOrder) {
+      if (savedCustomerInfo?.name && savedCustomerInfo?.contact && savedCustomerInfo?.email) {
         await handleConfirmOrderWithSavedInfo(
-          activeOrder.customerName,
-          activeOrder.customerContact || "",
-          activeOrder.customerEmail
+          savedCustomerInfo.name,
+          savedCustomerInfo.contact,
+          savedCustomerInfo.email
         );
-        return;
+      } else {
+        // This case should ideally not happen if hasActiveOrder is true,
+        // but if customerInfo somehow got lost, we might need to re-prompt.
+        setShowCustomerModal(true);
       }
-    } catch (error) {
-      console.warn(
-        "No existing order found or failed to fetch, proceeding to new order flow:",
-        error
-      );
-    } finally {
-      setIsPlacingOrder(false);
+      return;
     }
 
+    // If no active order, check for previously saved customer info for a *new* order
     const savedInfo = sessionStorage.getItem(`customerInfo_${tableId}`);
     if (savedInfo) {
       const { name, contact, email } = safeParse<{
@@ -175,10 +195,11 @@ export default function CartItem() {
         email: string;
       }>(savedInfo, { name: "", contact: "", email: "" });
       if (name && contact && email) {
-        handleConfirmOrderWithSavedInfo(name, contact, email);
+        handleConfirmOrderWithSavedInfo(name, contact, email); // This will create a new order but skip the modal
         return;
       }
     }
+    // If no active order and no saved info, show customer modal for a new order
     setShowCustomerModal(true);
   };
 
@@ -235,6 +256,9 @@ export default function CartItem() {
       );
 
       const orderId = getOrderId(res);
+      if (orderId) {
+        setHasActiveOrder(true); // Set active order status
+      }
 
       setTimeout(() => {
         setShowSuccessPop(false);
@@ -298,6 +322,9 @@ export default function CartItem() {
       setShowSuccessPop(true);
 
       const orderId = getOrderId(res);
+      if (orderId) {
+        setHasActiveOrder(true); // Set active order status
+      }
 
       setTimeout(() => {
         setShowSuccessPop(false);
@@ -318,6 +345,7 @@ export default function CartItem() {
         sessionStorage.removeItem(`customerInfo_${tableId}`);
       }
       sessionStorage.removeItem("ongoingOrders");
+      setHasActiveOrder(false); // Clear active order status
     };
     window.addEventListener("clearTableSession", handleClearCustomerInfo);
     return () =>
@@ -444,7 +472,7 @@ export default function CartItem() {
                   className="w-full py-3 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-white font-bold text-lg mt-3 shadow transition cursor-pointer"
                   onClick={initiatePlaceOrder}
                 >
-                  Place Order
+                  {hasActiveOrder ? "Add More Items" : "Place Order"}
                 </button>
                 <button
                   className="w-full py-2 rounded-lg bg-white border mt-2 font-medium text-gray-700 hover:bg-gray-100 cursor-pointer"

@@ -1,5 +1,5 @@
 // app.js — FINAL CLEAN MULTI-TENANT ROUTING
-
+require("dotenv").config(); // ✅ MUST BE FIRST LINE
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
@@ -12,6 +12,7 @@ const { handleCreateBill } = require("./routes/bill.route"); // Only createBillF
 const callRoutes = require("./routes/call.route");
 const adminRoutes = require("./routes/admin.route");
 const tenantRoutes = require("./routes/tenant.route");
+const geminiRoutes = require("./routes/gemini.route"); // <- adjust filename if needed
 
 const {
   loadSubscription,
@@ -45,7 +46,7 @@ app.get("/health", (req, res) => res.json({ status: "ok" }));
 // 🔓 PUBLIC ROUTES (NO TENANT / NO AUTH REQUIRED)
 // ------------------------------------------------------------
 app.use("/api", tenantRoutes);
-
+app.use("/api", geminiRoutes);
 // ------------------------------------------------------------
 // 🏢 TENANT VALIDATOR
 // ------------------------------------------------------------

@@ -100,7 +100,12 @@ MenuSchema.index({ restaurantId: 1, isActive: 1 });
 // ✅ Unique business ID per restaurant (safe with backend-generated IDs)
 MenuSchema.index(
   { restaurantId: 1, "items.itemId": 1 },
-  { unique: true, sparse: true }
+  {
+    unique: true,
+    // Use a partial index so only string itemId values are indexed.
+    // This avoids duplicate-null problems and is compatible with older MongoDB versions.
+    partialFilterExpression: { "items.itemId": { $type: "string" } },
+  }
 );
 
 /* ------------------------------------------------------------------
