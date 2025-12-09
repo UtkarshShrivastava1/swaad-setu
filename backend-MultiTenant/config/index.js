@@ -41,7 +41,7 @@ const config = {
   REDIS_PORT: parseIntEnv("REDIS_PORT", 6379),
   REDIS_PASSWORD: env("REDIS_PASSWORD", null),
 
-  PORT: parseIntEnv("PORT", 5000),
+  PORT: parseIntEnv("PORT", 5001),
 
   // Security
   JWT_SECRET: env("JWT_SECRET", ""),

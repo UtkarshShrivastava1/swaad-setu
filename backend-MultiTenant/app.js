@@ -19,8 +19,8 @@ const {
 } = require("./common/middlewares/subscription.middleware");
 
 const {
-  validateRestaurant,
-} = require("./common/middlewares/validate.middleware");
+  validateTenant,
+} = require("./common/middlewares/tenant.middleware");
 
 // Logger fallback
 let logger = console;
@@ -47,14 +47,17 @@ app.get("/health", (req, res) => res.json({ status: "ok" }));
 // ------------------------------------------------------------
 app.use("/api", tenantRoutes);
 app.use("/api", geminiRoutes);
+// ---------------- TENANT VALIDATOR
 // ------------------------------------------------------------
-// 🏢 TENANT VALIDATOR
-// ------------------------------------------------------------
-app.use("/api/:rid", validateRestaurant);
+app.use("/api/:rid", validateTenant);
+
+// ---------------- TENANT HEALTH CHECK ----------------
+app.get("/api/:rid/health", (req, res) =>
+  res.json({ status: "ok", tenantId: req.tenant.tenantId })
+);
 
 // ------------------------------------------------------------
 // 📦 TENANT ROUTES (subscription loaded once per tenant)
-// ------------------------------------------------------------
 app.use("/api/:rid", loadSubscription);
 
 // -------------------- ORDERS --------------------

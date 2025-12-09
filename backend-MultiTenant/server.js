@@ -10,11 +10,12 @@ const config = require("./config");
 const logger = require("./common/libs/logger");
 const { connectDB } = require("./db/mongoose");
 
-// Models for tenant metrics
-const Admin = require("./models/admin.model");
-const Menu = require("./models/menu.model");
-const TableModel = require("./models/table.model");
-const StaffModel = require("./models/admin.model"); // If staff is separate, adjust
+const { loadTenants } = require("./common/middlewares/tenant.middleware");
+
+// Models for tenant metrics (now handled in middleware)
+// const Menu = require("./models/menu.model");
+// const TableModel = require("./models/table.model");
+// const StaffModel = require("./models/admin.model"); 
 
 const server = http.createServer(app);
 let io = null;
@@ -61,61 +62,30 @@ async function boot() {
   // LOAD TENANTS + METRICS
   // ------------------------------------------------------------
   console.log(chalk.yellow("📊 LOADING TENANTS ........"));
+  const tenants = await loadTenants();
 
-  const tenants = await Admin.find(
-    {},
-    {
-      restaurantId: 1,
-      restaurantName: 1,
-      ownerName: 1,
-      phone: 1,
-      createdAt: 1,
-    }
-  ).lean();
-
-  console.log(
-    chalk.magentaBright(
-      `   ✔ Found ${tenants.length} tenant${tenants.length === 1 ? "" : "s"}\n`
-    )
-  );
-
-  // Pretty table
+  // Note: Detailed metrics like menu/table counts are no longer displayed here
+  // to simplify boot. They can be re-added if needed.
   if (tenants.length > 0) {
     const tTable = new Table({
       head: [
         chalk.blueBright("#"),
         chalk.blueBright("Restaurant Name"),
         chalk.blueBright("RID"),
-        chalk.blueBright("Staff"),
-        chalk.blueBright("Tables"),
-        chalk.blueBright("Menu Items"),
         chalk.blueBright("Owner / Phone"),
       ],
-      colWidths: [4, 26, 28, 8, 8, 12, 30],
+      colWidths: [4, 26, 28, 30],
       wordWrap: true,
     });
 
-    let i = 1;
-    for (const t of tenants) {
-      const rid = t.restaurantId;
-
-      const [menuCount, tableCount, staffCount] = await Promise.all([
-        Menu.countDocuments({ restaurantId: rid }),
-        TableModel.countDocuments({ restaurantId: rid }),
-        StaffModel.countDocuments({ restaurantId: rid }),
-      ]);
-
+    tenants.forEach((t, i) => {
       tTable.push([
-        i++,
+        i + 1,
         t.restaurantName || chalk.gray("N/A"),
-        chalk.yellow(rid),
-        staffCount,
-        tableCount,
-        menuCount,
+        chalk.yellow(t.restaurantId),
         `${t.ownerName || "N/A"} / ${t.phone || "N/A"}`,
       ]);
-    }
-
+    });
     console.log(tTable.toString());
   } else {
     console.log(chalk.gray("   (No tenants found)\n"));

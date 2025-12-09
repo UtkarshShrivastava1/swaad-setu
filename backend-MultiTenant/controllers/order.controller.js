@@ -208,6 +208,7 @@ async function createOrder(req, res, next) {
 
     // Remove any client-provided restaurantId
     const body = { ...req.body };
+    console.log("[createOrder] Incoming request body:", body);
     delete body.restaurantId;
     delete body._id;
     delete body.createdAt;
@@ -360,7 +361,9 @@ async function createOrder(req, res, next) {
       if (customerName && !existingOrder.customerName)
         existingOrder.customerName = customerName;
       if (customerContact) existingOrder.customerContact = customerContact;
-      if (customerEmail) existingOrder.customerEmail = customerEmail;
+      if (body.hasOwnProperty('customerEmail')) {
+        existingOrder.customerEmail = body.customerEmail;
+      }
 
       // Recompute totals
       const baseTotal = existingOrder.items.reduce(
@@ -486,6 +489,7 @@ async function createOrder(req, res, next) {
       const ids = [m._id, m.itemId].filter(Boolean).map(normalizeId);
       ids.forEach((id) => byId.set(id, m));
     }
+    console.log('[createOrder] byId map keys:', Array.from(byId.keys()));
 
     // Also map combos by their category ID
     for (const cat of menuDoc.categories || []) {
@@ -523,6 +527,9 @@ async function createOrder(req, res, next) {
       const providedId = it.menuItemId || it.itemId || it.id;
       const normalizedId = normalizeId(providedId);
       const menuItem = byId.get(normalizedId);
+      
+      console.log(`[createOrder] Item Loop ${idx}: providedId='${providedId}', normalizedId='${normalizedId}', foundMenuItem?=${!!menuItem}`);
+      
       if (!menuItem) continue;
       const qty = Math.max(1, Number(it.quantity ?? it.qty ?? 1));
       const authoritativePrice = Number(
@@ -807,6 +814,8 @@ async function getActiveOrders(req, res, next) {
       .sort({ createdAt: -1 })
       .lean();
 
+    console.log("getActiveOrders orders:", JSON.stringify(orders, null, 2));
+
     const denorm = orders.map((o) => {
       const out = { ...o };
       if (out.tableId && typeof out.tableId === "object") {
@@ -825,6 +834,8 @@ async function getActiveOrders(req, res, next) {
       }
       return out;
     });
+
+    console.log("getActiveOrders denorm:", JSON.stringify(denorm, null, 2));
 
     return res.json(denorm);
   } catch (err) {
