@@ -1,10 +1,5 @@
 {
   "version": 2,
-  "functions": {
-    "api/gemini.proxy.cjs": {
-      "memory": 128
-    }
-  },
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",

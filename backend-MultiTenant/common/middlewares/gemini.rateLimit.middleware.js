@@ -1,4 +1,15 @@
 const rateLimit = require("express-rate-limit");
+const { ipKeyGenerator } = require("express-rate-limit"); // REQUIRED for IPv6 safety
+
+/**
+ * Safe tenant-aware key generator
+ * Uses express-rate-limit's official ipKeyGenerator internally.
+ */
+function tenantKey(req, res) {
+  const rid = (req && req.params && req.params.rid) || "unknown";
+  const ip = ipKeyGenerator(req, res); // safe for IPv4 + IPv6
+  return `tenant:${rid}:gemini:${ip}`;
+}
 
 /**
  * Gemini-specific rate limiter
@@ -7,14 +18,11 @@ const rateLimit = require("express-rate-limit");
  */
 const geminiLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 100, // 100 requests per minute (local limit, Gemini has 60/min global)
+  max: 100, // 100 requests per minute PER TENANT (local limit, Gemini has 60/min global)
   message: "Gemini API rate limit exceeded. Please try again later.",
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req, res) => {
-    // Don't apply rate limit on non-POST requests
-    return req.method !== "POST";
-  },
+  keyGenerator: tenantKey,
   skip: (req, res) => {
     // Don't apply rate limit on non-POST requests
     return req.method !== "POST";

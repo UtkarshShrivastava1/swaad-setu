@@ -46,7 +46,7 @@ app.get("/health", (req, res) => res.json({ status: "ok" }));
 // 🔓 PUBLIC ROUTES (NO TENANT / NO AUTH REQUIRED)
 // ------------------------------------------------------------
 app.use("/api", tenantRoutes);
-app.use("/api", geminiRoutes);
+
 // ---------------- TENANT VALIDATOR
 // ------------------------------------------------------------
 app.use("/api/:rid", validateTenant);
@@ -59,6 +59,9 @@ app.get("/api/:rid/health", (req, res) =>
 // ------------------------------------------------------------
 // 📦 TENANT ROUTES (subscription loaded once per tenant)
 app.use("/api/:rid", loadSubscription);
+
+// -------------------- GEMINI --------------------
+app.use("/api/:rid", geminiRoutes);
 
 // -------------------- ORDERS --------------------
 app.use("/api/:rid/orders", orderRoutes);
