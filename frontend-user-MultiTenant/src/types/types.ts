@@ -40,11 +40,12 @@ export type Menu = {
 
 export type CartItem = {
   itemId: string;
-  name: string;
+  name:string;
   price: number;
   quantity: number;
   variant?: string; // e.g., "Half Plate", "Full Plate"
   notes?: string;
+  image?: string | null;
 };
 
 // New type for a combo when displayed as an item

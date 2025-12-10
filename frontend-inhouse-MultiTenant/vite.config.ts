@@ -7,11 +7,7 @@ import tsconfigPaths from "vite-tsconfig-paths";
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   return {
-    plugins: [
-      react(),
-      tailwindcss({ config: "./tailwind.config.js" }),
-      tsconfigPaths(),
-    ],
+    plugins: [react(), tailwindcss(), tsconfigPaths()],
     server: {
       port: 5173,
       proxy: {

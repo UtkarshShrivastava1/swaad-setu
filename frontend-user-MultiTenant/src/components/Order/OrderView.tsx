@@ -190,6 +190,12 @@ export default function OrderView({ orderId }: { orderId: string }) {
               </li>
             ))}
           </ul>
+          <button
+            onClick={() => navigate(`/t/${rid}/menu`)}
+            className="mt-4 w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 px-4 rounded-lg"
+          >
+            Add More Items
+          </button>
         </div>
 
         {/* Price Breakdown */}

@@ -29,7 +29,7 @@ export type Order = {
   paymentStatus: "unpaid" | "paid" | "partial";
   isCustomerOrder: boolean;
   customerName: string;
-  customerEmail: string;
+  customerEmail: string | null;
   customerContact?: string | null;
   staffAlias?: string | null;
   overrideToken?: string | null;
@@ -56,7 +56,7 @@ function normalizeOrderPayload(rid: string, tableId: string, payload: any) {
     sessionId,
     customerName: payload.customerName || "Guest User",
     customerContact: payload.customerContact || null,
-    customerEmail: payload.customerEmail || null,
+    customerEmail: payload.customerEmail ?? null,
     isCustomerOrder: true,
     staffAlias: "(Waiter)",
     notes: payload.notes || "",

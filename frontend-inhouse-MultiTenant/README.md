@@ -11,6 +11,16 @@ Currently, two official plugins are available:
 
 The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
 
+## Environment Variables
+
+To configure the API base URL, create a `.env` file in the root directory of the project and add the following line:
+
+```
+VITE_API_BASE_URL=http://localhost:5000
+```
+
+This will ensure that API requests are correctly proxied to your backend during development.
+
 ## Expanding the ESLint configuration
 
 If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:

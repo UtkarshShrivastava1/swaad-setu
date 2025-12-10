@@ -109,8 +109,8 @@ export default function CartDrawer() {
         const savedInfo = sessionStorage.getItem(`customerInfo_${tableId}`);
         if (savedInfo) {
           const { name, contact, email } = safeParse<any>(savedInfo, {});
-          if (name && contact && email) {
-            await placeOrderWithDetails(name, contact, email, false);
+          if (name && contact) {
+            await placeOrderWithDetails(name, contact, email || "", false);
           } else {
             setShowCustomerModal(true);
           }
@@ -129,7 +129,7 @@ export default function CartDrawer() {
   const placeOrderWithDetails = async (
     name: string,
     contact: string,
-    email: string,
+    email: string | null,
     isNewCustomer: boolean,
     activeOrder: ApiOrder | null = null
   ) => {
@@ -314,8 +314,8 @@ export default function CartDrawer() {
             {loading
               ? "Placing..."
               : hasActiveOrder
-              ? "Add More Items"
-              : "Place Order"}
+                ? "Add More Items"
+                : "Place Order"}
           </button>
         </div>
 

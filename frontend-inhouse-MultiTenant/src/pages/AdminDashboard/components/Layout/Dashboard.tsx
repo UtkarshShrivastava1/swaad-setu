@@ -58,7 +58,7 @@ function Dashboard() {
   const [revenueChange, setRevenueChange] = useState<number | null>(null);
   const [ordersChange, setOrdersChange] = useState<number | null>(null);
 
-  async function fetchAnalyticsData(): Promise<{
+  const fetchAnalyticsData = useCallback(async (): Promise<{
     todayRevenue: number;
     todayCount: number;
     yesterdayRevenue: number;
@@ -68,7 +68,7 @@ function Dashboard() {
     monthlyChartData: { name: string; value: number }[];
     peakHoursData: { hour: string; orders: number }[];
     topItemsData: { name: string; count: number }[];
-  }> {
+  }> => {
     if (!rid)
       return {
         todayRevenue: 0,
@@ -116,7 +116,9 @@ function Dashboard() {
         const rawDate = order.createdAt?.$date || order.createdAt || undefined;
         if (!rawDate) return;
 
-        const created = new Date(rawDate);
+        const created = new Date(
+          typeof rawDate === "string" ? rawDate : rawDate.$date
+        );
         if (isNaN(created.getTime())) return;
 
         const orderDay = created.getDate();
@@ -179,15 +181,16 @@ function Dashboard() {
         topItemsData: [],
       };
     }
-  }
+  }, [rid]);
 
-  async function fetchTableStats(): Promise<{
+  const fetchTableStats = useCallback(async (): Promise<{
     occupied: number;
     total: number;
-  }> {
+  }> => {
     if (!rid) return { occupied: 0, total: 0 };
     try {
-      const data = (await getTables(rid)) as ApiTable[];
+      const data: ApiTable[] = await getTables(rid);
+
       const total = data?.length || 0;
       const occupied =
         data?.filter((t) => t.status === "occupied").length || 0;
@@ -197,7 +200,7 @@ function Dashboard() {
       console.error("❌ Failed to fetch table stats:", err);
       return { occupied: 0, total: 0 };
     }
-  }
+  }, [rid]);
 
   const [lastBriefingGenerationAttempt, setLastBriefingGenerationAttempt] =
     useState<number>(0);
@@ -205,15 +208,15 @@ function Dashboard() {
   const [lastDashboardRefreshAttempt, setLastDashboardRefreshAttempt] =
     useState<number>(0);
 
-  const calculatePercentageChange = (
-    current: number,
-    previous: number
-  ): number | null => {
-    if (previous === 0) {
-      return current > 0 ? 100 : 0;
-    }
-    return ((current - previous) / previous) * 100;
-  };
+  const calculatePercentageChange = useCallback(
+    (current: number, previous: number): number | null => {
+      if (previous === 0) {
+        return current > 0 ? 100 : 0;
+      }
+      return ((current - previous) / previous) * 100;
+    },
+    []
+  );
 
   const refreshDashboard = useCallback(async () => {
     if (!rid) return;
@@ -288,7 +291,14 @@ function Dashboard() {
     } finally {
       setLoadingBriefing(false);
     }
-  }, [rid, lastBriefingGenerationAttempt, lastDashboardRefreshAttempt]);
+  }, [
+    rid,
+    lastBriefingGenerationAttempt,
+    lastDashboardRefreshAttempt,
+    fetchAnalyticsData,
+    fetchTableStats,
+    calculatePercentageChange,
+  ]);
 
   useEffect(() => {
     refreshDashboard();
@@ -524,7 +534,7 @@ function Dashboard() {
               tickLine={false}
             />
             <Tooltip
-              formatter={(value: number, name, props) => [
+              formatter={(value: number, _name, props) => [
                 value,
                 `Orders at ${formatHour(props.payload.hour)}`,
               ]}

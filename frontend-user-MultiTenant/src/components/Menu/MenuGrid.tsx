@@ -57,6 +57,7 @@ export default function RestaurantMenuApp({
         quantity: 1,
         variant: "combo",
         notes: (itemToAdd as ComboItem).description,
+        image: itemToAdd.image,
       });
       setShowSuccessPop(true);
       setTimeout(() => setShowSuccessPop(false), 600);
@@ -345,7 +346,7 @@ export default function RestaurantMenuApp({
               if (item.type === "combo") {
                 return (
                   <ComboCard
-                    key={item.itemId}
+                    key={`combo-${item.itemId}`}
                     combo={item as ComboItem}
                     onAdd={() => handleAddItemToCart(item)}
                   />
@@ -354,7 +355,7 @@ export default function RestaurantMenuApp({
 
               return (
                 <MenuCard
-                  key={item.itemId}
+                  key={`item-${item.itemId}`}
                   item={item as MenuItem}
                   onAdd={() => handleAddItemToCart(item)}
                 />
@@ -394,6 +395,7 @@ export default function RestaurantMenuApp({
                     price: modalItem.price,
                     quantity: 1,
                     notes: chefNote,
+                    image: modalItem.image,
                   };
 
                   addItem(newItem);

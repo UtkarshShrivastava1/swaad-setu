@@ -25,6 +25,13 @@ export default function HomePage() {
   const tableNumber = table?.tableNumber || "";
   const [activeOrder, setActiveOrder] = useState<ApiOrderType | null>(null);
 
+  const sessionId =
+    sessionStorage.getItem("resto_session_id") ||
+    `sess_${Math.random().toString(36).substring(2, 12)}`;
+  useEffect(() => {
+    sessionStorage.setItem("resto_session_id", sessionId);
+  }, [sessionId]);
+
   /* ================= ACTIVE ORDER FETCH ================= */
 
   useEffect(() => {
@@ -32,9 +39,9 @@ export default function HomePage() {
       if (!rid || !tableId) return;
 
       try {
-        // Fetch all orders for the table WITHOUT sessionId filter
+        // Fetch all orders for the table WITH sessionId filter
         // This ensures we get the latest active order regardless of sessionId
-        const data = await getOrdersByTable(rid, tableId);
+        const data = await getOrdersByTable(rid, tableId, sessionId);
         const foundOrder = data.find(
           (o) => o.status !== "completed" && o.status !== "cancelled"
         );
