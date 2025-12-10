@@ -1,11 +1,11 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { client } from "../api/client";
-import { useTenant } from "../context/TenantContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { motion } from "framer-motion";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { client } from "../api/client";
+import { useTenant } from "../context/TenantContext";
 
 // Define the expected response shape from the registration API
 interface RegistrationResponse {
@@ -38,10 +38,17 @@ const FormField = ({ id, label, ...props }) => (
     transition={{ duration: 0.5 }}
     className="space-y-2"
   >
-    <Label htmlFor={id} className="font-semibold text-gray-700 dark:text-gray-300">
+    <Label
+      htmlFor={id}
+      className="font-semibold text-gray-700 dark:text-gray-300"
+    >
       {label}
     </Label>
-    <Input id={id} {...props} className="bg-white dark:bg-white text-black border-gray-300 dark:border-gray-700/50 focus:ring-2 focus:ring-offset-1 focus:ring-offset-white dark:focus:ring-offset-gray-900 focus:ring-blue-500/70 transition-shadow duration-300" />
+    <Input
+      id={id}
+      {...props}
+      className="bg-white dark:bg-white text-black border-gray-300 dark:border-gray-700/50 focus:ring-2 focus:ring-offset-1 focus:ring-offset-white dark:focus:ring-offset-gray-900 focus:ring-blue-500/70 transition-shadow duration-300"
+    />
   </motion.div>
 );
 
@@ -98,11 +105,13 @@ export default function RestaurantRegistration() {
         "/api/tenants/register",
         payload
       );
-      
+
       setResult(res.data || res);
     } catch (err: unknown) {
       const errorMessage =
-        err instanceof Error ? err.message : "Registration failed. Please check your details and try again.";
+        err instanceof Error
+          ? err.message
+          : "Registration failed. Please check your details and try again.";
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -119,7 +128,9 @@ export default function RestaurantRegistration() {
           className="w-full max-w-md bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-8 text-center"
         >
           <CheckCircle className="w-20 h-20 mx-auto text-green-500" />
-          <h1 className="text-4xl font-bold mt-6 text-gray-800 dark:text-gray-100">Registration Successful!</h1>
+          <h1 className="text-4xl font-bold mt-6 text-gray-800 dark:text-gray-100">
+            Registration Successful!
+          </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-2">
             Your restaurant is ready for setup.
           </p>
@@ -156,7 +167,9 @@ export default function RestaurantRegistration() {
       >
         <div className="p-8 md:p-12">
           <div className="text-center mb-10">
-            <h1 className="text-4xl font-bold text-gray-800 dark:text-gray-100">Register Your Restaurant</h1>
+            <h1 className="text-4xl font-bold text-gray-800 dark:text-gray-100">
+              Register Your Restaurant
+            </h1>
             <p className="text-gray-600 dark:text-gray-400 mt-2">
               Join Swaad Setu and start managing your restaurant with ease.
             </p>
@@ -173,10 +186,40 @@ export default function RestaurantRegistration() {
                     Basic information about your restaurant and ownership.
                   </p>
                 </div>
-                <FormField id="restaurantName" label="Restaurant Name" name="restaurantName" value={form.restaurantName} onChange={handleChange} required />
-                <FormField id="ownerName" label="Owner Name" name="ownerName" value={form.ownerName} onChange={handleChange} required />
-                <FormField id="email" label="Email Address" name="email" type="email" value={form.email} onChange={handleChange} required />
-                <FormField id="phone" label="Phone Number" name="phone" type="tel" value={form.phone} onChange={handleChange} required />
+                <FormField
+                  id="restaurantName"
+                  label="Restaurant Name"
+                  name="restaurantName"
+                  value={form.restaurantName}
+                  onChange={handleChange}
+                  required
+                />
+                <FormField
+                  id="ownerName"
+                  label="Owner Name"
+                  name="ownerName"
+                  value={form.ownerName}
+                  onChange={handleChange}
+                  required
+                />
+                <FormField
+                  id="email"
+                  label="Email Address"
+                  name="email"
+                  type="email"
+                  value={form.email}
+                  onChange={handleChange}
+                  required
+                />
+                <FormField
+                  id="phone"
+                  label="Phone Number"
+                  name="phone"
+                  type="tel"
+                  value={form.phone}
+                  onChange={handleChange}
+                  required
+                />
               </div>
 
               {/* Right Column */}
@@ -189,14 +232,49 @@ export default function RestaurantRegistration() {
                     Where your business is located.
                   </p>
                 </div>
-                <FormField id="street" label="Street" name="street" value={form.address.street} onChange={handleChange} required />
+                <FormField
+                  id="street"
+                  label="Street"
+                  name="street"
+                  value={form.address.street}
+                  onChange={handleChange}
+                  required
+                />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <FormField id="city" label="City" name="city" value={form.address.city} onChange={handleChange} required />
-                  <FormField id="state" label="State / Province" name="state" value={form.address.state} onChange={handleChange} required />
+                  <FormField
+                    id="city"
+                    label="City"
+                    name="city"
+                    value={form.address.city}
+                    onChange={handleChange}
+                    required
+                  />
+                  <FormField
+                    id="state"
+                    label="State / Province"
+                    name="state"
+                    value={form.address.state}
+                    onChange={handleChange}
+                    required
+                  />
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <FormField id="zip" label="ZIP / Postal Code" name="zip" value={form.address.zip} onChange={handleChange} required />
-                  <FormField id="country" label="Country" name="country" value={form.address.country} onChange={handleChange} required />
+                  <FormField
+                    id="zip"
+                    label="ZIP / Postal Code"
+                    name="zip"
+                    value={form.address.zip}
+                    onChange={handleChange}
+                    required
+                  />
+                  <FormField
+                    id="country"
+                    label="Country"
+                    name="country"
+                    value={form.address.country}
+                    onChange={handleChange}
+                    required
+                  />
                 </div>
               </div>
             </div>
@@ -234,3 +312,5 @@ export default function RestaurantRegistration() {
     </div>
   );
 }
+// --- IGNORE ---
+// vim: set ts=2 sw=2 sts=2 et:
