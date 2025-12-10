@@ -185,6 +185,7 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
       sessionId,
       customerName,
       customerContact: cleanedContact,
+      customerEmail,
       items: cartItems.map((item) => ({
         menuItemId: item.itemId,
         name: item.name,
