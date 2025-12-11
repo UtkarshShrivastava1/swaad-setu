@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/Select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { motion } from "framer-motion";
@@ -6,6 +7,45 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { client } from "../api/client";
 import { useTenant } from "../context/TenantContext";
+
+const indianStates = [
+  "Andhra Pradesh",
+  "Arunachal Pradesh",
+  "Assam",
+  "Bihar",
+  "Chhattisgarh",
+  "Goa",
+  "Gujarat",
+  "Haryana",
+  "Himachal Pradesh",
+  "Jharkhand",
+  "Karnataka",
+  "Kerala",
+  "Madhya Pradesh",
+  "Maharashtra",
+  "Manipur",
+  "Meghalaya",
+  "Mizoram",
+  "Nagaland",
+  "Odisha",
+  "Punjab",
+  "Rajasthan",
+  "Sikkim",
+  "Tamil Nadu",
+  "Telangana",
+  "Tripura",
+  "Uttar Pradesh",
+  "Uttarakhand",
+  "West Bengal",
+  "Andaman and Nicobar Islands",
+  "Chandigarh",
+  "Dadra and Nagar Haveli and Daman and Diu",
+  "Delhi",
+  "Jammu and Kashmir",
+  "Ladakh",
+  "Lakshadweep",
+  "Puducherry"
+];
 
 // Define the expected response shape from the registration API
 interface RegistrationResponse {
@@ -31,7 +71,7 @@ const CheckCircle = ({ className }: { className?: string }) => (
 );
 
 // FormField component for consistent styling and animation
-const FormField = ({ id, label, ...props }) => (
+const FormField = ({ id, label, as: Component = Input, children, ...props }) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
@@ -44,11 +84,13 @@ const FormField = ({ id, label, ...props }) => (
     >
       {label}
     </Label>
-    <Input
+    <Component
       id={id}
       {...props}
       className="bg-white dark:bg-white text-black border-gray-300 dark:border-gray-700/50 focus:ring-2 focus:ring-offset-1 focus:ring-offset-white dark:focus:ring-offset-gray-900 focus:ring-blue-500/70 transition-shadow duration-300"
-    />
+    >
+      {children}
+    </Component>
   </motion.div>
 );
 
@@ -63,7 +105,7 @@ export default function RestaurantRegistration() {
       city: "",
       state: "",
       zip: "",
-      country: "",
+      country: "India",
     },
   });
 
@@ -73,8 +115,17 @@ export default function RestaurantRegistration() {
   const navigate = useNavigate();
   const { setRid } = useTenant();
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
+
+    if (name === "phone") {
+      const numericValue = value.replace(/[^0-9]/g, "");
+      if (numericValue.length <= 10) {
+        setForm((prev) => ({ ...prev, [name]: numericValue }));
+      }
+      return;
+    }
+
     if (name in form.address) {
       setForm((prev) => ({
         ...prev,
@@ -219,6 +270,9 @@ export default function RestaurantRegistration() {
                   value={form.phone}
                   onChange={handleChange}
                   required
+                  maxLength={10}
+                  pattern="\d{10}"
+                  title="Phone number must be 10 digits"
                 />
               </div>
 
@@ -250,13 +304,19 @@ export default function RestaurantRegistration() {
                     required
                   />
                   <FormField
+                    as={Select}
                     id="state"
                     label="State / Province"
                     name="state"
                     value={form.address.state}
                     onChange={handleChange}
                     required
-                  />
+                  >
+                    <option value="" disabled>Select a state</option>
+                    {indianStates.map(state => (
+                      <option key={state} value={state}>{state}</option>
+                    ))}
+                  </FormField>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <FormField
@@ -274,6 +334,7 @@ export default function RestaurantRegistration() {
                     value={form.address.country}
                     onChange={handleChange}
                     required
+                    disabled
                   />
                 </div>
               </div>
@@ -299,9 +360,8 @@ export default function RestaurantRegistration() {
               </Button>
               <Button
                 type="button"
-                variant="outline"
                 onClick={() => navigate("/select-restaurant")}
-                className="w-full sm:w-auto text-lg py-3 px-8 rounded-lg border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                className="w-full sm:w-auto text-lg py-3 px-8 rounded-lg bg-gray-700 text-white hover:bg-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700 transition-colors"
               >
                 Back to Selector
               </Button>

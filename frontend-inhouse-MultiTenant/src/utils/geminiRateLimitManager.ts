@@ -308,7 +308,7 @@ class GeminiRateLimitManager {
    * Actual API call to Gemini endpoint
    */
   private async callGeminiAPI(
-    _tenantId: string,
+    tenantId: string,
     prompt: string
   ): Promise<{
     statusCode: number;
@@ -322,13 +322,12 @@ class GeminiRateLimitManager {
         : import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/gemini`, {
+      const response = await fetch(`${apiBaseUrl}/api/${tenantId}/gemini`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "gemini-2.5-flash",
           prompt,
         }),
       });

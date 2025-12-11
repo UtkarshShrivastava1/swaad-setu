@@ -11,7 +11,7 @@ const { Schema } = mongoose;
 const MenuItemSchema = new Schema({
   itemId: {
     type: String,
-    unique: true,
+    
     index: true,
     // ✅ NOT required anymore (backend will auto-generate)
   },

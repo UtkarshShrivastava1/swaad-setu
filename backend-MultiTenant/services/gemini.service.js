@@ -1,59 +1,8 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
-
-/**
- * Simple in-memory cache for Gemini responses
- * Uses Map with TTL support (24 hours by default)
- */
-class SimpleCache {
-  constructor(options = {}) {
-    this.cache = new Map();
-    this.ttl = options.stdTTL || 86400; // Default: 24 hours
-    this.stats = { hits: 0, misses: 0 };
-  }
-
-  set(key, value) {
-    const expiresAt = Date.now() + this.ttl * 1000;
-    this.cache.set(key, { value, expiresAt });
-  }
-
-  get(key) {
-    const entry = this.cache.get(key);
-
-    if (!entry) {
-      this.stats.misses++;
-      return undefined;
-    }
-
-    // Check if expired
-    if (Date.now() > entry.expiresAt) {
-      this.cache.delete(key);
-      this.stats.misses++;
-      return undefined;
-    }
-
-    this.stats.hits++;
-    return entry.value;
-  }
-
-  flushAll() {
-    this.cache.clear();
-    this.stats = { hits: 0, misses: 0 };
-  }
-
-  getStats() {
-    return {
-      ...this.stats,
-      ksize: this.cache.size,
-      vsize: Array.from(this.cache.values()).reduce(
-        (sum, entry) => sum + JSON.stringify(entry.value).length,
-        0
-      ),
-    };
-  }
-}
+const RedisCache = require("../common/libs/redisCache");
 
 // Simple in-memory cache for Gemini responses (TTL: 24 hours)
-const responseCache = new SimpleCache({ stdTTL: 86400 });
+const responseCache = new RedisCache({ stdTTL: 86400 });
 
 /**
  * Generate a cache key from prompt
@@ -132,7 +81,7 @@ async function generateContent(prompt, options = {}) {
   // Check cache first
   if (useCache) {
     const cacheKey = getCacheKey(prompt);
-    const cachedResponse = responseCache.get(cacheKey);
+    const cachedResponse = await responseCache.get(cacheKey);
 
     if (cachedResponse) {
       console.log("[Gemini] Cache hit for prompt");
@@ -161,7 +110,7 @@ async function generateContent(prompt, options = {}) {
 
     if (useCache) {
       const cacheKey = getCacheKey(prompt);
-      responseCache.set(cacheKey, mockResponse);
+      await responseCache.set(cacheKey, mockResponse);
     }
 
     return {
@@ -183,7 +132,7 @@ async function generateContent(prompt, options = {}) {
   // Cache the response
   if (useCache) {
     const cacheKey = getCacheKey(prompt);
-    responseCache.set(cacheKey, text);
+    await responseCache.set(cacheKey, text);
   }
 
   return {
@@ -195,15 +144,15 @@ async function generateContent(prompt, options = {}) {
 /**
  * Clear cache (useful for testing)
  */
-function clearCache() {
-  responseCache.flushAll();
+async function clearCache() {
+  await responseCache.flushAll();
 }
 
 /**
  * Get cache stats (for monitoring)
  */
-function getCacheStats() {
-  return responseCache.getStats();
+async function getCacheStats() {
+  return await responseCache.getStats();
 }
 
 module.exports = {

@@ -95,6 +95,7 @@ export default function BillsOverview() {
 
       try {
         const briefing = await generateBillBriefing(
+          rid,
           billsSummary.activeBills,
           billsSummary.paidToday,
           billsSummary.revenueToday,

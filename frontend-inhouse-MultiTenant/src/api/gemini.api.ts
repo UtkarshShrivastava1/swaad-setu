@@ -14,15 +14,22 @@ const API_BASE_URL =
  * Now uses rate limit manager internally
  * @deprecated Use generateMenuItemDescription instead for new code
  */
-const generateContent = async (prompt: string): Promise<string> => {
+const generateContent = async (
+  prompt: string,
+  tenantId?: string
+): Promise<string> => {
+  if (!tenantId) {
+    console.error("Error: tenantId is required for generateContent");
+    return "Failed to generate content due to missing tenant ID.";
+  }
+
   try {
-    const response = await fetch(`${API_BASE_URL}/api/gemini`, {
+    const response = await fetch(`${API_BASE_URL}/api/${tenantId}/gemini`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: GEMINI_MODEL_NAME,
         prompt,
       }),
     });
@@ -34,7 +41,6 @@ const generateContent = async (prompt: string): Promise<string> => {
     }
 
     const data = await response.json();
-    // Handle both possible response structures
     return data.content || data.text || JSON.stringify(data);
   } catch (error) {
     console.error("Error calling Gemini proxy:", error);
@@ -56,6 +62,7 @@ export const generateContentWithRateLimit = async (
 };
 
 export const generateDailyBriefing = async (
+  rid: string,
   todayRevenue: number,
   todayOrders: number,
   monthlyRevenue: number,
@@ -102,22 +109,28 @@ Bad Examples (Marketing-focused):
 Generate one practical, management-focused insight now.
 `;
 
-  let text = await generateContent(prompt);
+  const response = await generateContentWithRateLimit(rid, prompt);
 
-  // Hard client-side safety
-  text = text
-    .replace(/[\n"'`]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  if (response.success && response.content) {
+    let text = response.content;
+    // Hard client-side safety
+    text = text
+      .replace(/[\n"'`]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
 
-  if (!text) {
-    return "Unable to generate daily briefing.";
+    if (!text) {
+      return "Unable to generate daily briefing.";
+    }
+    return text;
+  } else {
+    console.error("Failed to generate daily briefing:", response.error);
+    return `Failed to generate content.`;
   }
-
-  return text;
 };
 
 export const generateBillBriefing = async (
+  rid: string,
   activeBills: number,
   paidToday: number,
   revenueToday: number,
@@ -135,30 +148,38 @@ Revenue Today: ,1${revenueToday}
 Average Bill Value: ,1${avgBillValue}
 `;
 
-  let text = await generateContent(prompt);
+  const response = await generateContentWithRateLimit(rid, prompt);
 
-  // Hard client-side safety
-  text = text
-    .replace(/[\n"'`]/g, "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 150); // Limit to 150 characters for a concise summary
-
-  if (!text) {
-    return "Unable to generate bill briefing.";
+  if (response.success && response.content) {
+    let text = response.content;
+    // Hard client-side safety
+    text = text
+      .replace(/[\n"'`]/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 150); // Limit to 150 characters for a concise summary
+    if (!text) {
+      return "Unable to generate bill briefing.";
+    }
+    return text;
+  } else {
+    console.error("Failed to generate bill briefing:", response.error);
+    return `Failed to generate bill briefing.`;
   }
-
-  return text;
 };
 
 export const generateMenuItemDescription = async (
+  rid: string,
   itemName: string
-): Promise<string> => {
+): Promise<GeminiResponse> => {
   if (!itemName?.trim()) {
-    return `Classic ${itemName?.slice(0, 16) || "Dish"}`;
+    return {
+      success: false,
+      error: "Item name is empty",
+      statusCode: 400,
+    };
   }
 
-  // o. CHARACTER-BASED PROMPT (NOT WORD-BASED)
   const prompt = `
 You are a menu description generator for a restaurant SaaS app.
 
@@ -175,19 +196,22 @@ Return only the description text
 Food Item: ${itemName}
 `;
 
-  let text = await generateContent(prompt);
+  const response = await generateContentWithRateLimit(rid, prompt);
 
-  // o. HARD CLIENT-SIDE SAFETY
-  text = text
-    .replace(/[\n"'`]/g, "")
-    .replace(/[^\w\s]/g, "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 70);
+  if (response.success && response.content) {
+    let text = response.content;
+    // o. HARD CLIENT-SIDE SAFETY
+    text = text
+      .replace(/[\n"'`]/g, "")
+      .replace(/[^\w\s]/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 70);
 
-  if (!text) {
-    return `Classic ${itemName.slice(0, 16)}`;
+    if (!text) {
+      return { ...response, success: false, error: "Generated empty content" };
+    }
+    return { ...response, content: text };
   }
-
-  return text;
+  return response;
 };

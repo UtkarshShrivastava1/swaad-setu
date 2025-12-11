@@ -32,26 +32,32 @@ async function seedTables(rid) {
 
 // Utility: seed default menu
 async function seedMenu(rid) {
+  const item1Id = "m1";
+  const item2Id = "m2";
+
   await Menu.create({
     restaurantId: rid,
     isActive: true,
+    items: [
+      {
+        itemId: item1Id,
+        name: "Masala Dosa",
+        price: 120,
+        description: "Crispy dosa with aromatic potato masala.",
+        isAvailable: true,
+      },
+      {
+        itemId: item2Id,
+        name: "Paneer Butter Masala",
+        price: 180,
+        description: "Creamy and rich gravy with paneer cubes.",
+        isAvailable: true,
+      },
+    ],
     categories: [
       {
         name: "Recommended",
-        items: [
-          {
-            name: "Masala Dosa",
-            price: 120,
-            description: "Crispy dosa with aromatic potato masala.",
-            isAvailable: true,
-          },
-          {
-            name: "Paneer Butter Masala",
-            price: 180,
-            description: "Creamy and rich gravy with paneer cubes.",
-            isAvailable: true,
-          },
-        ],
+        itemIds: [item1Id, item2Id],
       },
     ],
   });

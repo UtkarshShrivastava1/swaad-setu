@@ -276,6 +276,7 @@ function Dashboard() {
     setLastBriefingGenerationAttempt(Date.now());
     try {
       const briefing = await generateDailyBriefing(
+        rid,
         analyticsData.todayRevenue,
         analyticsData.todayCount,
         analyticsData.monthlyRevenue,

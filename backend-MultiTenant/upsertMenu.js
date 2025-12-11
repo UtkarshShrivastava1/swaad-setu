@@ -21,13 +21,13 @@ const mongoose = require("mongoose");
           menu: {
             items: [
               {
-                id: "m1",
+                itemId: "m1",
                 name: "Paneer Butter Masala",
                 price: 250,
                 description: "Rich tomato-cashew gravy",
               },
               {
-                id: "m2",
+                itemId: "m2",
                 name: "Gulab Jamun",
                 price: 80,
                 description: "Sweet dumplings",

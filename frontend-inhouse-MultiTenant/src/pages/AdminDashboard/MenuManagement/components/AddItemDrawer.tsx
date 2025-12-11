@@ -16,7 +16,7 @@ import {
   deleteMenuItem,
   updateMenuItem,
 } from "../../../../api/admin/menu.api";
-import { generateContentWithRateLimit } from "../../../../api/gemini.api";
+import { generateMenuItemDescription } from "../../../../api/gemini.api";
 import { searchPexelsImages } from "../../../../api/pexels.api"; // Import Pexels API
 import { handleGeminiError } from "../../../../utils/geminiErrorHandler";
 import useDebounce from "../../hooks/useDebounce"; // Import useDebounce hook
@@ -215,7 +215,7 @@ const AddItemDrawer: React.FC<AddItemDrawerProps> = ({
 
         try {
           // Use rate-limited version with tenant awareness
-          const response = await generateContentWithRateLimit(
+          const response = await generateMenuItemDescription(
             rid || "unknown",
             debouncedItemName
           );
@@ -263,7 +263,7 @@ const AddItemDrawer: React.FC<AddItemDrawerProps> = ({
 
     try {
       // Use rate-limited version with tenant awareness
-      const response = await generateContentWithRateLimit(
+      const response = await generateMenuItemDescription(
         rid || "unknown",
         name
       );
