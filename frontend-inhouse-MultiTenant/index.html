@@ -1,14 +1,76 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="en" class="dark scroll-smooth">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Staff:In_house_users</title>
+
+    <!-- Website Branding -->
+    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+    <title>Swaad Setu</title>
+
+    <!-- SEO Meta Tags -->
+    <meta
+      name="description"
+      content="Swaad Setu – The smart multi-tenant food ordering and restaurant management platform."
+    />
+    <meta
+      name="keywords"
+      content="Swaad Setu, food order, restaurant, POS, multi-tenant"
+    />
+
+    <!-- Mobile Optimization -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1"
+    />
+    <meta name="theme-color" content="#000000" />
+
+    <!-- Apple Touch (iOS PWA icon) -->
+    <link rel="apple-touch-icon" href="/logo.svg" />
+
+    <!-- Preload important fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Custom global styles for background + fading -->
+    <style>
+      body {
+        margin: 0;
+        background: #0a0a0a; /* Pure dark for premium look */
+        color: #e5e5e5;
+        font-family: "Inter", sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      #root,
+      #modal-root {
+        position: relative;
+        z-index: 0;
+      }
+
+      /* Nice fade animation for page load */
+      .fade-in {
+        animation: fadeIn 0.4s ease-out forwards;
+        opacity: 0;
+      }
+      @keyframes fadeIn {
+        to {
+          opacity: 1;
+        }
+      }
+    </style>
   </head>
-  <body>
+
+  <body class="fade-in">
+    <!-- Main React App -->
     <div id="root"></div>
+
+    <!-- Modals render here -->
     <div id="modal-root"></div>
+
+    <!-- Main Script -->
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

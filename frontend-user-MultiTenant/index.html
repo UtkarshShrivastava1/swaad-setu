@@ -1,14 +1,78 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="en" class="dark scroll-smooth">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend-user</title>
+
+    <!-- Branding -->
+    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+    <title>Swaad Setu – User App</title>
+
+    <!-- SEO -->
+    <meta
+      name="description"
+      content="Swaad Setu user app — seamless food ordering, restaurant menus, smart cart, and real-time order tracking."
+    />
+    <meta
+      name="keywords"
+      content="food order, restaurant, delivery, Swaad Setu, cart, menu"
+    />
+
+    <!-- Mobile -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1"
+    />
+    <meta name="theme-color" content="#000000" />
+
+    <!-- iOS support -->
+    <link rel="apple-touch-icon" href="/logo.svg" />
+
+    <!-- Preload fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Existing Tailwind/CSS -->
     <link href="/src/index.css" rel="stylesheet" />
+
+    <!-- Custom Global Styles -->
+    <style>
+      body {
+        margin: 0;
+        background: #0a0a0a;
+        color: #e5e5e5;
+        font-family: "Inter", sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      /* Smooth fade-in animation */
+      .fade-in {
+        animation: fadeIn 0.35s ease-out forwards;
+        opacity: 0;
+      }
+
+      @keyframes fadeIn {
+        to {
+          opacity: 1;
+        }
+      }
+
+      /* Improve touch scrolling */
+      html,
+      body {
+        overscroll-behavior-y: none;
+      }
+    </style>
   </head>
-  <body>
+
+  <body class="fade-in">
+    <!-- Root React App -->
     <div id="root"></div>
+
+    <!-- Main Script -->
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
