@@ -2,6 +2,7 @@ const Admin = require("../models/admin.model");
 const Menu = require("../models/menu.model");
 const Table = require("../models/table.model");
 const { SUBSCRIPTIONS } = require("../config/subscriptions");
+const { addTenantToCache } = require("../common/middlewares/tenant.middleware");
 
 const crypto = require("crypto");
 const bcrypt = require("bcrypt");
@@ -122,6 +123,9 @@ exports.registerRestaurant = async (req, res, next) => {
         createdAt: new Date(),
       },
     });
+
+    // Add to tenant cache
+    addTenantToCache(admin.toObject());
 
     // ---------------------------
     //  Auto-Seed Tables

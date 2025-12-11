@@ -21,6 +21,7 @@
     "chalk": "^4.1.2",
     "cli-table3": "^0.6.5",
     "cloudinary": "^1.41.3",
+    "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "express-rate-limit": "^8.1.0",
@@ -35,6 +36,7 @@
     "socket.io": "^4.8.1"
   },
   "devDependencies": {
+    "concurrently": "^9.2.1",
     "eslint": "^9.35.0",
     "minimist": "^1.2.8",
     "nodemon": "^3.1.10"

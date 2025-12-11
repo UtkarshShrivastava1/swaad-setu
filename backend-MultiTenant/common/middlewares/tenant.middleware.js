@@ -31,8 +31,25 @@ function getTenants() {
   return tenants;
 }
 
+function addTenantToCache(tenant) {
+  if (tenant && tenant.restaurantId) {
+    // To prevent duplicates, remove existing tenant with the same id first
+    const index = tenants.findIndex(t => t.restaurantId === tenant.restaurantId);
+    if (index !== -1) {
+      tenants.splice(index, 1);
+    }
+    const newTenant = JSON.parse(JSON.stringify(tenant));
+    if(!newTenant.tenantId) {
+      newTenant.tenantId = newTenant.restaurantId;
+    }
+    tenants.push(newTenant);
+    logger.info(`Tenant ${tenant.restaurantId} added/updated in cache. Total tenants in cache: ${tenants.length}`);
+  }
+}
+
 function validateTenant(req, res, next) {
   const rid = req.params.rid;
+  logger.info(`Validating tenant for rid: ${rid}. Current tenants in cache: ${tenants.map(t => t.restaurantId).join(', ')}`);
 
   if (!rid) {
     return res
@@ -55,4 +72,5 @@ module.exports = {
   loadTenants,
   getTenants,
   validateTenant,
+  addTenantToCache,
 };
