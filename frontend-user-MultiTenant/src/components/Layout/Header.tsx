@@ -1,13 +1,13 @@
 import {
   AlertCircle,
-  ArrowLeft,
   BellRing,
   CheckCircle2,
   Clock,
   LogOut,
   MapPin,
+  Search,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createCall, getCall } from "../../api/call.api";
 import { useTenant } from "../../context/TenantContext";
@@ -24,7 +24,7 @@ export default function Header({
   table,
 }) {
   const navigate = useNavigate();
-  const { rid } = useTenant();
+  const { rid, tenant } = useTenant();
   const [callActive, setCallActive] = useState(() => {
     try {
       const activeCall = sessionStorage.getItem("active_call");
@@ -41,6 +41,9 @@ export default function Header({
     type: "success" | "error";
     message: string;
   }>(null);
+
+  const restaurantName = tenant?.restaurantName || "Restaurant Name";
+  const dashboardTitle = variant === "menu" ? "Menu" : pageTitle;
 
   const tableId = table?._id;
 
@@ -139,102 +142,96 @@ export default function Header({
       </div>
     );
 
-  /* ================= YELLOW MENU VARIANT ================= */
-  if (variant === "menu") {
-    return (
-      <header className="sticky top-0 z-50 bg-gradient-to-r from-yellow-400 to-yellow-500 shadow-lg border-b border-black/10">
-        <Toast />
-
-        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2 px-4 py-3">
-          <h1 className="text-black font-black tracking-wide text-lg">Menu</h1>
-
-          <div className="flex items-center flex-wrap gap-4">
-            <span className="flex items-center gap-1 text-sm text-black">
-              <MapPin size={14} />
-              Table {tableNumber}
-            </span>
-
-            <span className="flex items-center gap-1 text-sm text-black">
-              <Clock size={14} />
-              {waitTime}
-            </span>
-
-            <button
-              onClick={handleCallWaiterClick}
-              className={`${
-                callActive
-                  ? "ring-2 ring-green-600 animate-pulse text-green-500"
-                  : "text-yellow-400"
-              } flex items-center gap-1 bg-black px-3 py-1.5 rounded-full font-semibold hover:bg-black/80 transition`}
-            >
-              <BellRing size={14} /> Call Waiter
-            </button>
-
-            <button
-              onClick={handleLogout}
-              title="Logout"
-              className="bg-black/90 hover:bg-black text-yellow-400 px-3 py-1.5 rounded-full flex items-center gap-1 text-xs font-semibold transition"
-            >
-              <LogOut size={14} />
-            </button>
-          </div>
-        </div>
-
-        {searchBar && (
-          <div className="max-w-5xl mx-auto px-4 pb-2">{searchBar}</div>
-        )}
-
-        {categoryTabs && (
-          <div className="max-w-7xl mx-auto px-4 pb-3">{categoryTabs}</div>
-        )}
-      </header>
-    );
-  }
-
-  /* ================= YELLOW OTHER VARIANT ================= */
   return (
-    <header className="sticky top-0 z-50 bg-gradient-to-r from-yellow-400 to-yellow-500 shadow-lg border-b border-black/10">
+    <header className="sticky top-0 z-50 w-full max-w-full overflow-x-hidden">
       <Toast />
+      {/* 🌌 GLASS NAVBAR */}
+      <div className="relative w-full bg-black backdrop-blur-xl border-b border-neutral-800 shadow-[0_10px_40px_rgba(0,0,0,0.6)] overflow-hidden">
+        {/* subtle glass highlight */}
+        <div className="absolute inset-0 bg-gradient-to-b from-white/[0.04] to-transparent pointer-events-none" />
 
-      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-        <div className="flex items-center gap-2">
-          {onBack && (
-            <button
-              onClick={onBack}
-              className="p-2 rounded-full hover:bg-black/10 transition"
-            >
-              <ArrowLeft size={20} className="text-black" />
-            </button>
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16 sm:h-20">
+            {/* ================= LEFT ================= */}
+            {/* ================= LEFT: LOGO ================= */}
+            <div className="flex justify-start items-center flex-1">
+              <img
+                src="/logo.png"
+                alt="SwaadSetu"
+                className="h-8 sm:h-10 drop-shadow-[0_0_12px_rgba(245,158,11,0.15)]"
+              />
+            </div>
+
+            {/* ================= CENTER: BRAND / TITLE ================= */}
+            <div className="flex justify-center min-w-0">
+              <div className="text-center min-w-0">
+                <div className="text-base sm:text-lg font-semibold text-amber-400 truncate">
+                  {restaurantName}
+                </div>
+                <div className="text-xs text-amber-500 tracking-wide">
+                  {dashboardTitle}
+                </div>
+              </div>
+            </div>
+
+            {/* ================= RIGHT: ACTIONS ================= */}
+            <div className="flex justify-end items-center flex-1">
+              <div className="flex items-center gap-2 sm:gap-3">
+                {variant === "menu" && (
+                  <span className="flex items-center gap-1 text-sm text-white">
+                    <Clock size={14} />
+                    {waitTime}
+                  </span>
+                )}
+                <span className="flex items-center gap-1 text-sm text-white">
+                  <MapPin size={14} />
+                  Table {tableNumber}
+                </span>
+
+                <button
+                  onClick={handleCallWaiterClick}
+                  className={`relative p-2.5 rounded-xl bg-amber-400 hover:bg-amber-500 border border-amber-600 shadow-md hover:shadow-lg transition focus:ring-2 focus:ring-black/40 ${
+                    callActive ? "ring-2 ring-green-600 animate-pulse" : ""
+                  }`}
+                >
+                  <BellRing className="h-5 w-5 text-black" />
+                  {callActive && (
+                    <>
+                      <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 animate-ping opacity-60" />
+                      <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center shadow">
+                        !
+                      </span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  onClick={handleLogout}
+                  className="p-2.5 rounded-xl bg-amber-400 hover:bg-amber-500 border border-amber-600 shadow-md hover:shadow-lg transition focus:ring-2 focus:ring-black/40"
+                >
+                  <LogOut className="h-5 w-5 text-black" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {(searchBar || categoryTabs) && (
+            <div className="md:hidden pb-3">
+              {searchBar && (
+                <div className="flex items-center bg-amber-400 rounded-xl px-3 py-2 gap-2 border border-amber-600 shadow-inner mb-2">
+                  <Search className="h-4 w-4 text-black" />
+                  {/* Assuming searchBar is an input or similar component that you want to style */}
+                  {/* For now, just rendering it as is, or you might need to extract its input for styling */}
+                  {searchBar}
+                </div>
+              )}
+              {categoryTabs && (
+                <div className="max-w-7xl mx-auto px-4 pb-3">
+                  {categoryTabs}
+                </div>
+              )}
+            </div>
           )}
-          <span className="text-black font-bold text-base sm:text-lg">
-            {pageTitle}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <span className="flex items-center gap-2 text-sm text-black">
-            <MapPin size={14} />
-            Table {tableNumber}
-          </span>
-
-          <button
-            onClick={handleCallWaiterClick}
-            className={`${
-              callActive
-                ? "ring-2 ring-green-600 animate-pulse text-green-500"
-                : "text-yellow-400"
-            } bg-black hover:bg-black/80 px-3 py-1.5 rounded-full font-semibold text-xs flex items-center gap-1`}
-          >
-            <BellRing size={14} /> Call Waiter
-          </button>
-
-          <button
-            onClick={handleLogout}
-            title="Logout"
-            className="bg-black/90 hover:bg-black text-yellow-400 px-3 py-1.5 rounded-full flex items-center gap-1 text-xs font-semibold transition"
-          >
-            <LogOut size={14} />
-          </button>
         </div>
       </div>
     </header>
