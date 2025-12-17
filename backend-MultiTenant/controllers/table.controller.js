@@ -97,7 +97,10 @@ async function getTables(req, res, next) {
 
     const { includeInactive } = req.query || {};
 
-    const filter = { restaurantId: rid };
+    const filter = {
+      restaurantId: rid,
+      $or: [{ tableType: "dine_in" }, { tableType: { $exists: false } }],
+    };
     if (!includeInactive) {
       filter.isActive = true;
     }
@@ -273,7 +276,12 @@ async function assignSession(req, res, next) {
     }
 
     const table = await Table.findOneAndUpdate(
-      { _id: id, restaurantId: rid, isActive: true },
+      {
+        _id: id,
+        restaurantId: rid,
+        isActive: true,
+        $or: [{ tableType: "dine_in" }, { tableType: { $exists: false } }],
+      },
       {
         currentSessionId: sessionId,
         staffAlias,
@@ -331,6 +339,7 @@ async function createTable(req, res, next) {
       tableNumber,
       capacity,
       isActive: true,
+      tableType: "dine_in", // New tables are always dine-in
     });
 
     await table.save();
@@ -407,7 +416,11 @@ async function updateStaffAlias(req, res, next) {
     if (!valid) return res.status(400).json({ error: "Invalid staffAlias" });
 
     const table = await Table.findOneAndUpdate(
-      { _id: id, restaurantId: rid },
+      {
+        _id: id,
+        restaurantId: rid,
+        $or: [{ tableType: "dine_in" }, { tableType: { $exists: false } }],
+      },
       { staffAlias, updatedAt: Date.now() },
       { new: true }
     );
@@ -444,14 +457,12 @@ async function toggleTableActive(req, res, next) {
       return res.status(400).json({ error: "isActive (boolean) is required" });
     }
 
-    const updates = { isActive };
-    if (isActive === false) {
-      updates.currentSessionId = null;
-      updates.staffAlias = null;
-    }
-
     const table = await Table.findOneAndUpdate(
-      { _id: id, restaurantId: rid },
+      {
+        _id: id,
+        restaurantId: rid,
+        $or: [{ tableType: "dine_in" }, { tableType: { $exists: false } }],
+      },
       updates,
       { new: true }
     );
@@ -483,7 +494,11 @@ async function resetTable(req, res, next) {
     }
 
     const table = await Table.findOneAndUpdate(
-      { _id: id, restaurantId: rid },
+      {
+        _id: id,
+        restaurantId: rid,
+        $or: [{ tableType: "dine_in" }, { tableType: { $exists: false } }],
+      },
       {
         status: "available",
         currentSessionId: null,

@@ -1,12 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchMenu } from "../api/menu.api";
 import RestaurantMenuApp from "../components/Menu/MenuGrid";
-import { useTable } from "../context/TableContext";
 import { useTenant } from "../context/TenantContext";
-import { useCart } from "../stores/cart.store";
 
 export default function MenuPage() {
-  const { table } = useTable();
   const { rid } = useTenant();
 
   const {
@@ -59,7 +56,6 @@ export default function MenuPage() {
         <main className="max-w-full h-auto mx-auto relative z-10">
           <RestaurantMenuApp
             menuData={menu}
-            tableId={table?.tableNumber}
           />
         </main>
       )}

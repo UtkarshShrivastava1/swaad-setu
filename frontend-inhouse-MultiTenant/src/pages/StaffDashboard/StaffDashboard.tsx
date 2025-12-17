@@ -1,20 +1,30 @@
-import { AlertCircle, Bell, History, Receipt, Utensils } from "lucide-react";
-import { useEffect, useState, useMemo } from "react";
+import {
+  AlertCircle,
+  Bell,
+  History,
+  Receipt,
+  ShoppingCart,
+  Utensils,
+  Package, // Import Package icon for Takeout
+} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { toast } from 'react-toastify';
+import { toast } from "react-toastify";
 
-import BillingView from "./components/BillingView";
 import Header from "../../components/common/Header";
+import AddOrderModal from "../AdminDashboard/components/modals/AddOrderModal"; // Import AddOrderModal
+import QRCodeModal from "../AdminDashboard/components/modals/QRCodeModal";
+import BillHistory from "./components/BillHistory";
+import BillingView from "./components/BillingView";
+import NotificationsView from "./components/NotificationsView";
 import OrdersComponent from "./components/OrdersComponent";
 import TableDetail from "./components/TableDetail";
 import TablesComponent from "./components/TablesComponent";
-import QRCodeModal from "../AdminDashboard/components/modals/QRCodeModal";
-import BillHistory from "./components/BillHistory";
-import NotificationsView from "./components/NotificationsView";
 import { formatINR } from "./utils/formatters";
 
+import { createOrder } from "../../api/admin/order.api"; // Import createOrder
+import { getRestaurantByRid } from "../../api/restaurant.api";
 import { getBillByOrderId } from "../../api/staff/staff.operations.api";
-import { getRestaurantByRid, type Restaurant } from "../../api/restaurant.api";
 import { useTenant } from "../../context/TenantContext";
 
 import { useBilling } from "./hooks/useBilling";
@@ -25,18 +35,13 @@ import { usePendingTracker } from "./hooks/usePendingTracker";
 import { useTables } from "./hooks/useTables";
 import { useWaiters } from "./hooks/useWaiters";
 
-import type { Order, Table, ApiTable } from "./types";
+import type { Order, Table } from "./types";
+import TakeoutOrders from "./components/TakeoutOrders";
 
 export default function StaffDashboard() {
   const navigate = useNavigate();
   const { rid: ridFromUrl } = useParams();
-  const {
-    rid: ridFromContext,
-    admin,
-    setRid,
-    tenant,
-    setTenant,
-  } = useTenant();
+  const { rid: ridFromContext, admin, setRid, tenant, setTenant } = useTenant();
 
   const rid = ridFromUrl || ridFromContext || "";
 
@@ -65,7 +70,7 @@ export default function StaffDashboard() {
     "dashboard"
   );
   const [activeTab, setActiveTab] = useState<
-    "tables" | "orders" | "notifications" | "history"
+    "tables" | "orders" | "notifications" | "history" | "takeout"
   >("tables");
   const [searchQuery, setSearchQuery] = useState("");
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -76,6 +81,7 @@ export default function StaffDashboard() {
   const [selectedTableForQr, setSelectedTableForQr] = useState<Table | null>(
     null
   );
+  const [isAddOrderModalOpen, setIsAddOrderModalOpen] = useState(false); // State for AddOrderModal
 
   const {
     tables,
@@ -140,13 +146,18 @@ export default function StaffDashboard() {
       setTimeout(() => setNewCall(false), 3000);
 
       const newIncomingCalls = calls.filter(
-        (call) => !previousCalls.some((prevCall: any) => prevCall._id === call._id)
+        (call) =>
+          !previousCalls.some((prevCall: any) => prevCall._id === call._id)
       );
 
       newIncomingCalls.forEach((newCallItem: any) => {
-        const table = tables.find(t => String(t._id || t.id) === String(newCallItem.tableId));
-        const tableNumber = table ? table.tableNumber : 'Unknown';
-        toast.info(`New call from Table ${tableNumber}! Type: ${newCallItem.type}`);
+        const table = tables.find(
+          (t) => String(t._id || t.id) === String(newCallItem.tableId)
+        );
+        const tableNumber = table ? table.tableNumber : "Unknown";
+        toast.info(
+          `New call from Table ${tableNumber}! Type: ${newCallItem.type}`
+        );
       });
     }
     sessionStorage.setItem("calls", JSON.stringify(calls));
@@ -212,8 +223,6 @@ export default function StaffDashboard() {
     return () => clearInterval(interval);
   }, [navigate, view, rid, fetchActiveOrders, fetchWaiters, fetchCalls]);
 
-
-
   useEffect(() => {
     const fn = () => {
       setView("dashboard");
@@ -233,6 +242,27 @@ export default function StaffDashboard() {
     }
     localStorage.removeItem("staffToken");
     navigate(`/t/${rid}/staff-login`);
+  };
+
+  const handleCreateTakeoutOrder = async (formData: any) => {
+    if (!rid) {
+      toast.error("Restaurant ID not found.");
+      return;
+    }
+    try {
+      const payload = {
+        orderType: "takeout",
+        customerName: formData.customer,
+        // No tableId or sessionId for takeout
+      };
+      await createOrder(rid, payload);
+      toast.success("Takeout order created successfully!");
+      fetchActiveOrders(); // Refresh orders
+      setIsAddOrderModalOpen(false); // Close modal
+    } catch (error) {
+      console.error("Failed to create takeout order:", error);
+      toast.error("Failed to create takeout order.");
+    }
   };
 
   const handleGenerateAndOpenBill = async (order: Order) => {
@@ -333,25 +363,52 @@ export default function StaffDashboard() {
     setIsQrModalOpen(true);
   };
 
-  const filteredOrders = activeOrders.filter((order) => {
-    const q = searchQuery.toLowerCase();
-    return (
-      (order.tableNumber ?? "").toLowerCase().includes(q) ||
-      (order.customerName ?? "").toLowerCase().includes(q) ||
-      order.id.toLowerCase().includes(q)
-    );
-  });
+  const filteredTables = useMemo(
+    () =>
+      tables.filter((table) => {
+        if (!searchQuery) return true;
+        const q = searchQuery.toLowerCase();
+        return String(table.tableNumber).toLowerCase().includes(q);
+      }),
+    [tables, searchQuery]
+  );
 
-  const topError = error || tableError || ordersError || waitersError || callsError;
+  const filteredOrders = useMemo(
+    () =>
+      activeOrders.filter((order) => {
+        if (!searchQuery) return true;
+        const q = searchQuery.toLowerCase();
+        return (
+          (String(order.tableNumber) ?? "").toLowerCase().includes(q) ||
+          (order.customerName ?? "").toLowerCase().includes(q) ||
+          order.id.toLowerCase().includes(q)
+        );
+      }),
+    [activeOrders, searchQuery]
+  );
+
+  const takeoutOrders = useMemo(
+    () =>
+      activeOrders.filter(
+        (order) => String(order.tableNumber) === "999"
+      ),
+    [activeOrders]
+  );
+
+  const topError =
+    error || tableError || ordersError || waitersError || callsError;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-zinc-900 to-gray-800 text-white">
       <Header
         key={rid}
         tenant={tenant}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
-        onOpenNotifications={() => setActiveTab("notifications")}
+        onOpenNotifications={() => {
+          setView("dashboard");
+          setActiveTab("notifications");
+        }}
         onLogout={handleLogout}
         waiterCallCount={calls.length}
         role="staff"
@@ -359,7 +416,7 @@ export default function StaffDashboard() {
 
       <main className="max-w-7xl mx-auto px-4 py-6">
         {topError && (
-          <div className="mb-4 bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-lg flex items-start gap-3">
+          <div className="mb-4 bg-rose-950 border border-rose-800 text-rose-300 px-4 py-3 rounded-lg flex items-start gap-3">
             <AlertCircle className="h-5 w-5 mt-0.5" />
             <div className="flex-1">
               <strong>Error:</strong> {topError}
@@ -377,42 +434,64 @@ export default function StaffDashboard() {
 
         {view === "dashboard" && (
           <section>
-            <div className="flex gap-2 mb-6 flex-wrap">
-              {[
-                {
-                  key: "tables",
-                  icon: <Utensils />,
-                  label: `Tables (${tables.length})`,
-                },
-                {
-                  key: "orders",
-                  icon: <Receipt />,
-                  label: `Orders (${activeOrders.length})`,
-                },
-                {
-                  key: "notifications",
-                  icon: <Bell />,
-                  label: `Calls (${calls.length})`,
-                },
-                {
-                  key: "history",
-                  icon: <History />,
-                  label: `History (${billHistory.length})`,
-                },
-              ].map(({ key, icon, label }) => (
-                <button
-                  key={key}
-                  onClick={() => setActiveTab(key as any)}
-                  className={`px-4 py-2.5 rounded-lg text-sm flex items-center cursor-pointer ${
-                    activeTab === key
-                      ? "bg-indigo-600 text-white"
-                      : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50"
-                  } ${key === "notifications" && newCall ? "animate-pulse" : ""}`}
-                >
-                  <span className="h-4 w-4 mr-2">{icon}</span>
-                  {label}
-                </button>
-              ))}
+            <div className="flex justify-between items-center mb-6 flex-wrap gap-2">
+              <div className="flex gap-2 flex-wrap">
+                {[
+                  {
+                    key: "tables",
+                    icon: <Utensils />,
+                    label: `Tables (${tables.length})`,
+                  },
+                  {
+                    key: "orders",
+                    icon: <Receipt />,
+                    label: `Orders (${activeOrders.length})`,
+                  },
+                  {
+                    key: "notifications",
+                    icon: <Bell />,
+                    label: `Calls (${calls.length})`,
+                  },
+                  {
+                    key: "history",
+                    icon: <History />,
+                    label: `History (${billHistory.length})`,
+                  },
+                  {
+                    key: "takeout",
+                    icon: <Package />,
+                    label: `Takeout (${takeoutOrders.length})`,
+                  },
+                ].map(({ key, icon, label }) => (
+                  <button
+                    key={key}
+                    onClick={() => {
+                      setActiveTab(key as any);
+                    }}
+                    className={`px-4 py-2.5 rounded-lg text-sm flex items-center cursor-pointer ${
+                      activeTab === key
+                        ? "bg-indigo-600 text-white"
+                        : "bg-zinc-800 text-slate-200 border border-zinc-700 hover:bg-zinc-700"
+                    } ${
+                      key === "notifications" && newCall ? "animate-pulse" : ""
+                    }`}
+                  >
+                    <span className="h-4 w-4 mr-2">{icon}</span>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() =>
+                  (window.location.href = `${
+                    import.meta.env.VITE_USER_LINK
+                  }t/${rid}`)
+                }
+                className="px-4 py-2.5 rounded-lg text-sm flex items-center cursor-pointer bg-yellow-500 text-black hover:bg-yellow-400 font-bold shadow-md transition-colors"
+              >
+                <ShoppingCart className="h-5 w-5 mr-2" />
+                Place Order
+              </button>
             </div>
 
             {loading ? (
@@ -423,7 +502,7 @@ export default function StaffDashboard() {
               <>
                 {activeTab === "tables" && (
                   <TablesComponent
-                    tables={tables as Table[]}
+                    tables={filteredTables as Table[]}
                     activeOrders={activeOrders}
                     isLoading={loading}
                     onTableSelect={handleTableSelect}
@@ -464,6 +543,17 @@ export default function StaffDashboard() {
                     summary={summary}
                     pagination={pagination}
                     tenant={tenant}
+                  />
+                )}
+
+                {activeTab === "takeout" && (
+                  <TakeoutOrders
+                    orders={takeoutOrders}
+                    handleUpdateOrderStatus={onUpdateOrderStatus}
+                    handleBillView={handleBillView}
+                    isPending={isPending}
+                    formatINR={formatINR}
+                    onNewOrderClick={() => setIsAddOrderModalOpen(true)}
                   />
                 )}
               </>
@@ -508,6 +598,12 @@ export default function StaffDashboard() {
         )}
       </main>
 
+      <AddOrderModal
+        isOpen={isAddOrderModalOpen}
+        onClose={() => setIsAddOrderModalOpen(false)}
+        onSubmit={handleCreateTakeoutOrder}
+      />
+
       <QRCodeModal
         isOpen={isQrModalOpen}
         onClose={() => setIsQrModalOpen(false)}
@@ -515,7 +611,7 @@ export default function StaffDashboard() {
         restaurantId={rid}
       />
 
-      <footer className="text-center text-xs py-6 text-slate-400 border-t border-slate-200">
+      <footer className="text-center text-xs py-6 text-slate-500 border-t border-zinc-700">
         © {new Date().getFullYear()} SwaadSetu — Premium Staff Dashboard
       </footer>
     </div>

@@ -5,24 +5,19 @@ import {
   Clock,
   Shield,
   CreditCard,
+  X,
 } from "lucide-react";
 import React from "react";
-
-type MoreTab =
-  | "staff"
-  | "bills"
-  | "settings"
-  | "upi_settings"
-  | "recent_bills"
-  | "admin_pin"
-  | "staff_pin";
+import type { MoreTab } from "./MorePage";
 
 export default function MorePageSidebar({
   activeTab,
   setActiveTab,
+  closeSidebar,
 }: {
   activeTab: MoreTab;
-  setActiveTab: React.Dispatch<React.SetStateAction<MoreTab>>;
+  setActiveTab: (tab: MoreTab) => void;
+  closeSidebar: () => void;
 }) {
   const menuItems: { id: MoreTab; label: string; icon: React.ElementType }[] = [
     { id: "staff", label: "Waiter Management", icon: Users },
@@ -34,19 +29,34 @@ export default function MorePageSidebar({
     { id: "staff_pin", label: "Staff PIN", icon: Shield },
   ];
 
+  const handleItemClick = (tabId: MoreTab) => {
+    setActiveTab(tabId);
+    // On mobile, the sidebar is controlled by isSidebarOpen state in the parent,
+    // which closes on click via the overlay or this explicit call.
+    if (window.innerWidth < 768) {
+        closeSidebar();
+    }
+  };
+
   return (
-    <div className="w-64 bg-white shadow-md">
-      <div className="p-5">
-        <h2 className="text-2xl font-bold">More</h2>
+    <div className="w-64 h-full bg-zinc-950 border-r border-zinc-800 shadow-lg flex flex-col">
+      <div className="p-5 flex justify-between items-center border-b border-zinc-800">
+        <h2 className="text-2xl font-bold text-yellow-400">More</h2>
+        <button className="md:hidden p-2" onClick={closeSidebar}>
+          <X size={20} />
+        </button>
       </div>
-      <nav className="mt-5">
+      <nav className="mt-5 flex-1">
         {menuItems.map((item) => (
           <a
             key={item.id}
             href="#"
-            onClick={() => setActiveTab(item.id)}
-            className={`flex items-center px-6 py-3 text-gray-700 hover:bg-gray-200 ${
-              activeTab === item.id ? "bg-gray-200" : ""
+            onClick={(e) => {
+                e.preventDefault();
+                handleItemClick(item.id)
+            }}
+            className={`flex items-center px-6 py-3 text-zinc-300 hover:bg-yellow-500/10 hover:text-yellow-300 transition-colors ${
+              activeTab === item.id ? "bg-yellow-500/15 text-yellow-300 border-r-4 border-yellow-400" : "border-r-4 border-transparent"
             }`}
           >
             <item.icon className="w-5 h-5 mr-3" />

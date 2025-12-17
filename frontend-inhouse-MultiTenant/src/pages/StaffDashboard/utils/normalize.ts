@@ -22,6 +22,7 @@ export interface ApiOrder {
   staffAlias?: string;
   version: number;
   createdAt: string;
+  isCustomerOrder?: boolean;
 }
 
 export interface BillItem {
@@ -48,6 +49,7 @@ export interface Order {
   staffAlias?: string;
   version: number;
   createdAt: string;
+  isCustomerOrder?: boolean;
 }
 
 /** 🔧 Normalize a single raw bill from the API */
@@ -142,6 +144,7 @@ export const normalizeOrder = (
     staffAlias: apiOrder.staffAlias,
     version: apiOrder.version,
     createdAt: apiOrder.createdAt,
+    isCustomerOrder: apiOrder.isCustomerOrder,
   };
 
   console.log("✅ Normalized order:", normalized);

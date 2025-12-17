@@ -30,10 +30,15 @@ const config = {
   isProduction: IS_PROD,
 
   // DB
-  MONGO_URI:
-    env("MONGO_URI") ||
-    env("MONGO_URI") ||
-    "mongodb://127.0.0.1:27017/swadsetu",
+  mongo: {
+    uri:
+      env("MONGO_URI") ||
+      "mongodb://127.0.0.1:27017/swadsetu",
+    options: {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    },
+  },
 
   // Redis
   REDIS_URL: env("REDIS_URL", null),
@@ -82,7 +87,7 @@ if (!config.REDIS_URL) {
 function validate(throwOnError = true) {
   const errors = [];
 
-  if (!config.MONGO_URI) errors.push("MONGO_URI is required");
+  if (!config.mongo.uri) errors.push("MONGO_URI is required");
   if (!config.JWT_SECRET.trim()) errors.push("JWT_SECRET is required");
 
   if (IS_PROD) {

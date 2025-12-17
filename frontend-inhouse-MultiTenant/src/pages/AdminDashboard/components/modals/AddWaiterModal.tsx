@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { addWaiter } from "../../../../api/admin/waiter.api";
 
 export default function AddWaiterModal({
@@ -13,6 +13,12 @@ export default function AddWaiterModal({
   rid: string;
 }) {
   const [name, setName] = useState("");
+
+  useEffect(() => {
+    if (isOpen) {
+      setName(""); // Reset the name field when the modal opens
+    }
+  }, [isOpen]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

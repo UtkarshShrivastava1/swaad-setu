@@ -27,9 +27,11 @@ interface MenuDashboardProps {
   onCreate: () => void;
   onFullscreenChange: (isFs: boolean) => void;
   isParentFullscreen: boolean; // New prop
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
 }
 
-const MenuDashboard: React.FC<MenuDashboardProps> = ({ setActiveTab, onEdit, onCreate, onFullscreenChange, isParentFullscreen }) => {
+const MenuDashboard: React.FC<MenuDashboardProps> = ({ setActiveTab, onEdit, onCreate, onFullscreenChange, isParentFullscreen, searchQuery, setSearchQuery }) => {
   const { rid } = useParams<{ rid: string }>();
 
   const [items, setItems] = useState<MenuItem[]>([]);
@@ -58,7 +60,7 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({ setActiveTab, onEdit, onC
   const [selectedFilter, setSelectedFilter] = useState<
     "All" | "Veg" | "Non-Veg"
   >("All");
-  const [searchQuery, setSearchQuery] = useState<string>("");
+
 
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -325,7 +327,10 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({ setActiveTab, onEdit, onC
                 if (isSidebarOpen) toggleSidebar();
               }}
               selectedCategory={selectedCategory}
-              onDeleteCategory={setCategoryToDelete}
+              onDeleteCategory={(category) => {
+                setCategoryToDelete(category);
+                setIsConfirmCategoryDeleteOpen(true);
+              }}
               onRefreshMenu={refreshMenu}
             />
           }

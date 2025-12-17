@@ -1,4 +1,4 @@
-import { ArrowLeft, Minus, Phone, Plus, Trash } from "lucide-react";
+import { ArrowLeft, Minus, Plus, Trash } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createOrder } from "../../api/order.api";
@@ -8,6 +8,7 @@ import { useCart } from "../../stores/cart.store"; // Import useCart from Zustan
 import { GENERIC_ITEM_IMAGE_FALLBACK } from "../../utils/constants";
 import FooterNav from "../Layout/Footer";
 import TablePickerModal from "../TableSelect/TablePickerModal";
+import { CartItem } from "./CartItem";
 
 /** ---------- Types ---------- */
 type CartItemType = {
@@ -331,28 +332,30 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
       window.removeEventListener("clearTableSession", handleClearCustomerInfo);
   }, [tableId]);
 
+
+
   return (
-    <div className="min-h-screen bg-gray-50 pb-32 flex flex-col">
+    <div className="min-h-screen bg-gray-900 text-white pb-32 flex flex-col relative">
       {showTablePicker && (
         <TablePickerModal onClose={() => setShowTablePicker(false)} />
       )}
-      {/* Modern Header with Gradient */}
-      <div className="bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-500 border-b border-amber-600/20 shadow-xl sticky top-0 z-20 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
+      {/* Modern Header */}
+      <div className="bg-gray-800/80 backdrop-blur-sm border-b border-yellow-500/20 sticky top-0 z-20">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <button
                 onClick={() => navigate(-1)}
-                className="p-2 rounded-xl bg-white/20 hover:bg-white/30 backdrop-blur-sm transition-all duration-200 hover:scale-105"
+                className="p-2 rounded-xl bg-gray-700/50 hover:bg-gray-600/70 transition-all duration-200"
               >
-                <ArrowLeft size={20} className="text-white" strokeWidth={2.5} />
+                <ArrowLeft size={20} className="text-yellow-400" strokeWidth={2.5} />
               </button>
               <div>
-                <h1 className="text-white font-bold text-xl sm:text-2xl tracking-tight">
-                  Shopping Cart
+                <h1 className="font-bold text-xl sm:text-2xl tracking-tight text-yellow-400">
+                  Your Order
                 </h1>
-                <p className="text-white/80 text-xs sm:text-sm">
-                  {cartItems.length} {cartItems.length === 1 ? "item" : "items"}
+                <p className="text-gray-400 text-xs sm:text-sm">
+                  {cartItems.length} {cartItems.length === 1 ? "item" : "items"} in your cart
                 </p>
               </div>
             </div>
@@ -363,99 +366,31 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
       {/* Modern Cart Container */}
       <div className="max-w-4xl w-full mx-auto px-4 py-6 space-y-6">
         {/* Cart Items Section */}
-        <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100">
+        <div className="bg-gray-800/50 rounded-2xl shadow-lg overflow-hidden border border-gray-700">
           {cartItems.length > 0 ? (
-            <div className="divide-y divide-gray-100">
-              {cartItems.map((item, index) => (
-                <div
-                  key={item.itemId}
-                  className="p-5 hover:bg-gray-50/50 transition-colors duration-200"
-                  style={{
-                    animation: `fadeIn 0.3s ease-out ${index * 0.1}s backwards`,
-                  }}
-                >
-                  <div className="flex gap-4">
-                    {/* Image */}
-                    <div className="relative flex-shrink-0 group">
-                      <img
-                        src={
-                          item.image &&
-                          item.image.startsWith("https://example.com/images/")
-                            ? GENERIC_ITEM_IMAGE_FALLBACK
-                            : item.image
-                        }
-                        alt={item.name}
-                        className="w-24 h-24 rounded-2xl object-cover border-2 border-gray-100 group-hover:border-amber-400 transition-all duration-200 shadow-sm"
-                      />
-                      <div className="absolute -top-2 -right-2 bg-amber-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow-lg">
-                        {item.quantity}
-                      </div>
-                    </div>
-
-                    {/* Details */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex justify-between items-start gap-3 mb-3">
-                        <div className="flex-1">
-                          <h3 className="font-bold text-gray-900 text-base sm:text-lg mb-1 line-clamp-2">
-                            {item.name}
-                          </h3>
-                          <p className="text-sm text-gray-500">
-                            ₹{item.price} each
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-bold text-amber-600 text-xl">
-                            ₹{(item.price * item.quantity).toFixed(2)}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Quantity Controls */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 bg-gray-100 rounded-xl p-1">
-                          <button
-                            onClick={() => updateQty(item.itemId, -1)}
-                            className="w-9 h-9 rounded-lg bg-white flex items-center justify-center text-gray-700 hover:bg-amber-500 hover:text-white transition-all duration-200 shadow-sm"
-                          >
-                            <Minus size={16} strokeWidth={2.5} />
-                          </button>
-                          <span className="px-4 text-base font-bold text-gray-900 min-w-[2rem] text-center">
-                            {item.quantity}
-                          </span>
-                          <button
-                            onClick={() => updateQty(item.itemId, 1)}
-                            className="w-9 h-9 rounded-lg bg-white flex items-center justify-center text-gray-700 hover:bg-amber-500 hover:text-white transition-all duration-200 shadow-sm"
-                          >
-                            <Plus size={16} strokeWidth={2.5} />
-                          </button>
-                        </div>
-
-                        <button
-                          onClick={() => removeItem(item.itemId)}
-                          className="p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all duration-200"
-                          title="Remove item"
-                        >
-                          <Trash size={18} strokeWidth={2.2} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+            <div className="divide-y divide-gray-700">
+              {cartItems.map((item) => (
+                <CartItem
+                  key={item.cartItemId || item.itemId}
+                  item={item}
+                  onUpdateQty={(cartItemId, qty) => updateQty(cartItemId, qty)}
+                  onRemove={(cartItemId) => removeItem(cartItemId)}
+                />
               ))}
             </div>
           ) : (
             <div className="text-center py-20 px-6">
-              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-amber-100 to-amber-200 mb-6">
+              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-gray-700 to-gray-800 mb-6">
                 <span className="text-5xl">🛒</span>
               </div>
-              <h2 className="font-bold text-2xl text-gray-800 mb-3">
+              <h2 className="font-bold text-2xl text-white mb-3">
                 Your cart is empty
               </h2>
-              <p className="text-gray-500 mb-6 max-w-sm mx-auto">
-                Looks like you haven't added anything to your cart yet
+              <p className="text-gray-400 mb-6 max-w-sm mx-auto">
+                Looks like you haven't added anything to your cart yet.
               </p>
               <button
-                className="bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-white font-semibold rounded-xl px-8 py-3.5 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+                className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-black font-semibold rounded-xl px-8 py-3.5 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
                 onClick={() => navigate(`/t/${rid}/menu`)}
               >
                 Explore Menu
@@ -465,14 +400,14 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
         </div>
         {/* Order Summary Card */}
         {cartItems.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100">
-            <div className="bg-gradient-to-r from-gray-50 to-gray-100/50 px-6 py-4 border-b border-gray-200">
-              <h3 className="font-bold text-lg text-gray-900">Order Summary</h3>
+          <div className="bg-gray-800 rounded-2xl shadow-lg overflow-hidden border border-gray-700">
+            <div className="bg-gray-900/50 px-6 py-4 border-b border-gray-700">
+              <h3 className="font-bold text-lg text-white">Order Summary</h3>
             </div>
 
             <div className="p-6 space-y-4">
               {/* Subtotal */}
-              <div className="flex justify-between items-center text-gray-700">
+              <div className="flex justify-between items-center text-gray-300">
                 <span className="font-medium">Subtotal</span>
                 <span className="font-semibold">₹{subtotal.toFixed(2)}</span>
               </div>
@@ -481,7 +416,7 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
               {taxDetails.map((tax) => (
                 <div
                   key={tax.name}
-                  className="flex justify-between items-center text-gray-700"
+                  className="flex justify-between items-center text-gray-400"
                 >
                   <span className="font-medium text-sm">{tax.name}</span>
                   <span className="font-semibold text-sm">
@@ -492,7 +427,7 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
 
               {/* Service Charge */}
               {serviceChargeAmount > 0 && (
-                <div className="flex justify-between items-center text-gray-700">
+                <div className="flex justify-between items-center text-gray-400">
                   <span className="font-medium text-sm">Service Charge</span>
                   <span className="font-semibold text-sm">
                     ₹{serviceChargeAmount.toFixed(2)}
@@ -501,14 +436,14 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
               )}
 
               {/* Divider */}
-              <div className="border-t border-dashed border-gray-300 my-4"></div>
+              <div className="border-t border-dashed border-gray-600 my-4"></div>
 
               {/* Grand Total */}
-              <div className="flex justify-between items-center bg-gradient-to-r from-amber-50 to-yellow-50 rounded-xl px-4 py-3 border border-amber-200">
-                <span className="font-bold text-lg text-gray-900">
+              <div className="flex justify-between items-center bg-gradient-to-r from-yellow-500/10 to-orange-500/10 rounded-xl px-4 py-3 border border-yellow-500/20">
+                <span className="font-bold text-lg text-white">
                   Total Amount
                 </span>
-                <span className="font-bold text-2xl text-amber-600">
+                <span className="font-bold text-2xl text-yellow-400">
                   ₹{grandTotal.toFixed(2)}
                 </span>
               </div>
@@ -516,13 +451,13 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
               {/* Action Buttons */}
               <div className="space-y-3 pt-2">
                 <button
-                  className="w-full py-4 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-white font-bold text-lg shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-200 flex items-center justify-center gap-2"
+                  className="w-full py-4 rounded-xl bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-black font-bold text-lg shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-200 flex items-center justify-center gap-2"
                   onClick={initiatePlaceOrder}
                 >
                   {orderExists ? (
                     <>
                       <Plus size={20} strokeWidth={2.5} />
-                      Add More Items
+                      Add to Existing Order
                     </>
                   ) : (
                     <>
@@ -543,9 +478,16 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
                     </>
                   )}
                 </button>
+                <button
+                  className="w-full py-3 rounded-xl bg-gray-700/50 border-2 border-gray-600 font-semibold text-gray-300 hover:bg-gray-700 hover:border-gray-500 transition-all duration-200 flex items-center justify-center gap-2"
+                  onClick={() => navigate(`/t/${rid}/menu`)}
+                >
+                  <Plus size={16} />
+                  Add more items
+                </button>
 
                 <button
-                  className="w-full py-3 rounded-xl bg-white border-2 border-gray-200 font-semibold text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all duration-200"
+                  className="w-full py-3 rounded-xl bg-gray-700/50 border-2 border-gray-600 font-semibold text-gray-300 hover:bg-gray-700 hover:border-gray-500 transition-all duration-200"
                   onClick={clear}
                 >
                   Clear Cart
@@ -560,27 +502,27 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
 
       {/* Modern Customer Info Modal */}
       {showCustomerModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in">
           <div
-            className="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden"
+            className="bg-gray-800 rounded-2xl max-w-md w-full shadow-2xl overflow-hidden border border-gray-700"
             style={{
               animation: "slideUp 0.3s ease-out",
             }}
           >
             {/* Modal Header */}
-            <div className="bg-gradient-to-r from-amber-500 to-yellow-500 px-6 py-5">
-              <h2 className="text-2xl font-bold text-white text-center">
+            <div className="bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 px-6 py-5 border-b border-gray-700">
+              <h2 className="text-2xl font-bold text-yellow-400 text-center">
                 Customer Details
               </h2>
-              <p className="text-white/90 text-sm text-center mt-1">
-                Please fill in your information
+              <p className="text-gray-400 text-sm text-center mt-1">
+                Please fill in your information to continue
               </p>
             </div>
 
             {/* Modal Body */}
             <div className="p-6 space-y-4">
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-700">
+                <label className="text-sm font-semibold text-gray-300">
                   Full Name
                 </label>
                 <input
@@ -588,13 +530,13 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
                   placeholder="Enter your name"
                   value={customerName}
                   onChange={(e) => setCustomerName(e.target.value)}
-                  className="w-full border-2 border-gray-200 px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition-all text-black"
+                  className="w-full bg-gray-900 border-2 border-gray-700 px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all text-white"
                   autoFocus
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-700">
+                <label className="text-sm font-semibold text-gray-300">
                   Contact Number
                 </label>
                 <div className="relative">
@@ -605,20 +547,31 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
                     onChange={(e) =>
                       setCustomerContact(e.target.value.replace(/[^0-9]/g, ""))
                     }
-                    className="w-full border-2 border-gray-200 px-4 py-3 pr-12 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition-all text-black"
+                    className="w-full bg-gray-900 border-2 border-gray-700 px-4 py-3 pr-12 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all text-white"
                     maxLength={10}
                     inputMode="numeric"
                     pattern="[0-9]*"
                   />
-                  <Phone
+                  <svg
                     className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"
-                    size={20}
-                  />
+                    width="20"
+                    height="20"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+                    />
+                  </svg>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-700">
+                <label className="text-sm font-semibold text-gray-300">
                   Email Address
                 </label>
                 <input
@@ -626,24 +579,24 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
                   placeholder="your.email@example.com"
                   value={customerEmail}
                   onChange={(e) => setCustomerEmail(e.target.value)}
-                  className="w-full border-2 border-gray-200 px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition-all text-black"
+                  className="w-full bg-gray-900 border-2 border-gray-700 px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all text-white"
                 />
               </div>
 
               <div className="flex gap-3 pt-4">
                 <button
                   onClick={() => setShowCustomerModal(false)}
-                  className="flex-1 py-3 rounded-xl border-2 border-gray-200 text-gray-700 font-semibold hover:bg-gray-50 transition-all"
+                  className="flex-1 py-3 rounded-xl border-2 border-gray-600 text-gray-300 font-semibold hover:bg-gray-700 hover:border-gray-500 transition-all"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleConfirmOrder}
                   disabled={isPlacingOrder}
-                  className={`flex-1 py-3 rounded-xl text-white font-bold transition-all ${
+                  className={`flex-1 py-3 rounded-xl text-black font-bold transition-all ${
                     isPlacingOrder
-                      ? "bg-gray-400 cursor-not-allowed"
-                      : "bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 shadow-lg hover:shadow-xl"
+                      ? "bg-gray-500 cursor-not-allowed"
+                      : "bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 shadow-lg hover:shadow-xl"
                   }`}
                 >
                   {isPlacingOrder ? (
@@ -678,17 +631,17 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
 
       {/* Modern Success Popup */}
       {showSuccessPop && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in">
           <div
-            className="bg-white rounded-2xl shadow-2xl px-12 py-10 flex flex-col items-center max-w-sm mx-4"
+            className="bg-gray-800 rounded-2xl shadow-2xl px-12 py-10 flex flex-col items-center max-w-sm mx-4 border border-gray-700"
             style={{
               animation: "scaleIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)",
             }}
           >
             {/* Success Icon */}
             <div className="relative mb-6">
-              <div className="absolute inset-0 bg-green-400 rounded-full blur-xl opacity-50 animate-pulse"></div>
-              <div className="relative bg-gradient-to-br from-green-400 to-green-600 rounded-full p-4 shadow-lg">
+              <div className="absolute inset-0 bg-green-500 rounded-full blur-xl opacity-40 animate-pulse"></div>
+              <div className="relative bg-gradient-to-br from-green-500 to-green-600 rounded-full p-4 shadow-lg">
                 <svg width="56" height="56" viewBox="0 0 24 24" fill="none">
                   <path
                     d="M7 13l3 3 7-7"
@@ -701,14 +654,14 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
               </div>
             </div>
 
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            <h2 className="text-2xl font-bold text-white mb-2">
               Order Placed!
             </h2>
-            <p className="text-gray-600 text-center leading-relaxed">
-              Your order has been successfully placed and sent to the kitchen.
+            <p className="text-gray-400 text-center leading-relaxed">
+              Your order has been successfully sent to the kitchen.
             </p>
 
-            {/* Animated Checkmark Effect */}
+            {/* Animated Dots Effect */}
             <div className="mt-6 flex gap-1">
               {[0, 1, 2].map((i) => (
                 <div

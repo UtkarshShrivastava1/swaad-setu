@@ -161,32 +161,32 @@ export default function BillModalComponent({
 
   return (
     <div
-      className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-lg w-full max-w-md max-h-[95vh] overflow-y-auto"
+        className="bg-gray-900 border border-gray-700 text-white rounded-2xl shadow-lg w-full max-w-md max-h-[95vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-6">
           {/* Header */}
           <div className="flex items-start justify-between">
             <div>
-              <h2 className="text-2xl font-bold text-gray-800">Bill Details</h2>
-              <p className="text-sm text-gray-500">
+              <h2 className="text-2xl font-bold text-white">Bill Details</h2>
+              <p className="text-sm text-gray-400">
                 Order #{orderNumberForDay || "N/A"}
               </p>
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={handlePrint}
-                className="p-2 rounded-lg text-gray-500 bg-gray-100 hover:bg-gray-200 hover:text-gray-700 transition-colors"
+                className="p-2 rounded-lg text-black bg-amber-400 hover:bg-amber-500 transition-colors"
               >
                 <Printer className="h-5 w-5" />
               </button>
               <button
                 onClick={onClose}
-                className="p-2 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+                className="p-2 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white transition-colors"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -194,23 +194,23 @@ export default function BillModalComponent({
           </div>
 
           {/* Customer & Table Info */}
-          <div className="grid grid-cols-2 gap-x-6 gap-y-3 bg-gray-50 p-4 rounded-xl my-5 border">
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <User className="h-4 w-4 text-gray-400" />
+          <div className="grid grid-cols-2 gap-x-6 gap-y-3 bg-gray-800 p-4 rounded-xl my-5 border border-gray-700">
+            <div className="flex items-center gap-2 text-sm text-gray-300">
+              <User className="h-4 w-4 text-gray-500" />
               <span className="font-medium">{customerName || "Guest"}</span>
             </div>
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <Table className="h-4 w-4 text-gray-400" />
+            <div className="flex items-center gap-2 text-sm text-gray-300">
+              <Table className="h-4 w-4 text-gray-500" />
               <span className="font-medium">Table {tableNumber || "N/A"}</span>
             </div>
             {customerContact && (
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <Phone className="h-4 w-4 text-gray-400" />
+              <div className="flex items-center gap-2 text-sm text-gray-300">
+                <Phone className="h-4 w-4 text-gray-500" />
                 <span className="font-medium">{customerContact}</span>
               </div>
             )}
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <Calendar className="h-4 w-4 text-gray-400" />
+            <div className="flex items-center gap-2 text-sm text-gray-300">
+              <Calendar className="h-4 w-4 text-gray-500" />
               <span className="font-medium">
                 {createdAt ? new Date(createdAt).toLocaleDateString() : "N/A"}
               </span>
@@ -219,27 +219,27 @@ export default function BillModalComponent({
 
           {/* Items */}
           <div className="space-y-2">
-            <h3 className="font-semibold text-gray-700">Items</h3>
+            <h3 className="font-semibold text-gray-300">Items</h3>
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b">
-                  <th className="text-left font-medium text-gray-500 py-2">
+                <tr className="border-b border-gray-700">
+                  <th className="text-left font-medium text-gray-400 py-2">
                     Item
                   </th>
-                  <th className="text-center font-medium text-gray-500 py-2">
+                  <th className="text-center font-medium text-gray-400 py-2">
                     Qty
                   </th>
-                  <th className="text-right font-medium text-gray-500 py-2">
+                  <th className="text-right font-medium text-gray-400 py-2">
                     Price
                   </th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((item, i) => (
-                  <tr key={i} className="border-b border-gray-100">
-                    <td className="py-2">{item.name}</td>
-                    <td className="text-center py-2">{item.qty}</td>
-                    <td className="text-right py-2">
+                  <tr key={i} className="border-b border-gray-800">
+                    <td className="py-2 text-white">{item.name}</td>
+                    <td className="text-center py-2 text-gray-300">{item.qty}</td>
+                    <td className="text-right py-2 text-white">
                       {formatINR(item.price * item.qty)}
                     </td>
                   </tr>
@@ -249,14 +249,14 @@ export default function BillModalComponent({
           </div>
 
           {/* Totals */}
-          <div className="mt-6 pt-4 border-t-2 border-dashed">
-            <div className="space-y-2 text-sm text-gray-700">
+          <div className="mt-6 pt-4 border-t-2 border-dashed border-gray-700">
+            <div className="space-y-2 text-sm text-gray-300">
               <div className="flex justify-between">
                 <span>Subtotal</span>
-                <span>{formatINR(subtotal)}</span>
+                <span className="text-white">{formatINR(subtotal)}</span>
               </div>
               {computedDiscountAmount > 0 && (
-                <div className="flex justify-between text-green-600">
+                <div className="flex justify-between text-green-500">
                   <span>Discount ({appliedDiscountPercent}%)</span>
                   <span>- {formatINR(computedDiscountAmount)}</span>
                 </div>
@@ -264,7 +264,7 @@ export default function BillModalComponent({
               {computedServiceChargeAmount > 0 && (
                 <div className="flex justify-between">
                   <span>Service Charge ({appliedServiceChargePercent}%)</span>
-                  <span>+ {formatINR(computedServiceChargeAmount)}</span>
+                  <span className="text-white">+ {formatINR(computedServiceChargeAmount)}</span>
                 </div>
               )}
               {taxes.map((t, i) => (
@@ -272,21 +272,21 @@ export default function BillModalComponent({
                   <span>
                     {t.name} ({t.rate}%)
                   </span>
-                  <span>+ {formatINR(t.amount)}</span>
+                  <span className="text-white">+ {formatINR(t.amount)}</span>
                 </div>
               ))}
               {extras.length > 0 && (
                 <div className="flex justify-between">
                   <span>Extras</span>
-                  <span>+ {formatINR(computedExtrasTotal)}</span>
+                  <span className="text-white">+ {formatINR(computedExtrasTotal)}</span>
                 </div>
               )}
             </div>
-            <div className="flex justify-between items-center mt-4 pt-4 border-t">
-              <span className="text-base font-bold text-gray-800">
+            <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-700">
+              <span className="text-base font-bold text-white">
                 Grand Total
               </span>
-              <span className="text-xl font-bold text-gray-900">
+              <span className="text-xl font-bold text-amber-400">
                 {formatINR(computedTotal)}
               </span>
             </div>
@@ -295,7 +295,7 @@ export default function BillModalComponent({
               <span
                 className={`font-bold ${
                   paymentStatus === "paid"
-                    ? "text-green-600"
+                    ? "text-green-500"
                     : "text-orange-500"
                 }`}
               >

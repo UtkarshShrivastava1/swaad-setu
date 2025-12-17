@@ -1,12 +1,17 @@
-import { FC } from "react";
+import { FC, useEffect } from "react";
 import { motion } from "framer-motion";
 import Navbar from "../component/Navbar";
 import { Footer } from "../component/Footer";
 
 const About: FC = () => {
+     /* 🔥 GUARANTEED SCROLL TO TOP */
+    useEffect(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    }, []);
   return (
     <div className="min-h-screen bg-gradient-to-b from-yellow-50 via-white to-yellow-50 text-black overflow-x-hidden">
       <Navbar/>
+
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 mt-16">
         {/* Page title */}
         <motion.h1

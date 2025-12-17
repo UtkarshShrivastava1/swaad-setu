@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
-import Image from "../assets/new_banner.png";
 import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import mobileImage from "../assets/mobileBanner.PNG";
+import Image from "../assets/new_banner.png";
+import mobileImage from "../assets/new_mobile_banner.png";
 
 const shapeVariants = {
   initial: { scale: 0, opacity: 0 },
@@ -18,11 +18,11 @@ const transitionSettings = {
 
 const shapes = [
   { type: "circle", top: "11.2%", left: "9%", size: 12, delay: 0 },
-  { type: "square", top: "30%", left: "70%", size: 14, delay: 0.5 },
-  { type: "circle", top: "60%", left: "40%", size: 10, delay: 1 },
-  { type: "square", top: "80%", left: "85%", size: 16, delay: 1.5 },
-  { type: "circle", top: "20%", left: "80%", size: 10, delay: 2 },
-  { type: "square", top: "50%", left: "20%", size: 12, delay: 2.5 },
+  // { type: "square", top: "30%", left: "70%", size: 14, delay: 0.5 },
+  // { type: "circle", top: "60%", left: "40%", size: 10, delay: 1 },
+  // { type: "square", top: "80%", left: "85%", size: 16, delay: 1.5 },
+  // { type: "circle", top: "20%", left: "80%", size: 10, delay: 2 },
+  // { type: "square", top: "50%", left: "20%", size: 12, delay: 2.5 },
 ];
 
 // simple counter
@@ -46,10 +46,10 @@ const Counter = ({ target, label }: { target: number; label: string }) => {
 
   return (
     <div className="flex flex-col items-center md:items-start">
-      <span className="text-3xl md:text-5xl font-extrabold leading-none lg:text-white">
+      <span className="text-3xl md:text-5xl font-extrabold leading-none lg:text-white ">
         {value}+
       </span>
-      <span className="mt-1 text-[10px] md:text-xs lg:text-neutral-200 sm:text-gray-600 text-center md:text-left">
+      <span className="mt-1 text-[10px] md:text-xs lg:text-neutral-200 sm:text-gray-600 text-center md:text-left md:text-white">
         {label}
       </span>
     </div>
@@ -61,7 +61,6 @@ const Hero = () => {
 
   return (
     <section className="relative min-h-screen overflow-hidden c-space flex flex-col items-stretch justify-start">
- 
       {/* Desktop banner (md+) */}
       <div className="w-full hidden md:block">
         <img
@@ -76,7 +75,7 @@ const Hero = () => {
         <img
           src={mobileImage}
           alt="Mobile hero banner"
-          className="w-full h-[70vh] object-cover mx-auto"
+          className="w-full h-[70vh] object-cover mx-auto mt-10"
           style={{ objectPosition: "center" }}
         />
       </div>
@@ -92,7 +91,7 @@ const Hero = () => {
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ type: "spring", stiffness: 50, delay: 0.9 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => navigate("/")}
+                onClick={() => navigate("/select-restaurant")}
                 className="btn md:btn-lg bg-amber-300 text-black font-medium px-6 py-3 rounded shadow"
               >
                 Try for Free
@@ -110,7 +109,7 @@ const Hero = () => {
             </div>
 
             {/* counters */}
-            <div className="flex gap-10 justify-start lg:text-white">
+            <div className="flex gap-10 justify-start lg:text-white md:text-white">
               <Counter target={58} label="Restaurants Using SwaadSetu" />
               <Counter target={100} label="Daily Orders Processed" />
               <Counter target={100} label="Happy Diners Served" />
@@ -128,7 +127,7 @@ const Hero = () => {
             animate={{ y: 0, opacity: 1 }}
             transition={{ type: "spring", stiffness: 70, delay: 0.3 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/select-restaurant")}
             className="bg-amber-300 text-black font-semibold px-4 py-2 rounded shadow text-sm"
           >
             Try for Free
@@ -147,14 +146,14 @@ const Hero = () => {
 
         {/* counters band */}
         <div className="mt-2 flex justify-center gap-6 text-black">
-          <Counter target={1000} label="Restaurants Using SwaadSetu" />
-          <Counter target={1000} label="Daily Orders Processed" />
-          <Counter target={1000} label="Happy Diners Served" />
+          <Counter target={58} label="Restaurants Using SwaadSetu" />
+          <Counter target={100} label="Daily Orders Processed" />
+          <Counter target={100} label="Happy Diners Served" />
         </div>
       </div>
 
       {/* Animated shapes (unchanged) */}
-      {shapes.map(({ type, top, left, size, delay }, index) => (
+      {/* {shapes.map(({ type, top, left, size, delay }, index) => (
         <motion.div
           key={index}
           initial="initial"
@@ -176,8 +175,9 @@ const Hero = () => {
           className="hidden sm:block"
           aria-hidden="true"
         />
-      ))}
+      ))} */}
     </section>
+    //changes done by
   );
 };
 

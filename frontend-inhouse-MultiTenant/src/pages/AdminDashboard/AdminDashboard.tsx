@@ -11,6 +11,7 @@ import OrdersManagement from "../AdminDashboard/components/Layout/OrderPage";
 import TableManagementPage from "../AdminDashboard/components/Layout/TableManagement";
 import Dashboard from "./components/Layout/Dashboard";
 import MorePage from "./More/MorePage";
+import TakeoutOrdersAdmin from "./components/Layout/TakeoutOrdersAdmin"; // Import TakeoutOrdersAdmin
 
 import { getOrder } from "../../../src/api/admin/order.api";
 import { getRestaurantByRid } from "../../api/restaurant.api";
@@ -59,6 +60,7 @@ export default function AdminDashboard() {
     | "tables"
     | "more"
     | "notifications"
+    | "takeout" // Add takeout to activeTab
   >("dashboard");
 
   const [view, setView] = useState<"list" | "edit" | "create">("list");
@@ -69,6 +71,7 @@ export default function AdminDashboard() {
   const { tables } = useTables(rid);
   const { calls: waiterCalls } = useCalls();
   const [ordersCount, setOrdersCount] = useState(0);
+  const [takeoutOrders, setTakeoutOrders] = useState([]); // State for takeout orders
 
   useEffect(() => {
     if (!rid) return;
@@ -94,11 +97,15 @@ export default function AdminDashboard() {
     if (!rid) return;
     async function fetchOrdersCount() {
       try {
-        const orders = await getOrder(rid);
-        const activeCount = orders.filter(
+        const orders = await getOrder(rid, "all"); // Fetch all orders
+        const activeOrders = orders.filter(
           (o) => o.status !== "completed" && o.status !== "cancelled"
-        ).length;
-        setOrdersCount(activeCount);
+        );
+        setOrdersCount(activeOrders.length);
+        const takeout = activeOrders.filter(
+          (o) => String(o.tableNumber) === "999"
+        );
+        setTakeoutOrders(takeout);
       } catch (err) {
         console.error("❌ Failed to fetch active orders:", err);
       }
@@ -113,7 +120,7 @@ export default function AdminDashboard() {
 
   // ====== Render ======
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-zinc-900 flex flex-col">
       {!isMenuFullscreen && (
         <Header
           tenant={tenant}
@@ -146,6 +153,8 @@ export default function AdminDashboard() {
                 onCreate={() => setView("create")}
                 onFullscreenChange={setIsMenuFullscreen}
                 isParentFullscreen={isMenuFullscreen}
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
               />
             )}
             {view === "edit" && selectedMenuItem && (
@@ -172,6 +181,9 @@ export default function AdminDashboard() {
         {/* 🧾 Orders */}
         {activeTab === "orders" && <OrdersManagement />}
 
+        {/* 🥡 Takeout */}
+        {activeTab === "takeout" && <TakeoutOrdersAdmin orders={takeoutOrders} />}
+
         {/* 🪑 Table Management */}
         {activeTab === "tables" && <TableManagementPage />}
 
@@ -193,6 +205,7 @@ export default function AdminDashboard() {
             setView("list");
           }}
           ordersCount={ordersCount} // ✅ show live order count
+          takeoutCount={takeoutOrders.length} // Pass takeout count
         />
       )}
     </div>

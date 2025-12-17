@@ -1,20 +1,30 @@
 import axios from "axios";
 import { useEffect, useState } from "react";
-import { FaUtensils } from "react-icons/fa";
-import { MdOutlineTableBar } from "react-icons/md";
 import { useNavigate } from "react-router-dom";
-import Hero from "../assets/Hero.jpg";
-import { useTenant } from "../context/TenantContext";
 import { useTable } from "../context/TableContext";
+import { useTenant } from "../context/TenantContext";
+
+interface Table {
+  _id: string;
+  tableNumber: number;
+  capacity: number;
+  status: "available" | "occupied";
+  isActive: boolean;
+  isDeleted: boolean;
+  tableType: "dine_in" | "takeout"; // Added
+  isSystem: boolean; // Added
+}
 
 export default function TableLanding() {
   const navigate = useNavigate();
-  const [showModal, setShowModal] = useState(false);
-  const [tables, setTables] = useState([]);
+  const [tables, setTables] = useState<Table[]>([]);
+  const [selectedOrderType, setSelectedOrderType] = useState<
+    "dine_in" | "takeout"
+  >("dine_in");
   const [selectedTable, setSelectedTable] = useState("");
   const [loading, setLoading] = useState(true);
 
-  const { rid } = useTenant();
+  const { rid, tenant } = useTenant();
   const { setTable } = useTable();
 
   const baseUrl = import.meta.env.VITE_API_BASE_URL;
@@ -23,150 +33,189 @@ export default function TableLanding() {
     async function fetchTables() {
       try {
         const res = await axios.get(`${baseUrl}/api/${rid}/tables`);
+
+        // ✅ ONLY AVAILABLE TABLES
         const availableTables = res.data.filter(
-          (t) => t.isActive && !t.isDeleted
+          (t: Table) =>
+            t.isActive === true &&
+            t.isDeleted === false &&
+            t.status === "available"
         );
+
         setTables(availableTables);
       } catch (err) {
-        console.error("Error fetching tables:", err);
+        console.error("❌ Error fetching tables:", err);
       } finally {
         setLoading(false);
       }
     }
-    fetchTables();
+
+    if (rid) fetchTables();
   }, [baseUrl, rid]);
 
-  const handleSave = () => {
-    if (!selectedTable) return alert("Please select a table");
+  const handleConfirm = () => {
+    if (selectedOrderType === "dine_in") {
+      if (!selectedTable) {
+        alert("Please select a table");
+        return;
+      }
 
-    const table = tables.find((t) => t._id === selectedTable);
-    if (!table) return alert("Invalid table selected");
+      const table = tables.find((t) => t._id === selectedTable);
+      if (!table) {
+        alert("Invalid table selected");
+        return;
+      }
 
-    setTable(table);
-    navigate(`/t/${rid}/menu`);
+      setTable(table);
+      navigate(`/t/${rid}/menu`);
+    } else if (selectedOrderType === "takeout") {
+      // Create a mock table object for takeout
+      const takeoutTable: Table = {
+        _id: "takeout-id",
+        tableNumber: 999,
+        capacity: 0, // Capacity doesn't apply to takeout
+        status: "available", // Takeout table always available
+        isActive: true,
+        isDeleted: false,
+        tableType: "takeout", // Mark as takeout
+        isSystem: true, // Mark as system table
+      };
+      setTable(takeoutTable);
+      navigate(`/t/${rid}/menu`);
+    }
   };
 
   return (
-    <div className="min-h-screen relative flex flex-col items-center justify-center overflow-hidden">
-      {/* Background */}
-      <div
-        className="absolute inset-0 bg-cover bg-center brightness-75"
-        style={{
-          backgroundImage:
-            "url('https://images.unsplash.com/photo-1600891964599-f61ba0e24092?auto=format&fit=crop&w=1400&q=80')",
-        }}
-      />
-      <div className="absolute inset-0 bg-black/50" />
+    <div className="min-h-screen flex items-center justify-center bg-[#0b0b0c] text-white px-6">
+      <div className="w-full max-w-md">
+        {/* Card */}
+        <div className="bg-white/5 backdrop-blur-xl border border-yellow-500/20 rounded-3xl p-8 shadow-2xl">
+          {/* Logo */}
+          <div className="flex flex-col items-center mb-8">
+            <div className="bg-yellow-500/10 border border-yellow-400/30 rounded-2xl p-4 mb-4">
+              <img
+                src="/logo.png"
+                alt="Swaad Setu"
+                className="h-16 w-auto object-contain"
+              />
+            </div>
 
-      {/* Main Content */}
-      <div className="relative z-10 text-center text-white px-6 py-10">
-        <div className="flex flex-col items-center mb-8">
-          <div className="bg-white/20 p-4 rounded-full shadow-lg mb-4">
-            <FaUtensils className="text-4xl text-yellow-400" />
-          </div>
-          <h1 className="text-5xl font-extrabold tracking-wide drop-shadow-lg">
-            swaad Setu
-          </h1>
-          <p className="text-lg text-gray-200 mt-2 italic">
-            “Flavors that tell a story”
-          </p>
-        </div>
-
-        <div className="max-w-xl mx-auto bg-white/10 backdrop-blur-md rounded-3xl shadow-2xl p-8 border border-yellow-400/30">
-          <p className="text-sm text-gray-200 mb-4">
-            Welcome to{" "}
-            <span className="font-semibold text-yellow-300">swaad Setu</span> —
-            indulge in our signature dishes crafted with authentic spices and a
-            touch of love.
-          </p>
-
-          <div className="mb-6">
-            <img
-              src={Hero}
-              alt="Restaurant Food"
-              className="rounded-2xl w-full shadow-lg border border-yellow-400/20"
-            />
+            {tenant?.restaurantName && (
+              <h1 className="text-3xl font-extrabold tracking-wide text-white">
+                {tenant.restaurantName}
+              </h1>
+            )}
           </div>
 
-          {/* Table selection info */}
-          <p className="text-gray-200 font-medium mb-1">
-            {selectedTable
-              ? `Selected: Table ${
-                  tables.find((t) => t._id === selectedTable)?.tableNumber
-                }`
-              : "No table selected"}
+          {/* Info */}
+          <p className="text-sm text-gray-300 text-center mb-6 leading-relaxed">
+            Please select your order type and table to continue.
+            <br />
+            <span className="text-gray-400 text-xs">
+              Only available tables are shown for dine-in.
+            </span>
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mt-4">
-            <button
-              onClick={() => setShowModal(true)}
-              className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-yellow-500 text-black font-semibold shadow-lg hover:bg-yellow-400 transition-all"
-            >
-              <MdOutlineTableBar /> Select Table
-            </button>
-
+          {/* Order Type Selection */}
+          <div className="flex justify-center mb-6">
             <button
               onClick={() => {
-                if (!selectedTable) {
-                  alert("Please select a table first");
-                  return;
-                }
-                navigate(`/t/${rid}/menu`);
+                setSelectedOrderType("dine_in");
+                setSelectedTable("");
               }}
-              className="px-5 py-2.5 rounded-lg bg-white text-yellow-700 font-semibold shadow-lg hover:bg-yellow-50 transition-all"
+              className={`px-4 py-2 rounded-l-lg font-semibold transition-colors ${
+                selectedOrderType === "dine_in"
+                  ? "bg-yellow-500 text-black"
+                  : "bg-gray-700 text-gray-200 hover:bg-gray-600"
+              }`}
             >
-              View Menu 🍽️
+              Dine-in
+            </button>
+            <button
+              onClick={() => {
+                setSelectedOrderType("takeout");
+                setSelectedTable("takeout-id");
+              }}
+              className={`px-4 py-2 rounded-r-lg font-semibold transition-colors ${
+                selectedOrderType === "takeout"
+                  ? "bg-yellow-500 text-black"
+                  : "bg-gray-700 text-gray-200 hover:bg-gray-600"
+              }`}
+            >
+              Takeout
+            </button>
+          </div>
+
+          {/* Table Selection (for Dine-in) */}
+          {selectedOrderType === "dine_in" && (
+            <div className="mb-6">
+              <h2 className="text-lg font-semibold text-yellow-400 mb-3 text-center">
+                Select Your Table
+              </h2>
+              {loading ? (
+                <p className="text-gray-400 text-center">Loading tables...</p>
+              ) : tables.length === 0 ? (
+                <p className="text-gray-400 text-sm text-center">
+                  No tables available right now.
+                </p>
+              ) : (
+                <select
+                  value={selectedTable}
+                  onChange={(e) => setSelectedTable(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg bg-black 
+                  border border-gray-700 text-gray-200 
+                  focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                >
+                  <option value="">Choose table</option>
+                  {tables.map((t) => (
+                    <option key={t._id} value={t._id}>
+                      Table {t.tableNumber} • {t.capacity} seats
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+          )}
+
+          {/* Selected Table / Order Type Display */}
+          <div className="text-center mb-6">
+            {selectedTable === "takeout-id" ? (
+              <p className="text-sm text-gray-300">
+                <span className="text-yellow-400 font-semibold">
+                  Takeout Order Selected
+                </span>
+              </p>
+            ) : selectedTable ? (
+              <p className="text-sm text-gray-300">
+                Selected Table{" "}
+                <span className="text-yellow-400 font-semibold">
+                  {tables.find((t) => t._id === selectedTable)?.tableNumber}
+                </span>
+              </p>
+            ) : (
+              <p className="text-sm text-gray-500">No table selected</p>
+            )}
+          </div>
+
+          {/* Confirm Button */}
+          <div className="flex flex-col gap-4">
+            <button
+              onClick={handleConfirm}
+              disabled={selectedOrderType === "dine_in" && !selectedTable}
+              className="py-3 rounded-xl 
+              bg-yellow-500 text-black font-semibold shadow-lg 
+              hover:bg-yellow-400 transition-all disabled:opacity-50"
+            >
+              Confirm
             </button>
           </div>
         </div>
 
-        <div className="mt-10 text-sm text-gray-300 italic">
-          © 2025 swaad Setu • Taste the Tradition
-        </div>
+        {/* Footer */}
+        <p className="mt-6 text-center text-xs text-gray-500">
+          © 2025 swaad Setu
+        </p>
       </div>
-
-      {/* Table Selection Modal */}
-      {showModal && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-50">
-          <div className="bg-white rounded-xl p-6 w-80 shadow-xl border border-yellow-400">
-            <h2 className="text-lg font-semibold mb-4 text-yellow-700">
-              Select Your Table
-            </h2>
-
-            {loading ? (
-              <p className="text-gray-600">Loading tables...</p>
-            ) : (
-              <select
-                className="w-full px-3 py-2 border text-gray-700 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 mb-4"
-                value={selectedTable}
-                onChange={(e) => setSelectedTable(e.target.value)}
-              >
-                <option value="">Choose table</option>
-                {tables.map((t) => (
-                  <option key={t._id} value={t._id}>
-                    Table {t.tableNumber} ({t.capacity} seats)
-                  </option>
-                ))}
-              </select>
-            )}
-
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => setShowModal(false)}
-                className="px-3 py-1.5 text-gray-600 hover:text-gray-800"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSave}
-                className="px-4 py-1.5 bg-yellow-600 text-white rounded-lg hover:bg-yellow-500"
-              >
-                Confirm
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

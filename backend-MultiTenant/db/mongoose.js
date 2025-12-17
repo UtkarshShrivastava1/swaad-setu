@@ -8,7 +8,8 @@ mongoose.set("strictQuery", true);
 
 const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(config.MONGO_URI, {
+    const conn = await mongoose.connect(config.mongo.uri, {
+      ...config.mongo.options, // Spread the options from the config file
       serverSelectionTimeoutMS: 5000,
       maxPoolSize: 10, // optional: tune pool size
     });

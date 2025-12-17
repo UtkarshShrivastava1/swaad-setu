@@ -82,6 +82,17 @@
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
   }
+
+  /* Hide arrows from number input */
+  input::-webkit-outer-spin-button,
+  input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  input[type=number] {
+    -moz-appearance: textfield;
+  }
 }
 
 /* ================================

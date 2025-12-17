@@ -1,6 +1,5 @@
 import { Menu, X } from 'lucide-react';
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 interface NavigationProps {
   currentPage: string;
@@ -9,7 +8,6 @@ interface NavigationProps {
 
 export default function Navigation({ currentPage, onNavigate }: NavigationProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const navigate = useNavigate();
 
   const navItems = [
     { name: 'Home', id: 'home' },
@@ -52,19 +50,12 @@ export default function Navigation({ currentPage, onNavigate }: NavigationProps)
                 }`}></span>
               </button>
             ))}
-            <button
-              onClick={() => navigate('/select-restaurant')}
-              className="text-lg font-medium transition-all duration-300 relative group text-white hover:text-yellow-400 border border-yellow-400 px-4 py-2 rounded-full"
-            >
-              Go to App
-            </button>
           </div>
 
           <button
             onClick={() => setIsOpen(!isOpen)}
             className="md:hidden text-yellow-400 hover:text-yellow-300 transition-colors"
           >
-
             {isOpen ? <X size={28} /> : <Menu size={28} />}
           </button>
         </div>
@@ -86,15 +77,6 @@ export default function Navigation({ currentPage, onNavigate }: NavigationProps)
                 {item.name}
               </button>
             ))}
-            <button
-              onClick={() => {
-                navigate('/select-restaurant');
-                setIsOpen(false); // Close mobile menu after navigation
-              }}
-              className="block w-full text-left px-4 py-3 rounded-lg text-lg font-medium transition-all duration-300 bg-yellow-400 text-black hover:bg-yellow-300"
-            >
-              Go to App
-            </button>
           </div>
         </div>
       )}

@@ -101,29 +101,36 @@ const AddItemDrawer: React.FC<AddItemDrawerProps> = ({
     }
   };
 
-  /* ================= PREFILL ================= */
+  /* ================= PREFILL & RESET ================= */
 
   useEffect(() => {
+    // This effect runs when the drawer opens to ensure the form is either
+    // correctly pre-filled for editing or completely reset for adding.
+    if (!isOpen) {
+      return;
+    }
+
+    // Reset common status fields for both modes on open
+    setError(null);
+    setLoading(false);
+
     if (item) {
+      // Pre-fill form for editing an existing item
       setName(item.name);
       setPrice(String(item.price));
       setDescription(item.description || "");
       setIsVeg(item.isVegetarian);
       setIsActive(item.isActive);
-      setSpiceLevel(Number(item.metadata?.spiceLevel) || 0); // Explicitly convert to number
-      setPrepTime(String(item.metadata?.prepTime || "")); // Ensure it's a string
-      setServes(String(item.metadata?.serves || "")); // New line
-      setIsChefSpecial(item.metadata?.chefSpecial || false); // New line
+      setSpiceLevel(Number(item.metadata?.spiceLevel) || 0);
+      setPrepTime(String(item.metadata?.prepTime || ""));
+      setServes(String(item.metadata?.serves || ""));
+      setIsChefSpecial(item.metadata?.chefSpecial || false);
       setImagePreview(item.image || null);
-      setImageFile(null);
-      setPexelsSearchQuery(item.name || ""); // Initialize Pexels search with item name when editing
-      setCroppedImageUrl(item.image || null); // Set existing image as cropped image URL
-      setLoadingDescription(false);
-      setDescriptionGenerationError(null);
-      setIsDescriptionQueued(false);
-      setDescriptionQueuePosition(null);
-      setDescriptionFromCache(false);
+      setCroppedImageUrl(item.image || null); // Use existing image
+      setPexelsSearchQuery(item.name || ""); // Pre-fill search
+      setImageFile(null); // Clear any selected file
     } else {
+      // Reset form to default values for adding a new item
       setName("");
       setPrice("");
       setDescription("");
@@ -131,22 +138,28 @@ const AddItemDrawer: React.FC<AddItemDrawerProps> = ({
       setIsActive(true);
       setSpiceLevel(0);
       setPrepTime("");
-      setServes(""); // New line
-      setIsChefSpecial(false); // New line
+      setServes("");
+      setIsChefSpecial(false);
       setImageFile(null);
       setImagePreview(null);
-      setLoadingDescription(false);
-      setDescriptionGenerationError(null);
-      setIsDescriptionQueued(false);
-      setDescriptionQueuePosition(null);
-      setDescriptionFromCache(false);
-      setPexelsImages([]); // Clear Pexels images when adding new item
-      setPexelsSearchQuery(""); // Initialize Pexels search with empty string for new item
-      setCroppedImageUrl(null); // Clear cropped image URL for new item
-      setLoadingDescription(false);
-      setDescriptionGenerationError(null);
+      setCroppedImageUrl(null);
+      setPexelsSearchQuery("");
+      setPexelsImages([]);
     }
-  }, [item]);
+
+    // Reset async-related states for both modes
+    setLoadingDescription(false);
+    setDescriptionGenerationError(null);
+    setIsDescriptionQueued(false);
+    setDescriptionQueuePosition(null);
+    setDescriptionFromCache(false);
+    setLoadingPexelsImages(false);
+  }, [isOpen, item]);
+
+  // Sync item name to Pexels search query automatically
+  useEffect(() => {
+    setPexelsSearchQuery(name);
+  }, [name]);
 
   /* ================= IMAGE ================= */
 
@@ -365,7 +378,7 @@ const AddItemDrawer: React.FC<AddItemDrawerProps> = ({
     } catch (err: any) {
       setError(
         err?.response?.data?.error ||
-          err.message ||
+          err?.message ||
           `Failed to ${item ? "update" : "add"} item`
       );
     } finally {
@@ -421,6 +434,87 @@ const AddItemDrawer: React.FC<AddItemDrawerProps> = ({
           className="flex flex-col flex-grow overflow-hidden"
         >
           <div className="flex-grow overflow-y-auto px-6 py-5 space-y-5">
+            {/* NAME */}
+            <input
+              type="text"
+              placeholder="Item Name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/30 outline-none"
+              required
+            />
+
+            {/* PRICE */}
+            <input
+              type="number"
+              placeholder="Price"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/30 outline-none"
+              required
+            />
+
+            {/* DESCRIPTION */}
+            <div className="flex items-center gap-2">
+              <textarea
+                placeholder="Description"
+                value={description}
+                onChange={(e) => {
+                  setDescription(e.target.value);
+                  if (descriptionFromCache) setDescriptionFromCache(false);
+                }}
+                className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/30 outline-none min-h-[80px]"
+              />
+              <button
+                type="button"
+                onClick={handleGenerateDescription}
+                disabled={
+                  loadingDescription || !name.trim() || isDescriptionQueued
+                }
+                className="p-3 rounded-xl bg-gradient-to-r from-yellow-400 to-orange-500 text-black font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity duration-200"
+                title={
+                  isDescriptionQueued
+                    ? "Description is queued..."
+                    : "Generate description with AI"
+                }
+              >
+                <Sparkles size={20} />
+              </button>
+            </div>
+
+            {/* Loading state */}
+            {loadingDescription && (
+              <div className="flex items-center text-yellow-300">
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <span>Generating description...</span>
+              </div>
+            )}
+
+            {/* Queued state with position */}
+            {isDescriptionQueued && descriptionQueuePosition && (
+              <div className="flex items-center gap-2 text-blue-300 bg-blue-500/10 px-3 py-2 rounded-lg">
+                <Clock size={16} />
+                <span>
+                  Queued for generation (position: {descriptionQueuePosition})
+                </span>
+              </div>
+            )}
+
+            {/* Cache feedback */}
+            {descriptionFromCache && !loadingDescription && (
+              <div className="text-xs text-green-400">
+                ⚡ Description loaded from cache
+              </div>
+            )}
+
+            {/* Error state */}
+            {descriptionGenerationError && !isDescriptionQueued && (
+              <div className="flex items-start gap-2 text-red-300 bg-red-500/10 px-3 py-2 rounded-lg">
+                <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
+                <div className="text-sm">{descriptionGenerationError}</div>
+              </div>
+            )}
+
             {/* PEXELS IMAGE SEARCH BAR AND SUGGESTIONS */}
             <div className="pt-4 space-y-3">
               <input
@@ -485,84 +579,6 @@ const AddItemDrawer: React.FC<AddItemDrawerProps> = ({
                 </div>
               )}
             </div>
-
-            {/* NAME */}
-            <input
-              type="text"
-              placeholder="Item Name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/30 outline-none"
-              required
-            />
-
-            {/* PRICE */}
-            <input
-              type="number"
-              placeholder="Price"
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/30 outline-none"
-              required
-            />
-
-            {/* DESCRIPTION */}
-            <div className="flex items-center gap-2">
-              <textarea
-                placeholder="Description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/30 outline-none min-h-[80px]"
-              />
-              <button
-                type="button"
-                onClick={handleGenerateDescription}
-                disabled={
-                  loadingDescription || !name.trim() || isDescriptionQueued
-                }
-                className="p-3 rounded-xl bg-gradient-to-r from-yellow-400 to-orange-500 text-black font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity duration-200"
-                title={
-                  isDescriptionQueued
-                    ? "Description is queued..."
-                    : "Generate description with AI"
-                }
-              >
-                <Sparkles size={20} />
-              </button>
-            </div>
-
-            {/* Loading state */}
-            {loadingDescription && (
-              <div className="flex items-center text-yellow-300">
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                <span>Generating description...</span>
-              </div>
-            )}
-
-            {/* Queued state with position */}
-            {isDescriptionQueued && descriptionQueuePosition && (
-              <div className="flex items-center gap-2 text-blue-300 bg-blue-500/10 px-3 py-2 rounded-lg">
-                <Clock size={16} />
-                <span>
-                  Queued for generation (position: {descriptionQueuePosition})
-                </span>
-              </div>
-            )}
-
-            {/* Cache feedback */}
-            {descriptionFromCache && !loadingDescription && (
-              <div className="text-xs text-green-400">
-                ⚡ Description loaded from cache
-              </div>
-            )}
-
-            {/* Error state */}
-            {descriptionGenerationError && !isDescriptionQueued && (
-              <div className="flex items-start gap-2 text-red-300 bg-red-500/10 px-3 py-2 rounded-lg">
-                <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
-                <div className="text-sm">{descriptionGenerationError}</div>
-              </div>
-            )}
 
             {/* ✅ MUTUAL EXCLUSIVE VEG / NON-VEG */}
             <div className="flex items-center justify-between gap-6">

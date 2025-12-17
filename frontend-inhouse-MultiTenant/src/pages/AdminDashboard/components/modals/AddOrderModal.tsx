@@ -1,23 +1,33 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import ModalWrapper from "./ModalWrapper";
 
 export default function AddOrderModal({
   isOpen,
   onClose,
+  onSubmit, // New prop for handling form submission
 }: {
   isOpen: boolean;
   onClose: () => void;
+  onSubmit: (formData: any) => void; // Expect a submit handler
 }) {
   const [formData, setFormData] = useState({
     customer: "",
-    type: "",
-    table: "",
+    type: "takeaway", // Default to takeaway
   });
+
+  // Reset form when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setFormData({
+        customer: "",
+        type: "takeaway",
+      });
+    }
+  }, [isOpen]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    console.log("New Order Created:", formData);
-    onClose();
+    onSubmit(formData); // Use the passed-in submit handler
   }
 
   return (
@@ -45,27 +55,10 @@ export default function AddOrderModal({
             onChange={(e) => setFormData({ ...formData, type: e.target.value })}
             required
           >
-            <option value="">Select type...</option>
-            <option value="dine-in">Dine-in</option>
             <option value="takeaway">Takeaway</option>
-            <option value="delivery">Delivery</option>
+            <option value="dine-in">Dine-in</option>
           </select>
         </div>
-
-        {formData.type === "dine-in" && (
-          <div>
-            <label className="text-sm font-medium">Table</label>
-            <input
-              type="text"
-              className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2"
-              placeholder="e.g., Table 5"
-              value={formData.table}
-              onChange={(e) =>
-                setFormData({ ...formData, table: e.target.value })
-              }
-            />
-          </div>
-        )}
 
         <div className="flex justify-end gap-3 pt-3">
           <button

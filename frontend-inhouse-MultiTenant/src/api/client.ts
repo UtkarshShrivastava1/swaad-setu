@@ -10,6 +10,37 @@ export const client = axios.create({
   withCredentials: false,
 });
 
+// Add a request interceptor
+client.interceptors.request.use(
+  (config) => {
+    // Multi-tenant token logic
+    const urlParts = config.url?.split("/");
+    const rid = urlParts && urlParts.length > 2 ? urlParts[2] : null;
+
+    let token = null;
+    if (rid) {
+      token =
+        localStorage.getItem(`staffToken_${rid}`) ||
+        localStorage.getItem(`adminToken_${rid}`);
+    }
+
+    // Fallback to generic tokens
+    if (!token) {
+      token =
+        localStorage.getItem("staffToken") ||
+        localStorage.getItem("adminToken");
+    }
+
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
 // Automatically unwrap axios responses so every API returns `data` only
 client.interceptors.response.use(
   (response) => response.data,
@@ -19,6 +50,21 @@ client.interceptors.response.use(
       error.response?.data?.error ||
       error.message ||
       "Request failed";
+
+    if (message.toLowerCase().includes("token")) {
+      // Clear potentially invalid tokens
+      try {
+        Object.keys(localStorage).forEach((key) => {
+          if (key.toLowerCase().includes("token")) {
+            localStorage.removeItem(key);
+          }
+        });
+        // Optionally, redirect to login
+        // window.location.href = '/login';
+      } catch (e) {
+        console.error("Failed to clear tokens", e);
+      }
+    }
 
     return Promise.reject(new Error(message));
   }

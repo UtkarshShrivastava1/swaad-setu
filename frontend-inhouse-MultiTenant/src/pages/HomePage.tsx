@@ -18,7 +18,7 @@ export default function LandingModern() {
 
   const rid = ridFromUrl!;
   const [restaurantName, setRestaurantName] = useState(rid.toUpperCase());
-  
+
   useEffect(() => {
     setRid(rid); // ensure tenant context stays aligned
   }, [rid, setRid]);
@@ -46,23 +46,26 @@ export default function LandingModern() {
       whileTap={shouldReduceMotion ? {} : { scale: 0.98 }}
       transition={{ type: "spring", stiffness: 320, damping: 22 }}
       onClick={onClick}
-      className="relative w-[8.5rem] sm:w-56 md:w-64 lg:w-72 h-40 sm:h-48 md:h-52 lg:h-56 bg-yellow-400 backdrop-blur-sm border border-yellow-500 flex flex-col items-center justify-center gap-3 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-200 cursor-pointer"
+      className="relative w-[8.5rem] sm:w-56 md:w-64 lg:w-72 h-40 sm:h-48 md:h-52 lg:h-56 bg-gradient-to-br from-yellow-200 via-yellow-400 to-yellow-600 border border-yellow-300/50 flex flex-col items-center justify-center gap-3 rounded-2xl shadow-[0_0_15px_rgba(234,179,8,0.4)] hover:shadow-[0_0_25px_rgba(234,179,8,0.6)] transition-all duration-200 cursor-pointer overflow-hidden group"
     >
-      <div className="text-black text-4xl sm:text-5xl">{icon}</div>
-      <div className="text-sm sm:text-base md:text-lg font-semibold text-black">
+      <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent opacity-80" />
+      <div className="relative z-10 text-black text-4xl sm:text-5xl drop-shadow-sm">
+        {icon}
+      </div>
+      <div className="relative z-10 text-sm sm:text-base md:text-lg font-bold text-black drop-shadow-sm">
         {label}
       </div>
     </motion.button>
   );
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-white via-yellow-100 to-yellow-200 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-zinc-900 to-black p-4">
       <main className="w-full max-w-5xl mx-auto flex flex-col items-center gap-10">
         <header className="text-center px-2">
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-black">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-white">
             {restaurantName} — Swaad Setu
           </h1>
-          <p className="text-xs sm:text-sm text-gray-800 mt-2">
+          <p className="text-xs sm:text-sm text-gray-400 mt-2">
             Quick access for Admin, Staff, and Orders
           </p>
         </header>
@@ -91,7 +94,7 @@ export default function LandingModern() {
           />
         </section>
 
-        <footer className="text-xs text-gray-600 mt-4">
+        <footer className="text-xs text-gray-500 mt-4">
           © {new Date().getFullYear()} Swaad Setu • Zager Digital Services
         </footer>
       </main>

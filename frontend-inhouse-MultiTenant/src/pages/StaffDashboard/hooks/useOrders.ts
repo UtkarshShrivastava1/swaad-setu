@@ -92,6 +92,11 @@ export function useOrders(
           String(t.tableNumber),
         ])
       );
+      // Add fake takeout table to map
+      const systemTakeoutTableId = freshTables.find(
+        (t: any) => t.isSystem && t.tableType === "takeout"
+      )?._id;
+      tableMap.set(systemTakeoutTableId || "takeout-id", "999");
 
       // 2) Fetch raw orders
       const raw = await getActiveOrders(rid);
@@ -150,6 +155,11 @@ export function useOrders(
             String(t.tableNumber),
           ])
         );
+        // Add fake takeout table to map
+        const systemTakeoutTableId = freshTables.find(
+          (t: any) => t.isSystem && t.tableType === "takeout"
+        )?._id;
+        tableMap.set(systemTakeoutTableId || "takeout-id", "999");
 
         const normalized = ordersApi.map((o) =>
           normalizeWithTable(o, tableMap)

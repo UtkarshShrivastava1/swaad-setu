@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import Navbar from "../component/Navbar";
 import { Footer } from "../component/Footer";
@@ -78,6 +78,7 @@ const BLOG_POSTS: BlogPost[] = [
 const CATEGORIES: BlogCategory[] = ["All", "Product", "Design", "Restaurants", "Updates"];
 
  const BlogsPage: React.FC = () => {
+  
   const [activeCategory, setActiveCategory] = useState<BlogCategory>("All");
   const [search, setSearch] = useState("");
 
@@ -92,6 +93,11 @@ const CATEGORIES: BlogCategory[] = ["All", "Product", "Design", "Restaurants", "
       return matchesCategory && matchesSearch;
     });
   }, [activeCategory, search]);
+
+     /* 🔥 GUARANTEED SCROLL TO TOP */
+      useEffect(() => {
+        window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+      }, []);
 
   return (
     <div className="min-h-screen bg-white text-black">

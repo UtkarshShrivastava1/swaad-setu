@@ -19,6 +19,11 @@ const AdminLogin = lazy(() => import("./pages/AdminLogin"));
 const StaffLogin = lazy(() => import("./pages/StaffLogin"));
 const WebPageHomePage = lazy(() => import("./pages/webpage/pages/HomePage"));
 const SwaadsetuLanding = lazy(() => import("./pages/webpage/pages/swaadsetu-landing"));
+const About = lazy(() => import("./pages/webpage/pages/About"));
+const Features = lazy(() => import("./pages/webpage/pages/Features"));
+const FAQ = lazy(() => import("./pages/webpage/pages/FAQ"));
+const Blogs = lazy(() => import("./pages/webpage/pages/Blogs"));
+const Pricing = lazy(() => import("./pages/webpage/pages/Pricing"));
 
 const AdminDashboard = lazy(
   () => import("./pages/AdminDashboard/AdminDashboard")
@@ -55,6 +60,11 @@ function App() {
           {/* PUBLIC ROUTES */}
           {/* -------------------------------------------------- */}
           <Route path="/" element={<SwaadsetuLanding />} />
+          <Route path="/blogs" element={<Blogs />} />
+          <Route path="/faq" element={<FAQ />} />
+          <Route path="/features" element={<Features />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/pricing" element={<Pricing />} />
           <Route path="/select-restaurant" element={<RestaurantSelector />} />
           <Route
             path="/register-restaurant"

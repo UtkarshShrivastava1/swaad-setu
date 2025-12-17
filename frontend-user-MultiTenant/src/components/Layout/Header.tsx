@@ -3,8 +3,7 @@ import {
   BellRing,
   CheckCircle2,
   Clock,
-  LogOut,
-  MapPin,
+  Loader2,
   Search,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -15,7 +14,6 @@ import { useTenant } from "../../context/TenantContext";
 export default function Header({
   variant = "menu",
   onBack,
-  tableNumber = "Table 3",
   waitTime = "30–40 mins",
   pageTitle = "Page",
   onCallWaiter,
@@ -25,6 +23,7 @@ export default function Header({
 }) {
   const navigate = useNavigate();
   const { rid, tenant } = useTenant();
+  const [isCalling, setIsCalling] = useState(false);
   const [callActive, setCallActive] = useState(() => {
     try {
       const activeCall = sessionStorage.getItem("active_call");
@@ -83,36 +82,46 @@ export default function Header({
   };
 
   const handleCallWaiterClick = async () => {
-    if (typeof onCallWaiter === "function") {
-      try {
-        await onCallWaiter();
-      } catch (error) {
-        console.error("onCallWaiter function failed:", error);
-      }
-      return;
-    }
+    if (isCalling || callActive) return; // Prevent action if already processing or active
+
+    setIsCalling(true);
     try {
-      if (!tableId) {
-        showToast("error", "Table not selected");
+      // Handle passed-in function if it exists
+      if (typeof onCallWaiter === "function") {
+        await onCallWaiter();
+        // The parent component is responsible for feedback, but we can assume success
+        // and let the finally block handle the loading state.
         return;
       }
+
+      if (!tableId) {
+        showToast("error", "Table not selected");
+        return; // This will go to finally
+      }
+
       const res = await createCall(rid, {
         tableId,
         type: "bill",
         notes: "Requesting the bill please",
       });
 
-      try {
-        sessionStorage.setItem("active_call", JSON.stringify(res));
-      } catch (error) {
-        console.error("Failed to set active_call in sessionStorage:", error);
+      if (res?.status === "active") {
+        try {
+          sessionStorage.setItem("active_call", JSON.stringify(res));
+        } catch (error) {
+          console.error("Failed to set active_call in sessionStorage:", error);
+        }
+        setCallActive(true);
+        showToast("success", "Waiter has been called!");
+      } else {
+        // If the call wasn't created as active, show an error.
+        showToast("error", "Could not place call. Please try again.");
       }
-
-      if (res?.status === "active") setCallActive(true);
-      showToast("success", "Waiter called");
     } catch (err) {
       console.error("Call waiter error:", err);
       showToast("error", "Failed to call waiter");
+    } finally {
+      setIsCalling(false);
     }
   };
 
@@ -162,18 +171,6 @@ export default function Header({
               />
             </div>
 
-            {/* ================= CENTER: BRAND / TITLE ================= */}
-            <div className="flex justify-center min-w-0">
-              <div className="text-center min-w-0">
-                <div className="text-base sm:text-lg font-semibold text-amber-400 truncate">
-                  {restaurantName}
-                </div>
-                <div className="text-xs text-amber-500 tracking-wide">
-                  {dashboardTitle}
-                </div>
-              </div>
-            </div>
-
             {/* ================= RIGHT: ACTIONS ================= */}
             <div className="flex justify-end items-center flex-1">
               <div className="flex items-center gap-2 sm:gap-3">
@@ -183,34 +180,42 @@ export default function Header({
                     {waitTime}
                   </span>
                 )}
-                <span className="flex items-center gap-1 text-sm text-white">
-                  <MapPin size={14} />
-                  Table {tableNumber}
-                </span>
 
                 <button
                   onClick={handleCallWaiterClick}
-                  className={`relative p-2.5 rounded-xl bg-amber-400 hover:bg-amber-500 border border-amber-600 shadow-md hover:shadow-lg transition focus:ring-2 focus:ring-black/40 ${
-                    callActive ? "ring-2 ring-green-600 animate-pulse" : ""
+                  disabled={isCalling || callActive}
+                  className={`relative flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 font-medium shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 focus:ring-offset-black ${
+                    isCalling
+                      ? "cursor-wait bg-amber-500 border-amber-600 text-black"
+                      : callActive
+                        ? "cursor-default bg-emerald-600 border-emerald-700 text-white"
+                        : "cursor-pointer bg-amber-400 border-amber-600 text-black hover:bg-amber-500 hover:shadow-lg"
                   }`}
                 >
-                  <BellRing className="h-5 w-5 text-black" />
-                  {callActive && (
+                  {isCalling ? (
                     <>
-                      <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 animate-ping opacity-60" />
-                      <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center shadow">
-                        !
-                      </span>
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      <span>Calling...</span>
+                    </>
+                  ) : callActive ? (
+                    <>
+                      <CheckCircle2 className="h-5 w-5" />
+                      <span>Waiter Called</span>
+                    </>
+                  ) : (
+                    <>
+                      <BellRing className="h-5 w-5" />
+                      <span>Call Waiter</span>
                     </>
                   )}
                 </button>
 
-                <button
+                {/* <button
                   onClick={handleLogout}
                   className="p-2.5 rounded-xl bg-amber-400 hover:bg-amber-500 border border-amber-600 shadow-md hover:shadow-lg transition focus:ring-2 focus:ring-black/40"
                 >
                   <LogOut className="h-5 w-5 text-black" />
-                </button>
+                </button> */}
               </div>
             </div>
           </div>

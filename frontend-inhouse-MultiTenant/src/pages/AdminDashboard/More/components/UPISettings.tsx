@@ -89,7 +89,7 @@ export default function UPISettings() {
           {!loading && !isEditing && (
             <button
               onClick={() => setIsEditing(true)}
-              className="p-2 rounded-full text-yellow-400 hover:bg-yellow-500/10 transition-colors"
+              className="flex items-center justify-center w-9 h-9 rounded-xl bg-yellow-400 text-black shadow-[0_0_12px_rgba(250,204,21,0.4)] hover:bg-yellow-500 active:scale-[0.97] transition-all"
               aria-label="Edit UPI Settings"
             >
               <Pencil className="w-5 h-5" />

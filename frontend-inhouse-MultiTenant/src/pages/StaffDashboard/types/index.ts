@@ -90,6 +90,7 @@ export interface Order {
   staffAlias?: string;
   version: number;
   createdAt: string;
+  isCustomerOrder?: boolean;
   preBill?: {
     subtotal: number;
     taxes: number;

@@ -57,8 +57,8 @@ function normalizeOrderPayload(rid: string, tableId: string, payload: any) {
     customerName: payload.customerName || "Guest User",
     customerContact: payload.customerContact || null,
     customerEmail: payload.customerEmail ?? null,
-    isCustomerOrder: true,
-    staffAlias: "(Waiter)",
+    isCustomerOrder: tableId === "takeout-id" ? false : true,
+    staffAlias: tableId === "takeout-id" ? "Takeout" : "(Waiter)", // Set staffAlias to "Takeout" for takeout orders
     notes: payload.notes || "",
     extras: payload.extras || [{ name: "Corkage", amount: 0 }],
     combos: payload.combos || [],

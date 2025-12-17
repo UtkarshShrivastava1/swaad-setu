@@ -1,4 +1,4 @@
-import { Utensils, X } from "lucide-react";
+import { Minus, Plus, Utensils, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useCart } from "../../stores/cart.store";
 import type {
@@ -20,13 +20,9 @@ type MenuAppProps = {
     serviceCharge: number;
     taxes: Array<{ name: string; percent: number }>;
   };
-  tableId?: string;
 };
 
-export default function RestaurantMenuApp({
-  menuData,
-  tableId = "5",
-}: MenuAppProps) {
+export default function RestaurantMenuApp({ menuData }: MenuAppProps) {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [vegFilter, setVegFilter] = useState("all");
@@ -39,12 +35,14 @@ export default function RestaurantMenuApp({
   const [modalOpen, setModalOpen] = useState(false);
   const [modalItem, setModalItem] = useState<MenuItem | null>(null);
   const [chefNote, setChefNote] = useState("");
+  const [modalQuantity, setModalQuantity] = useState(1);
 
   const { addItem } = useCart();
 
   const handleShowModal = (item: MenuItem) => {
     setModalItem(item);
     setChefNote("");
+    setModalQuantity(1);
     setModalOpen(true);
   };
 
@@ -120,8 +118,8 @@ export default function RestaurantMenuApp({
       vegFilter === "all"
         ? true
         : vegFilter === "veg"
-        ? item.isVegetarian
-        : !item.isVegetarian;
+          ? item.isVegetarian
+          : !item.isVegetarian;
 
     if (showChefSpecialOnly) {
       if (item.type !== "item") return false;
@@ -207,18 +205,6 @@ export default function RestaurantMenuApp({
 
       {/* ================= DARK HEADER ================= */}
       <div className="sticky top-0 z-40 bg-black/70 backdrop-blur-xl shadow-lg border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-          <h1 className="text-lg font-black tracking-tight text-yellow-400">
-            {menuData.branding?.title || "Menu"}
-          </h1>
-
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-400">Table {tableId}</span>
-
-            <span className="text-sm text-gray-400">Time:30-40min</span>
-          </div>
-        </div>
-
         <div className="my-4 px-4">
           <ComboAdvertisement
             comboCategories={activeComboCategories}
@@ -380,6 +366,31 @@ export default function RestaurantMenuApp({
               className="w-full bg-gray-800 border border-white/10 rounded-lg px-3 py-2 text-sm mb-4 text-white placeholder-gray-500"
             />
 
+            {/* START: Quantity Controls */}
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-sm font-semibold text-gray-300">
+                Quantity
+              </span>
+              <div className="flex items-center gap-2 bg-gray-800 rounded-xl p-1 border border-white/10">
+                <button
+                  onClick={() => setModalQuantity((q) => Math.max(1, q - 1))}
+                  className="w-8 h-8 rounded-lg bg-gray-700 flex items-center justify-center text-white hover:bg-yellow-500 hover:text-black transition-all duration-200"
+                >
+                  <Minus size={16} />
+                </button>
+                <span className="px-4 text-base font-bold text-white min-w-[2rem] text-center">
+                  {modalQuantity}
+                </span>
+                <button
+                  onClick={() => setModalQuantity((q) => q + 1)}
+                  className="w-8 h-8 rounded-lg bg-gray-700 flex items-center justify-center text-white hover:bg-yellow-500 hover:text-black transition-all duration-200"
+                >
+                  <Plus size={16} />
+                </button>
+              </div>
+            </div>
+            {/* END: Quantity Controls */}
+
             <div className="flex gap-3">
               <button
                 onClick={() => setModalOpen(false)}
@@ -393,7 +404,7 @@ export default function RestaurantMenuApp({
                     itemId: modalItem.itemId,
                     name: modalItem.name,
                     price: modalItem.price,
-                    quantity: 1,
+                    quantity: modalQuantity,
                     notes: chefNote,
                     image: modalItem.image,
                   };
@@ -414,4 +425,3 @@ export default function RestaurantMenuApp({
     </div>
   );
 }
-

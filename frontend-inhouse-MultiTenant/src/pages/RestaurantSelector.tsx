@@ -42,37 +42,41 @@ export default function RestaurantSelector() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-900 p-4">
-      <div className="bg-gray-800 p-8 rounded-2xl max-w-md w-full shadow-xl">
-        <h1 className="text-2xl font-bold text-white mb-6">
+    <div className="min-h-screen flex items-center justify-center bg-black p-4">
+      <div className="bg-gray-900 p-8 rounded-2xl max-w-md w-full shadow-2xl border border-yellow-500/30">
+        <h1 className="text-3xl font-bold text-yellow-400 mb-8 text-center tracking-wider">
           Select Your Restaurant
         </h1>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            type="text"
-            placeholder="Enter restaurant ID (e.g., dominos-sector14)"
-            value={ridInput}
-            onChange={(e) => setRidInput(e.target.value)}
-            className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg outline-none focus:ring-2 focus:ring-emerald-500"
-          />
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label htmlFor="rid" className="text-yellow-400/80 text-sm font-medium mb-2 block">Restaurant ID</label>
+            <input
+              id="rid"
+              type="text"
+              placeholder="e.g., dominos-sector14"
+              value={ridInput}
+              onChange={(e) => setRidInput(e.target.value)}
+              className="w-full px-4 py-3 bg-gray-800 text-white rounded-lg outline-none focus:ring-2 focus:ring-yellow-500 border border-gray-700 focus:border-transparent transition-all duration-300"
+            />
+          </div>
 
-          {error && <div className="text-red-400 text-sm px-1">{error}</div>}
+          {error && <div className="text-red-500 text-sm px-1 font-medium">{error}</div>}
 
           <button
             type="submit"
-            className="w-full bg-emerald-600 text-white py-3 rounded-lg hover:bg-emerald-700 transition font-semibold"
+            className="w-full bg-yellow-500 text-gray-900 py-3 rounded-lg hover:bg-yellow-600 transition-all duration-300 font-bold text-lg tracking-wide transform hover:scale-105"
           >
             Continue
           </button>
         </form>
 
-        <div className="mt-6 text-center">
+        <div className="mt-8 text-center">
           <a
             href="/register-restaurant"
-            className="text-emerald-400 text-sm hover:underline"
+            className="text-yellow-400 text-sm hover:underline transition-colors duration-300"
           >
-            Register New Restaurant
+            Don't have a restaurant ID? Register here.
           </a>
         </div>
       </div>

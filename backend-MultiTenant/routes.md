@@ -38,6 +38,12 @@ All routes are prefixed with `/api/:rid` where `:rid` is the restaurant ID.
 | PATCH  | `/calls/:id/resolve` | None                                | Yes           | Resolve call      |
 | GET    | `/calls/active`      | None                                | Yes           | Get active calls  |
 
+## Restaurant Routes
+
+| Method | Endpoint                  | Body | Auth Required | Description                           |
+| ------ | ------------------------- | ---- | ------------- | ------------------------------------- |
+| GET    | /restaurants/:rid/pricing | None | No            | Get active pricing for a restaurant |
+
 ## Admin Routes
 
 | Method | Endpoint               | Body                                        | Auth Required | Description             |
@@ -48,6 +54,7 @@ All routes are prefixed with `/api/:rid` where `:rid` is the restaurant ID.
 | POST   | `/admin/export`        | `{ reportType: string, dateRange: object }` | Yes           | Export report           |
 | PATCH  | `/admin/tables/:id`    | `{ config: object }`                        | Yes           | Update table config     |
 | PATCH  | `/admin/staff-aliases` | `{ aliases: [string] }`                     | Yes           | Update staff aliases    |
+| GET    | /admin/pricing/active  | None                                        | Yes           | Get active pricing for a restaurant |
 
 ## Authentication
 

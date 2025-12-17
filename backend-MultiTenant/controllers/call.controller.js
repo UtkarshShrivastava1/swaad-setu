@@ -72,7 +72,11 @@ async function createCall(req, res, next) {
         const query = mongoose.Types.ObjectId.isValid(tableNumber)
           ? { _id: tableNumber }
           : { tableNumber };
-        const tableDoc = await Table.findOne({ restaurantId: rid, ...query });
+        const tableDoc = await Table.findOne({
+          restaurantId: rid,
+          $or: [{ tableType: "dine_in" }, { tableType: { $exists: false } }],
+          ...query,
+        });
         if (!tableDoc)
           return res.status(404).json({ error: "Table not found" });
         tableId = tableDoc._id.toString();

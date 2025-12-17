@@ -319,9 +319,6 @@ export default function CartDrawer() {
           </button>
         </div>
 
-        <div className="text-xs text-gray-500">
-          Table: {tableId || "Not selected"}
-        </div>
       </aside>
     </>
   );

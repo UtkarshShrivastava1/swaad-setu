@@ -18,6 +18,12 @@ const TableSchema = new Schema({
   sessionExpiresAt: { type: Date, default: null }, // optional TTL for auto-expiry logic
   staffAlias: { type: String, default: null },
   lastUsed: { type: Date, default: Date.now },
+  tableType: {
+    type: String,
+    enum: ["dine_in", "takeout"],
+    default: "dine_in",
+  },
+  isSystem: { type: Boolean, default: false }, // System flag for special tables like takeout
   // soft-delete flag (optional but useful)
   isDeleted: { type: Boolean, default: false },
 
@@ -28,6 +34,7 @@ const TableSchema = new Schema({
 // Indexes
 // enforce tableNumber uniqueness per restaurant
 TableSchema.index({ restaurantId: 1, tableNumber: 1 }, { unique: true });
+TableSchema.index({ restaurantId: 1, tableType: 1 }); // New index for querying tableType
 
 // fast lookups
 TableSchema.index({ restaurantId: 1, isActive: 1 });

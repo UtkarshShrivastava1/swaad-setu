@@ -37,6 +37,9 @@ type MenuResponse =
 
 type MenuOption = { value: string; label: string; price: number };
 
+// Local state type for editable extras/discounts where amount is a string
+type EditableExtra = { label: string; amount: string };
+
 interface EditBillModalProps {
   bill: ApiBill;
   onClose: () => void;
@@ -67,24 +70,35 @@ export default function EditBillModal({
   );
   const [selectedOption, setSelectedOption] = useState<MenuOption | null>(null);
 
-  const [extras, setExtras] = useState<BillExtra[]>(
+  const [extras, setExtras] = useState<EditableExtra[]>(
     Array.isArray(bill.extras)
-      ? bill.extras.map((e: any) => ({
-          // normalize naming to {label, amount}
-          label: e.label ?? e.name ?? "",
-          amount: Number(e.amount ?? 0),
-        }))
+      ? bill.extras
+          .filter((e) => (e.amount ?? 0) >= 0) // Separate extras from discounts
+          .map((e: any) => ({
+            label: e.label ?? e.name ?? "",
+            amount: String(Number(e.amount ?? 0)),
+          }))
       : []
   );
 
-  // New: Additional per-bill fixed amount discounts (deducted)
-  const [moreDiscounts, setMoreDiscounts] = useState<BillExtra[]>(
-    Array.isArray((bill as any).additionalDiscounts)
-      ? (bill as any).additionalDiscounts.map((d: any) => ({
-          label: d.label ?? d.name ?? "More Discount",
-          amount: Number(d.amount ?? 0),
-        }))
-      : []
+  const [moreDiscounts, setMoreDiscounts] = useState<EditableExtra[]>(
+    (
+      Array.isArray(bill.extras)
+        ? bill.extras
+            .filter((e) => (e.amount ?? 0) < 0)
+            .map((d: any) => ({
+              label: d.label ?? d.name ?? "More Discount",
+              amount: String(Math.abs(Number(d.amount ?? 0))),
+            }))
+        : []
+    ).concat(
+      Array.isArray((bill as any).additionalDiscounts)
+        ? (bill as any).additionalDiscounts.map((d: any) => ({
+            label: d.label ?? d.name ?? "More Discount",
+            amount: String(Math.abs(Number(d.amount ?? 0))),
+          }))
+        : []
+    )
   );
 
   const [saving, setSaving] = useState(false);
@@ -285,7 +299,7 @@ export default function EditBillModal({
      ➕ Extras Management
   --------------------------------------------- */
   const handleAddExtra = () => {
-    setExtras((prev) => [...prev, { label: "", amount: 0 }]);
+    setExtras((prev) => [...prev, { label: "Extra", amount: "" }]);
   };
 
   const handleRemoveExtra = (index: number) => {
@@ -294,15 +308,15 @@ export default function EditBillModal({
 
   const handleExtraChange = (
     index: number,
-    field: keyof BillExtra,
-    value: string | number
+    field: keyof EditableExtra,
+    value: string
   ) => {
+    if (field === "amount" && value !== "" && !/^\d*\.?\d*$/.test(value)) {
+      return; // prevent non-numeric, non-decimal input
+    }
     setExtras((prev) => {
       const next = [...prev];
-      next[index] = {
-        ...next[index],
-        [field]: field === "amount" ? Number(value) : (value as string),
-      };
+      next[index] = { ...next[index], [field]: value };
       return next;
     });
   };
@@ -313,7 +327,7 @@ export default function EditBillModal({
   const handleAddMoreDiscount = () => {
     setMoreDiscounts((prev) => [
       ...prev,
-      { label: "More Discount", amount: 0 },
+      { label: "More Discount", amount: "" },
     ]);
   };
 
@@ -323,15 +337,15 @@ export default function EditBillModal({
 
   const handleMoreDiscountChange = (
     index: number,
-    field: keyof BillExtra,
-    value: string | number
+    field: keyof EditableExtra,
+    value: string
   ) => {
+    if (field === "amount" && value !== "" && !/^\d*\.?\d*$/.test(value)) {
+      return; // prevent non-numeric, non-decimal input
+    }
     setMoreDiscounts((prev) => {
       const next = [...prev];
-      next[index] = {
-        ...next[index],
-        [field]: field === "amount" ? Number(value) : (value as string),
-      };
+      next[index] = { ...next[index], [field]: value };
       return next;
     });
   };
@@ -455,23 +469,79 @@ export default function EditBillModal({
     }
   };
 
+  const selectStyles = {
+    control: (base, state) => ({
+      ...base,
+      backgroundColor: "transparent",
+      borderColor: state.isFocused ? "#f59e0b" : "#4b5563",
+      color: "white",
+      "&:hover": {
+        borderColor: "#f59e0b",
+      },
+      boxShadow: "none",
+    }),
+    singleValue: (base) => ({
+      ...base,
+      color: "white",
+    }),
+    input: (base) => ({
+      ...base,
+      color: "white",
+    }),
+    menu: (base) => ({
+      ...base,
+      backgroundColor: "#1f2937",
+      border: "1px solid #4b5563",
+    }),
+    option: (base, state) => ({
+      ...base,
+      backgroundColor: state.isFocused ? "#374151" : "transparent",
+      color: "white",
+      "&:hover": {
+        backgroundColor: "#4b5563",
+      },
+    }),
+    placeholder: (base) => ({
+      ...base,
+      color: "#9ca3af",
+    }),
+    indicatorSeparator: () => ({
+      display: "none",
+    }),
+    dropdownIndicator: (base) => ({
+      ...base,
+      color: "#9ca3af",
+      "&:hover": {
+        color: "white",
+      },
+    }),
+    noOptionsMessage: (base) => ({
+      ...base,
+      color: "#9ca3af",
+    }),
+    loadingMessage: (base) => ({
+      ...base,
+      color: "#9ca3af",
+    }),
+  };
+
   /* ---------------------------------------------
      🧾 Render
   --------------------------------------------- */
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-3 sm:p-6">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-5 sm:p-6 relative animate-fadeIn overflow-y-auto max-h-[90vh] transition-all">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-6">
+      <div className="bg-gray-900 border border-gray-700 text-white rounded-2xl shadow-xl w-full max-w-lg p-5 sm:p-6 relative animate-fadeIn overflow-y-auto max-h-[90vh] transition-all">
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 text-slate-500 hover:text-slate-700 transition"
+          className="absolute top-3 right-3 text-gray-400 hover:text-white transition"
           aria-label="Close"
         >
           <X className="w-5 h-5" />
         </button>
 
         <div className="flex items-center gap-3 mb-4">
-          <ShoppingCart className="text-amber-500 w-6 h-6" />
-          <h2 className="text-xl font-semibold text-slate-800">
+          <ShoppingCart className="text-amber-400 w-6 h-6" />
+          <h2 className="text-xl font-semibold text-white">
             Edit Bill — {bill._id}
           </h2>
         </div>
@@ -481,11 +551,13 @@ export default function EditBillModal({
           {items.map((item, i) => (
             <div
               key={`${item.name}-${i}`}
-              className="flex items-center justify-between border rounded-lg px-3 py-2 bg-slate-50 hover:bg-slate-100 transition"
+              className="flex items-center justify-between border border-gray-700 rounded-lg px-3 py-2 bg-gray-800 hover:bg-gray-700 transition"
             >
               <div className="flex-1 min-w-0">
-                <div className="font-medium truncate">{item.name}</div>
-                <div className="text-xs text-slate-500">
+                <div className="font-medium truncate text-white">
+                  {item.name}
+                </div>
+                <div className="text-xs text-gray-400">
                   ₹{item.price} × {item.qty}
                 </div>
               </div>
@@ -493,22 +565,22 @@ export default function EditBillModal({
               <div className="flex items-center gap-2 flex-shrink-0">
                 <button
                   onClick={() => handleDecrement(i)}
-                  className="p-1 rounded bg-slate-200 hover:bg-slate-300"
+                  className="p-1 rounded bg-gray-600 hover:bg-gray-500 text-white"
                   aria-label="Decrement"
                 >
                   <Minus className="w-4 h-4" />
                 </button>
-                <span>{item.qty}</span>
+                <span className="text-white">{item.qty}</span>
                 <button
                   onClick={() => handleIncrement(i)}
-                  className="p-1 rounded bg-slate-200 hover:bg-slate-300"
+                  className="p-1 rounded bg-gray-600 hover:bg-gray-500 text-white"
                   aria-label="Increment"
                 >
                   <Plus className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => handleRemove(i)}
-                  className="ml-2 text-red-500 hover:text-red-700 text-sm"
+                  className="ml-2 text-red-500 hover:text-red-400 text-sm"
                 >
                   ✕
                 </button>
@@ -516,7 +588,7 @@ export default function EditBillModal({
             </div>
           ))}
           {items.length === 0 && (
-            <div className="text-sm text-slate-500 border rounded-lg p-3">
+            <div className="text-sm text-gray-400 border border-gray-700 rounded-lg p-3">
               No items yet. Use the menu below to add.
             </div>
           )}
@@ -524,12 +596,13 @@ export default function EditBillModal({
 
         {/* Add from Menu (React Select) */}
         <div className="mb-5">
-          <div className="text-sm font-medium mb-2 text-slate-700">
+          <div className="text-sm font-medium mb-2 text-gray-300">
             Add item from menu
           </div>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
             <div className="flex-1">
               <Select<MenuOption, false>
+                styles={selectStyles}
                 options={menuOptions}
                 isLoading={menuLoading}
                 value={selectedOption}
@@ -544,29 +617,28 @@ export default function EditBillModal({
                   menuLoading ? "Loading..." : "No matches"
                 }
                 classNamePrefix="rs"
-                // keep default styles; react-select ships with inline styles
               />
             </div>
             <button
               onClick={handleAddFromMenu}
               disabled={!selectedOption}
-              className="px-4 py-2 bg-amber-500 text-white rounded-lg text-sm font-medium disabled:opacity-60 hover:bg-amber-600 transition"
+              className="px-4 py-2 bg-amber-400 text-black rounded-lg text-sm font-medium disabled:opacity-60 hover:bg-amber-500 transition"
             >
               Add
             </button>
           </div>
-          <div className="mt-1 text-xs text-slate-400">
+          <div className="mt-1 text-xs text-gray-500">
             Tip: type to search “Butter Chicken”, “Naan”, etc.
           </div>
         </div>
 
         {/* Extras */}
-        <div className="border-t pt-3 mb-4">
+        <div className="border-t border-gray-700 pt-3 mb-4">
           <div className="flex justify-between items-center mb-2">
-            <h3 className="font-medium text-slate-700">Extras</h3>
+            <h3 className="font-medium text-gray-300">Extras</h3>
             <button
               onClick={handleAddExtra}
-              className="px-2 py-1 bg-slate-200 text-sm rounded hover:bg-slate-300"
+              className="px-2 py-1 bg-gray-700 text-sm rounded hover:bg-gray-600 text-white"
             >
               + Add
             </button>
@@ -585,36 +657,36 @@ export default function EditBillModal({
                   onChange={(e) =>
                     handleExtraChange(i, "label", e.target.value)
                   }
-                  className="border rounded p-1 flex-1 mr-2"
+                  className="border border-gray-600 bg-gray-800 rounded p-1 flex-1 mr-2 text-white placeholder-gray-500"
                 />
                 <input
-                  type="number"
-                  value={Number(extra.amount) || 0}
-                  onChange={(e) =>
-                    handleExtraChange(i, "amount", Number(e.target.value) || 0)
-                  }
-                  className="w-24 border rounded p-1 text-right mr-2"
+                  type="text"
+                  inputMode="decimal"
+                  value={extra.amount}
+                  placeholder="0"
+                  onChange={(e) => handleExtraChange(i, "amount", e.target.value)}
+                  className="w-24 border border-gray-600 bg-gray-800 rounded p-1 text-right mr-2 text-white"
                 />
                 <button
                   onClick={() => handleRemoveExtra(i)}
-                  className="text-red-500 hover:text-red-700"
+                  className="text-red-500 hover:text-red-400"
                 >
                   ✕
                 </button>
               </div>
             ))
           ) : (
-            <div className="text-sm text-slate-500">No extras</div>
+            <div className="text-sm text-gray-400">No extras</div>
           )}
         </div>
 
         {/* More Discounts (fixed-amount deductions) */}
-        <div className="border-t pt-3 mb-4">
+        <div className="border-t border-gray-700 pt-3 mb-4">
           <div className="flex justify-between items-center mb-2">
-            <h3 className="font-medium text-slate-700">More Discounts</h3>
+            <h3 className="font-medium text-gray-300">More Discounts</h3>
             <button
               onClick={handleAddMoreDiscount}
-              className="px-2 py-1 bg-slate-200 text-sm rounded hover:bg-slate-300"
+              className="px-2 py-1 bg-gray-700 text-sm rounded hover:bg-gray-600 text-white"
             >
               + Add
             </button>
@@ -633,44 +705,42 @@ export default function EditBillModal({
                   onChange={(e) =>
                     handleMoreDiscountChange(i, "label", e.target.value)
                   }
-                  className="border rounded p-1 flex-1 mr-2"
+                  className="border border-gray-600 bg-gray-800 rounded p-1 flex-1 mr-2 text-white placeholder-gray-500"
                 />
                 <input
-                  type="number"
-                  value={Number(d.amount) || 0}
+                  type="text"
+                  inputMode="decimal"
+                  value={d.amount}
+                  placeholder="0"
                   onChange={(e) =>
-                    handleMoreDiscountChange(
-                      i,
-                      "amount",
-                      Number(e.target.value) || 0
-                    )
+                    handleMoreDiscountChange(i, "amount", e.target.value)
                   }
-                  className="w-24 border rounded p-1 text-right mr-2"
+                  className="w-24 border border-gray-600 bg-gray-800 rounded p-1 text-right mr-2 text-white"
                 />
                 <button
                   onClick={() => handleRemoveMoreDiscount(i)}
-                  className="text-red-500 hover:text-red-700"
+                  className="text-red-500 hover:text-red-400"
                 >
                   ✕
                 </button>
               </div>
             ))
           ) : (
-            <div className="text-sm text-slate-500">
+            <div className="text-sm text-gray-400">
               No additional discounts
             </div>
           )}
         </div>
 
         {/* Totals */}
-        <div className="border-t pt-3 text-sm space-y-1">
+        <div className="border-t border-gray-700 pt-3 text-sm space-y-1 text-gray-300">
           <div className="flex justify-between">
             <span>Subtotal</span>
-            <span>{formatINR(subtotal)}</span>
+            <span className="text-white">{formatINR(subtotal)}</span>
           </div>
 
           {appliedDiscountPercent > 0 && (
-            <div className="flex justify-between text-emerald-700">
+            <div className="flex justify-between text-green-500">
               <span>Discount ({appliedDiscountPercent}%)</span>
               <span>-{formatINR(computedDiscountAmount)}</span>
             </div>
@@ -679,28 +749,31 @@ export default function EditBillModal({
           {appliedServiceChargePercent > 0 && (
             <div className="flex justify-between">
               <span>Service Charge ({appliedServiceChargePercent}%)</span>
-              <span>{formatINR(computedServiceChargeAmount)}</span>
+              <span className="text-white">
+                {formatINR(computedServiceChargeAmount)}
+              </span>
             </div>
           )}
 
           {/* Display taxes using exact server values */}
-          {Array.isArray(bill.taxes) && bill.taxes.length > 0 && (
-            <>
-              {bill.taxes.map((tax, i) => (
-                <div key={i} className="flex justify-between">
-                  <span>
-                    {tax.name} ({tax.rate}%)
-                  </span>
-                  <span>{formatINR(tax.amount)}</span>
-                </div>
-              ))}
-            </>
-          )}
+          {Array.isArray(bill.taxes) &&
+            bill.taxes.length > 0 && (
+              <>
+                {bill.taxes.map((tax, i) => (
+                  <div key={i} className="flex justify-between">
+                    <span>
+                      {tax.name} ({tax.rate}%)
+                    </span>
+                    <span className="text-white">{formatINR(tax.amount)}</span>
+                  </div>
+                ))}
+              </>
+            )}
 
           {extrasTotal > 0 && (
             <div className="flex justify-between">
-              <span className="font-semibold text-slate-700">Extras</span>
-              <span>{formatINR(extrasTotal)}</span>
+              <span className="font-semibold text-gray-300">Extras</span>
+              <span className="text-white">{formatINR(extrasTotal)}</span>
             </div>
           )}
 
@@ -708,22 +781,24 @@ export default function EditBillModal({
           {moreDiscounts.length > 0 &&
             moreDiscounts.map((d, i) => (
               <div key={`md-total-${i}`} className="flex justify-between">
-                <span className="text-emerald-700">
+                <span className="text-green-500">
                   {d.label ?? "More Discount"}
                 </span>
-                <span className="text-emerald-700">
+                <span className="text-green-500">
                   -{formatINR(Number(d.amount) || 0)}
                 </span>
               </div>
             ))}
 
-          <div className="flex justify-between font-semibold text-slate-800 text-base border-t pt-2">
+          <div className="flex justify-between font-semibold text-white text-base border-t border-gray-700 pt-2">
             <span>Grand Total</span>
-            <span>{formatINR(previewTotalWithMoreDiscounts)}</span>
+            <span className="text-amber-400">
+              {formatINR(previewTotalWithMoreDiscounts)}
+            </span>
           </div>
 
           {bill.staffAlias && (
-            <div className="text-xs text-slate-500 mt-2 flex items-center gap-1">
+            <div className="text-xs text-gray-400 mt-2 flex items-center gap-1">
               <User className="w-3 h-3" /> Staff:{" "}
               <span className="font-medium">{bill.staffAlias}</span>
             </div>

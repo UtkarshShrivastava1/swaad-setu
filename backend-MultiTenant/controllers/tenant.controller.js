@@ -21,13 +21,26 @@ function generateRID(name) {
 // Utility: seed 10 default tables
 async function seedTables(rid) {
   const tables = [];
+  // Seed 10 default dine-in tables
   for (let i = 1; i <= 10; i++) {
     tables.push({
       restaurantId: rid,
       tableNumber: i,
       capacity: 4,
+      tableType: "dine_in",
     });
   }
+
+  // Add one system takeout table
+  tables.push({
+    restaurantId: rid,
+    tableNumber: 999, // A distinct number for takeout
+    capacity: 1, // Takeout tables don't have physical capacity, but need to satisfy min:1 schema constraint
+    tableType: "takeout",
+    isSystem: true, // Mark as a system-managed table
+    status: "available", // Always available for new takeout orders
+  });
+
   await Table.insertMany(tables);
 }
 
@@ -168,6 +181,7 @@ exports.registerRestaurant = async (req, res, next) => {
 };
 
 exports.getRestaurantByRid = async (req, res, next) => {
+  console.log(`[getRestaurantByRid] Attempting to fetch restaurant for RID: ${req.params.rid}`);
   try {
     const { rid } = req.params;
 
@@ -192,6 +206,34 @@ exports.getRestaurantByRid = async (req, res, next) => {
     };
 
     return res.status(200).json(response);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getPricingConfig = async (req, res, next) => {
+  try {
+    const { rid } = req.params;
+
+    if (!rid) {
+      return res.status(400).json({ error: "Missing restaurant id (rid)" });
+    }
+
+    const restaurant = await Admin.findOne({ restaurantId: rid }).lean();
+
+    if (!restaurant) {
+      return res.status(404).json({ error: "Restaurant not found" });
+    }
+
+    const activeConfig = restaurant.pricingConfigs.find(
+      (config) => config.active
+    );
+
+    if (!activeConfig) {
+      return res.status(404).json({ error: "No active pricing configuration found" });
+    }
+
+    return res.status(200).json(activeConfig);
   } catch (err) {
     next(err);
   }

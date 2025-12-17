@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import { getOrdersByTable, type Order as ApiOrderType } from "../api/order.api";
 import CartItem from "../components/Cart/NewCartItem";
 import FooterNav from "../components/Layout/Footer";
+import SubHeader from "../components/common/SubHeader";
 import Header from "../components/Layout/Header";
 import OrderView from "../components/Order/OrderView";
 import { useTable } from "../context/TableContext";
@@ -66,6 +67,8 @@ export default function HomePage() {
   const lastSegment = pathSegments[pathSegments.length - 1];
   const secondToLastSegment = pathSegments[pathSegments.length - 2];
   const isRootPage = lastSegment === rid;
+  const showSubHeader = !isRootPage && lastSegment !== 'table';
+
 
   const renderPage = () => {
     if (secondToLastSegment === "order" && lastSegment) {
@@ -102,6 +105,7 @@ export default function HomePage() {
             waitTime="30–40 mins"
             table={table}
           />
+           {showSubHeader && <SubHeader />}
         </div>
       )}
 

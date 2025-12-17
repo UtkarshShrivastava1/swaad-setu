@@ -6,8 +6,9 @@ import {
   RefreshCw,
   ThumbsUp,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { OrderStatusLogout } from "../../../OrderStatusLogout";
 import type { Order } from "../../api/order.api";
 import { getOrderById } from "../../api/order.api";
 import { useTable } from "../../context/TableContext";
@@ -22,12 +23,22 @@ export default function OrderView({ orderId }: { orderId: string }) {
   const { tableId } = useTable(); // Access tableId from useTable
   const sessionId = sessionStorage.getItem("resto_session_id");
 
+  const logoutAndRedirect = useCallback(() => {
+    // This function handles the core logout logic. For app-wide reusability,
+    // this logic should ideally be moved to a central authentication context
+    // that components like a global header could also use.
+    console.log("Order paid. Logging out session...");
+    sessionStorage.removeItem("resto_session_id");
+    // Ensure you have a route set up for `/t/:rid/thank-you`.
+    navigate(`/t/${rid}`);
+  }, [rid, navigate]);
+
   // --------------------- Fetch ---------------------
   const fetchOrder = async () => {
     if (!orderId || !rid) return;
     try {
       setLoading(true);
-            const res = await getOrderById(rid, orderId, sessionId!);
+      const res = await getOrderById(rid, orderId, sessionId!);
       setOrder(res.order);
       setError(null);
     } catch (err) {
@@ -44,36 +55,28 @@ export default function OrderView({ orderId }: { orderId: string }) {
     return () => clearInterval(interval);
   }, [orderId, rid]);
 
-  // Navigate to root page if order is completed and paid
-  useEffect(() => {
-    if (order && order.status === "completed" && order.paymentStatus === "paid") {
-      console.log("Order completed and paid, navigating to root.");
-      navigate(`/t/${rid}`);
-    }
-  }, [order, rid, navigate]);
-
   // --------------------- Loading / Error States ---------------------
   if (loading) {
     return (
-      <div className="flex flex-col h-screen justify-center items-center text-gray-600">
-        <div className="animate-spin mb-2">
-          <RefreshCw size={28} />
+      <div className="flex flex-col h-screen justify-center items-center bg-gray-900 text-gray-400">
+        <div className="animate-spin mb-4">
+          <RefreshCw size={32} className="text-yellow-500" />
         </div>
-        Loading your order...
+        <span className="text-lg">Loading your order...</span>
       </div>
     );
   }
 
   if (error || !order) {
     return (
-      <div className="flex flex-col h-screen justify-center items-center text-gray-600">
-        <h2 className="font-bold text-lg mb-2">Order not found</h2>
-        <p className="text-gray-500 mb-4">
-          {error || "Please try again later."}
+      <div className="flex flex-col h-screen justify-center items-center bg-gray-900 text-gray-400 px-4">
+        <h2 className="font-bold text-2xl text-white mb-2">Order Not Found</h2>
+        <p className="text-gray-500 mb-6 text-center">
+          {error || "We couldn't find the order you're looking for."}
         </p>
         <button
           onClick={() => navigate(`/t/${rid}/menu`)}
-          className="bg-orange-500 hover:bg-orange-600 text-white rounded-lg px-5 py-2 font-semibold"
+          className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-black font-semibold rounded-xl px-8 py-3.5 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
         >
           Back to Menu
         </button>
@@ -104,68 +107,55 @@ export default function OrderView({ orderId }: { orderId: string }) {
 
   // --------------------- UI ---------------------
   return (
-    <div className="bg-white min-h-screen flex flex-col pb-28">
-      <div className="inline-block bg-[#ffbe00] border-b border-[#051224]/20 shadow-lg sticky top-0 z-20">
-        <div className="flex items-center justify-between gap-3 px-4 py-3">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => navigate(`/t/${rid}/menu`)}
-              className="p-1.5 sm:p-2 rounded-full hover:bg-white/30 transition-colors"
-            >
-              <span className="text-white">←</span>
-            </button>
-            <span className="text-white font-bold text-base sm:text-lg">
-              Your Order
-            </span>
-          </div>
-        </div>
-      </div>
+    <div className="bg-gray-900 text-white min-h-screen flex flex-col pb-28 relative">
+      <OrderStatusLogout
+        status={order?.paymentStatus}
+        onLogout={logoutAndRedirect}
+      />
 
-      <div className="max-w-2xl w-full mx-auto p-4 space-y-5">
+      <div className="max-w-2xl w-full mx-auto p-4 space-y-8">
         {/* Order Info */}
-        <div className="flex justify-between items-center">
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-800">
-            Order #{order._id.slice(-6).toUpperCase()}
+        <div className="text-center">
+          <p className="text-gray-400">Order Status</p>
+          <h2 className="text-3xl sm:text-4xl font-bold text-white mt-1">
+            #{order._id.slice(-6).toUpperCase()}
           </h2>
-          <button
-            onClick={fetchOrder}
-            className="text-orange-600 hover:text-orange-700 flex items-center gap-1 text-sm font-medium"
-          >
-            <RefreshCw size={16} />
-            Refresh
-          </button>
         </div>
 
         {/* Chronological Progress Bar */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-2 mt-2">
+        <div className="flex items-start justify-between gap-2 mt-2">
           {statusSteps.map((step, idx) => {
             const Icon = step.icon;
             const isActive = idx <= currentStep;
-            const isCompleted = idx < currentStep;
             return (
-              <div key={step.key} className="flex flex-col items-center flex-1">
+              <div
+                key={step.key}
+                className="flex flex-col items-center text-center flex-1 relative"
+              >
                 <div
-                  className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all duration-300 ${
+                  className={`flex items-center justify-center w-12 h-12 rounded-full border-2 transition-all duration-300 ${
                     isActive
-                      ? "bg-orange-500 border-orange-500 text-white shadow-md"
-                      : "border-gray-300 text-gray-400"
+                      ? "bg-yellow-500 border-yellow-500 text-black shadow-lg shadow-yellow-500/20"
+                      : "bg-gray-800 border-gray-700 text-gray-500"
                   }`}
                 >
-                  <Icon size={18} />
+                  <Icon size={22} />
                 </div>
                 <span
-                  className={`text-xs mt-1 ${
-                    isActive ? "text-orange-600 font-semibold" : "text-gray-400"
+                  className={`text-xs mt-3 font-semibold ${
+                    isActive ? "text-yellow-400" : "text-gray-500"
                   }`}
                 >
                   {step.label}
                 </span>
-                {idx < statusSteps.length - 1 && (
+                {/* Connector */}
+                {idx > 0 && (
                   <div
-                    className={`hidden sm:block h-1 w-full mt-[-20px] ${
-                      isCompleted ? "bg-orange-400" : "bg-gray-200"
+                    className={`absolute top-6 left-[-50%] w-full h-1 ${
+                      isActive ? "bg-yellow-500" : "bg-gray-700"
                     }`}
-                  ></div>
+                    style={{ zIndex: -1 }}
+                  />
                 )}
               </div>
             );
@@ -173,71 +163,82 @@ export default function OrderView({ orderId }: { orderId: string }) {
         </div>
 
         {/* Ordered Items */}
-        <div className="bg-gray-50 rounded-lg p-4 shadow-sm">
-          <h3 className="font-semibold text-gray-700 mb-2">Ordered Items</h3>
-          <ul className="divide-y divide-gray-200">
+        <div className="bg-gray-800/50 rounded-2xl p-5 border border-gray-700">
+          <h3 className="font-semibold text-white mb-3 text-lg">Your Items</h3>
+          <ul className="divide-y divide-gray-700">
             {order.items.map((item) => (
               <li
                 key={item._id}
-                className="flex justify-between py-2 text-sm sm:text-base"
+                className="flex justify-between items-center py-3 text-sm sm:text-base"
               >
-                <span className="text-gray-800">
-                  {item.name} × {item.quantity}
-                </span>
-                <span className="font-medium text-gray-900">
-                  ₹{(item.priceAtOrder || item.price || 0) * item.quantity}
+                <div className="flex flex-col">
+                  <span className="font-medium text-gray-200">
+                    {item.name}
+                  </span>
+                  <span className="text-gray-400 text-xs">
+                    Qty: {item.quantity}
+                  </span>
+                </div>
+                <span className="font-semibold text-gray-200">
+                  ₹
+                  {((item.priceAtOrder || item.price || 0) * item.quantity).toFixed(2)}
                 </span>
               </li>
             ))}
           </ul>
           <button
             onClick={() => navigate(`/t/${rid}/menu`)}
-            className="mt-4 w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 px-4 rounded-lg"
+            className="mt-5 w-full bg-gray-700/70 hover:bg-gray-700 text-yellow-400 font-semibold py-3 px-4 rounded-xl border-2 border-gray-600 hover:border-gray-500 transition-all"
           >
-            Add More Items
+            + Add More Items
           </button>
         </div>
 
         {/* Price Breakdown */}
-        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 text-gray-700 space-y-1 text-sm sm:text-base">
-          <div className="flex justify-between">
+        <div className="bg-gray-800/50 rounded-2xl p-5 space-y-2 text-sm sm:text-base border border-gray-700">
+          <div className="flex justify-between text-gray-300">
             <span>Subtotal</span>
             <span>₹{order.subtotal?.toFixed(2)}</span>
           </div>
           {discountPercent > 0 && (
-            <div className="flex justify-between text-green-600">
+            <div className="flex justify-between text-green-400">
               <span>Discount ({discountPercent}%)</span>
               <span>-₹{order.discountAmount?.toFixed(2)}</span>
             </div>
           )}
-          <div className="flex justify-between">
+          <div className="flex justify-between text-gray-400">
             <span>GST ({taxPercent}%)</span>
-            <span>₹{order.taxAmount?.toFixed(2)}</span>
+            <span>+ ₹{order.taxAmount?.toFixed(2)}</span>
           </div>
-          <div className="flex justify-between">
+          <div className="flex justify-between text-gray-400">
             <span>Service Charge ({servicePercent}%)</span>
-            <span>₹{order.serviceChargeAmount?.toFixed(2)}</span>
+            <span>+ ₹{order.serviceChargeAmount?.toFixed(2)}</span>
           </div>
-          <div className="flex justify-between border-t border-orange-200 pt-2 mt-2 font-semibold text-orange-700 text-lg">
-            <span>Total</span>
+          <div className="!mt-4 border-t border-dashed border-gray-600"></div>
+          <div className="flex justify-between items-center pt-3 font-semibold text-yellow-400 text-lg sm:text-xl">
+            <span>Total Payable</span>
             <span>₹{order.totalAmount?.toFixed(2)}</span>
           </div>
         </div>
 
         {/* Customer Info */}
-        <div className="mt-6 text-sm text-gray-600 bg-gray-50 rounded-lg p-4">
-          <h3 className="font-semibold text-gray-700 mb-2">Customer Details</h3>
-          <p>
-            <strong>Name:</strong> {order.customerName}
-          </p>
-          <p>
-            <strong>Email:</strong> {order.customerEmail}
-          </p>
-          {order.customerContact && (
+        <div className="bg-gray-800/50 rounded-2xl p-5 text-sm border border-gray-700">
+          <h3 className="font-semibold text-white mb-3 text-lg">
+            Customer Details
+          </h3>
+          <div className="space-y-1 text-gray-300">
             <p>
-              <strong>Contact:</strong> {order.customerContact}
+              <strong>Name:</strong> {order.customerName}
             </p>
-          )}
+            <p>
+              <strong>Email:</strong> {order.customerEmail}
+            </p>
+            {order.customerContact && (
+              <p>
+                <strong>Contact:</strong> {order.customerContact}
+              </p>
+            )}
+          </div>
         </div>
       </div>
 

@@ -1,19 +1,21 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { Bell, FileText, Home, MoreHorizontal, Utensils } from "lucide-react";
+import { Bell, FileText, Home, MoreHorizontal, Utensils, Package } from "lucide-react";
 import React from "react";
 
-type TabId = "dashboard" | "menu" | "orders" | "tables" | "more";
+type TabId = "dashboard" | "menu" | "orders" | "tables" | "more" | "takeout";
 
 type FooterNavProps = {
   activeTab?: string;
   ordersCount?: number;
   onTabChange?: (tabId: TabId) => void;
+  takeoutCount?: number;
 };
 
 const tabs = [
   { id: "dashboard", label: "Dashboard", icon: Home, href: "/dashboard" },
   { id: "menu", label: "Menu", icon: Utensils, href: "admin/menu" },
   { id: "orders", label: "Orders", icon: FileText, href: "/orders" },
+  { id: "takeout", label: "Takeout", icon: Package, href: "/takeout" },
   { id: "tables", label: "Tables", icon: Bell, href: "/tables" },
   { id: "more", label: "More", icon: MoreHorizontal, href: "/more" },
 ] as const;
@@ -22,6 +24,7 @@ export default function FooterNav({
   activeTab = "dashboard",
   ordersCount = 0,
   onTabChange,
+  takeoutCount = 0,
 }: FooterNavProps) {
   const handleClick = (id: TabId, e: React.MouseEvent) => {
     e.preventDefault();
@@ -43,6 +46,7 @@ export default function FooterNav({
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
+          const count = tab.id === "orders" ? ordersCount : tab.id === "takeout" ? takeoutCount : 0;
 
           return (
             <a
@@ -72,10 +76,10 @@ export default function FooterNav({
                   }`}
                 />
 
-                {tab.id === "orders" && ordersCount > 0 && (
+                {count > 0 && (
                   <AnimatePresence>
                     <motion.div
-                      key={ordersCount}
+                      key={count}
                       initial={{ scale: 0.5, opacity: 0, y: -5 }}
                       animate={{ scale: 1, opacity: 1, y: 0 }}
                       exit={{ scale: 0.5, opacity: 0 }}
@@ -89,7 +93,7 @@ export default function FooterNav({
                       <span className="relative flex h-4 w-4">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                         <span className="relative inline-flex items-center justify-center rounded-full h-4 w-4 bg-red-500 text-white text-[10px] font-bold">
-                          {ordersCount > 9 ? "9+" : ordersCount}
+                          {count > 9 ? "9+" : count}
                         </span>
                       </span>
                     </motion.div>

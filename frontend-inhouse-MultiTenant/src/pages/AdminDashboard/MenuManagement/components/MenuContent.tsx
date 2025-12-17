@@ -56,6 +56,7 @@ const MenuContent: React.FC<MenuContentProps> = ({
               className="pl-10 pr-4 py-2 border border-gray-300 rounded-md w-full sm:w-auto bg-white dark:bg-gray-800 text-black dark:text-white focus:border-yellow-500 focus:ring-yellow-500"
               value={searchQuery}
               onChange={onSearchChange}
+              autoComplete="off"
             />
           </div>
 

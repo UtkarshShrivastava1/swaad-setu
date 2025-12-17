@@ -217,8 +217,8 @@ async function createOrder(req, res, next) {
 
     const {
       orderId, // Add orderId to the destructuring
-      tableId,
-      sessionId,
+      tableId: incomingTableId, // Rename to avoid conflict
+      sessionId: incomingSessionId, // Rename to avoid conflict
       items,
       extras = [],
       isCustomerOrder,
@@ -226,20 +226,35 @@ async function createOrder(req, res, next) {
       customerName,
       customerContact,
       customerEmail,
+      orderType, // New field for takeout/dine_in
     } = body || {};
 
-    if (
-      !rid ||
-      !tableId ||
-      !sessionId ||
-      !Array.isArray(items) ||
-      items.length === 0 ||
-      !customerName
-    ) {
-      return res.status(400).json({
-        error:
-          "Missing required fields: tableId, sessionId, items, customerName",
+    let tableId = incomingTableId;
+    let sessionId = incomingSessionId;
+
+    if (orderType === "takeout") {
+      // Find the dedicated takeout table for this restaurant
+      const takeoutTable = await Table.findOne({
+        restaurantId: rid,
+        tableType: "takeout",
+        isSystem: true,
       });
+
+      if (!takeoutTable) {
+        return res.status(404).json({ error: "Takeout table not found for this restaurant." });
+      }
+
+      tableId = takeoutTable._id;
+      // Generate a new session ID for takeout orders, as they don't use physical table sessions
+      sessionId = `takeout-${rid}-${Date.now()}`;
+      console.log(`[createOrder] Assigned takeout table ${tableId} with session ${sessionId}`);
+    } else {
+      // For dine-in orders, use the incoming tableId and sessionId
+      if (!tableId || !sessionId) {
+        return res.status(400).json({
+          error: "Missing required fields: tableId, sessionId, items, customerName",
+        });
+      }
     }
 
     // ------------------ IDEMPOTENCY HANDLING ------------------
@@ -640,20 +655,38 @@ async function createOrder(req, res, next) {
 
     await orderDoc.save();
 
-    // Update Table
+    // Update Table status for dine-in tables
     if (Table) {
       try {
-        await Table.findOneAndUpdate(
-          { _id: tableId, restaurantId: rid },
-          {
-            $set: {
-              status: "occupied",
-              CurrentOrderId: orderDoc._id,
-              lastUsed: new Date(),
-              updatedAt: new Date(),
-            },
-          }
-        );
+        // Only update status for dine_in tables, and only if it's not a system table
+        const targetTable = await Table.findOne({ _id: tableId, restaurantId: rid });
+        if (targetTable && targetTable.tableType === "dine_in" && !targetTable.isSystem) {
+          await Table.findOneAndUpdate(
+            { _id: tableId, restaurantId: rid },
+            {
+              $set: {
+                status: "occupied",
+                CurrentOrderId: orderDoc._id,
+                lastUsed: new Date(),
+                updatedAt: new Date(),
+              },
+            }
+          );
+        } else if (targetTable && targetTable.tableType === "takeout" && targetTable.isSystem) {
+          // For takeout tables, we don't set them to "occupied" as they can handle multiple orders.
+          // We can still link the CurrentOrderId if needed for tracking, but not change status.
+          await Table.findOneAndUpdate(
+            { _id: tableId, restaurantId: rid },
+            {
+              $set: {
+                CurrentOrderId: orderDoc._id, // Link the order to the takeout table
+                lastUsed: new Date(),
+                updatedAt: new Date(),
+              },
+            }
+          );
+          console.log(`[createOrder] Linked order ${orderDoc._id} to takeout table ${tableId}, status remains 'available'.`);
+        }
       } catch (e) {
         logger?.warn?.("[createOrder] failed to update table status", e);
       }
@@ -746,23 +779,45 @@ async function updateOrderStatus(req, res, next) {
       data: order,
     });
 
-    // ====== Auto-reset table if order is done/completed/cancelled ======
+    // ====== Auto-reset dine-in tables if order is done/completed/cancelled ======
     if (["done", "completed", "cancelled"].includes(order.status) && Table) {
       try {
-        await Table.findOneAndUpdate(
-          { _id: order.tableId, restaurantId: rid },
-          {
-            $set: {
-              status: "available",
-              CurrentOrderId: null,
-              currentSessionId: null,
-              updatedAt: new Date(),
-            },
+        // Only reset tables that are dine_in and not system tables
+        const targetTable = await Table.findOne({ _id: order.tableId, restaurantId: rid });
+        if (targetTable && targetTable.tableType === "dine_in" && !targetTable.isSystem) {
+          await Table.findOneAndUpdate(
+            { _id: order.tableId, restaurantId: rid },
+            {
+              $set: {
+                status: "available",
+                CurrentOrderId: null,
+                currentSessionId: null,
+                updatedAt: new Date(),
+              },
+            }
+          );
+          console.log(
+            `[updateOrderStatus] Dine-in Table ${order.tableId} reset to 'available' ✅`
+          );
+        } else if (targetTable && targetTable.tableType === "takeout" && targetTable.isSystem) {
+          // For takeout tables, we only clear the CurrentOrderId if there are no other active orders linked to it.
+          // The table status remains "available" and currentSessionId is not relevant.
+          const activeOrdersOnTakeoutTable = await Order.countDocuments({
+            restaurantId: rid,
+            tableId: order.tableId,
+            status: { $nin: ["done", "completed", "cancelled"] }
+          });
+
+          if (activeOrdersOnTakeoutTable === 0) {
+             await Table.findOneAndUpdate(
+              { _id: order.tableId, restaurantId: rid },
+              { $set: { CurrentOrderId: null, updatedAt: new Date() } }
+            );
+             console.log(`[updateOrderStatus] Takeout Table ${order.tableId} CurrentOrderId cleared as no other active orders.`);
+          } else {
+             console.log(`[updateOrderStatus] Takeout Table ${order.tableId} still has ${activeOrdersOnTakeoutTable} active orders. CurrentOrderId not cleared.`);
           }
-        );
-        console.log(
-          `[updateOrderStatus] Table ${order.tableId} reset to 'available' ✅`
-        );
+        }
       } catch (e) {
         logger?.warn?.("[updateOrderStatus] failed to reset table", e);
       }
@@ -1039,31 +1094,51 @@ async function deleteOrderById(req, res, next) {
     if (tableId) {
       console.log("[deleteOrderById] Checking table occupancy…");
 
-      const activeOrders = await Order.countDocuments({
-        restaurantId: rid,
-        tableId,
-        status: { $ne: "done" }, // any order still active?
-      });
+      const targetTable = await Table.findOne({ _id: tableId, restaurantId: rid });
 
-      if (activeOrders === 0) {
-        console.log(
-          "[deleteOrderById] No remaining orders → setting table available"
-        );
+      if (targetTable && targetTable.tableType === "dine_in" && !targetTable.isSystem) {
+        const activeOrders = await Order.countDocuments({
+          restaurantId: rid,
+          tableId,
+          status: { $ne: "done" }, // any order still active?
+        });
 
-        await Table.findOneAndUpdate(
-          { _id: tableId, restaurantId: rid },
-          {
-            status: "available",
-            CurrentOrderId: null,
-            currentSessionId: null,
-            sessionExpiresAt: null,
-          },
-          { new: true }
-        );
-      } else {
-        console.log(
-          `[deleteOrderById] Table still has ${activeOrders} active orders → not changing status`
-        );
+        if (activeOrders === 0) {
+          console.log(
+            "[deleteOrderById] Dine-in Table: No remaining orders → setting table available"
+          );
+
+          await Table.findOneAndUpdate(
+            { _id: tableId, restaurantId: rid },
+            {
+              status: "available",
+              CurrentOrderId: null,
+              currentSessionId: null,
+              sessionExpiresAt: null,
+            },
+            { new: true }
+          );
+        } else {
+          console.log(
+            `[deleteOrderById] Dine-in Table: still has ${activeOrders} active orders → not changing status`
+          );
+        }
+      } else if (targetTable && targetTable.tableType === "takeout" && targetTable.isSystem) {
+        const activeOrdersOnTakeoutTable = await Order.countDocuments({
+          restaurantId: rid,
+          tableId,
+          status: { $nin: ["done", "completed", "cancelled"] }
+        });
+
+        if (activeOrdersOnTakeoutTable === 0) {
+          await Table.findOneAndUpdate(
+            { _id: tableId, restaurantId: rid },
+            { $set: { CurrentOrderId: null, updatedAt: new Date() } }
+          );
+          console.log(`[deleteOrderById] Takeout Table ${tableId} CurrentOrderId cleared as no other active orders.`);
+        } else {
+          console.log(`[deleteOrderById] Takeout Table ${tableId} still has ${activeOrdersOnTakeoutTable} active orders. CurrentOrderId not cleared.`);
+        }
       }
     }
 

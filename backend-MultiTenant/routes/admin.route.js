@@ -2,6 +2,7 @@
 const express = require("express");
 const router = express.Router({ mergeParams: true });
 const adminController = require("../controllers/admin.controller");
+const tenantController = require("../controllers/tenant.controller");
 const upload = require("../common/middlewares/upload.middleware");
 const {
   enforceLimit,
@@ -158,6 +159,13 @@ router.patch(
   requirePlan("FREE"),
   limiter("sensitiveLimiter"),
   adminController.activatePricingVersion
+);
+
+router.get(
+  "/pricing/active",
+  authMiddleware,
+  requireRole("admin"),
+  tenantController.getPricingConfig
 );
 
 // -----------------------------------------------------------

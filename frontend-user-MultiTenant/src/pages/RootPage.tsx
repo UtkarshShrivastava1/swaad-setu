@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { FaUtensils } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 
 export default function RootPage() {
@@ -18,12 +17,12 @@ export default function RootPage() {
       <div className="w-full max-w-md">
         <div className="bg-gray-800/50 backdrop-blur-lg rounded-2xl shadow-2xl p-8 border border-yellow-400/20">
           <div className="flex flex-col items-center mb-6">
-            <div className="bg-yellow-400/20 p-4 rounded-full shadow-lg mb-4">
-              <FaUtensils className="text-4xl text-yellow-400" />
-            </div>
-            <h1 className="text-4xl font-extrabold text-white tracking-wider drop-shadow-lg">
-              Swaad Setu
-            </h1>
+            <img
+              src="/logo.png"
+              alt="Swaad Setu"
+              className="h-24 w-auto mb-4"
+            />
+
             <p className="text-lg text-gray-300 mt-2 italic">
               Your bridge to delicious food
             </p>

@@ -91,6 +91,12 @@ export default function TabbedCarouselLayout(): JSX.Element {
   const images = activeTab.images;
   const imageCount = images.length;
 
+   /* 🔥 GUARANTEED SCROLL TO TOP */
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }, []);
+
+
   // Reset image + selected bullet on tab change
   useEffect(() => {
     setCurrentImageIndex(0);
@@ -131,13 +137,13 @@ export default function TabbedCarouselLayout(): JSX.Element {
       {/* Fixed header */}
       <header className="fixed top-0 left-0 w-full z-50 bg-black/80 backdrop-blur-md border-b border-white/10">
         <Navbar />
-        <div className="px-6 py-2">
+        <div className="px-0 -mx-6 py-2">
           <BackButton />
         </div>
       </header>
 
       {/* Main content */}
-      <main className="pt-28 pb-10 px-6 relative bg-white">
+      <main className="pt-28 pb-10 px-6 relative bg-white mt-5">
         {/* Decorative shapes */}
         <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
           <svg
@@ -169,10 +175,10 @@ export default function TabbedCarouselLayout(): JSX.Element {
         <div className="max-w-7xl mx-auto">
           {/* header + tab buttons */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-6">
-            <div>
-              <h2 className="text-3xl sm:text-4xl font-extrabold">
+            <div> 
+              <h2 className="text-3xl sm:text-4xl font-semibold text-black ">
                 <span className="block">Explore Features</span>
-                <span className="block text-yellow-300">
+                <span className="block ">
                   Switch roles to preview their workspace
                 </span>
               </h2>
@@ -303,20 +309,24 @@ export default function TabbedCarouselLayout(): JSX.Element {
                               isActive ? "bg-yellow-500" : "bg-gray-400"
                             }`}
                           />
+                          <div className="lg:tooltip" data-tip="click me">
+
                           <span className={isActive ? "font-semibold" : ""}>
                             {line}
                           </span>
+                          </div>
+
                         </li>
                       );
                     })}
                   </ul>
                 </div>
-
+{/* 
                 <div className="mt-6 flex gap-3">
                   <button className="flex-1 bg-black text-white py-2 rounded-xl font-semibold hover:opacity-90 transition">
                     Explore This View
                   </button>
-                </div>
+                </div> */}
               </div>
             </div>
 

@@ -21,7 +21,7 @@ import {
 } from "../../../api/staff/staff.operations.api";
 import { useTenant } from "../../../context/TenantContext";
 import BillModalComponent from "./BillModalComponent";
-import ConfirmModal from "./ConfirmModal";
+import { ConfirmModal } from "./ConfirmModal";
 import EditBillModal from "./EditBillModal";
 import PaymentModal from "./PaymentModal";
 import type { Order } from "../types";
@@ -210,7 +210,7 @@ export default function BillingViewCompact({
 
   // ===== Alias (waiter name) update =====
   /**
-   * Handles the update of the waiter's name (alias) on the bill.
+   * Handles the update of the waiter's name (alias) on the bill, primarily for the manual save button.
    */
   async function handleAliasUpdate() {
     if (!bill?._id) return;
@@ -219,8 +219,14 @@ export default function BillingViewCompact({
       setError("Please select or enter a waiter name.");
       return;
     }
+    // Prevent re-saving the same value
+    if (alias === bill.staffAlias) {
+      return;
+    }
+
     try {
       setIsAliasSaving(true);
+      setError(null);
       const payload = {
         staffAlias: alias,
         finalizedByAlias: alias,
@@ -251,6 +257,57 @@ export default function BillingViewCompact({
       setIsAliasSaving(false);
     }
   }
+
+  // Auto-save waiter name on dropdown selection
+  const isInitialWaiterSelection = useRef(true);
+  useEffect(() => {
+    if (isInitialWaiterSelection.current) {
+      isInitialWaiterSelection.current = false;
+      return;
+    }
+
+    if (!selectedWaiter || !bill?._id || selectedWaiter === bill.staffAlias) {
+      return;
+    }
+
+    const autoSave = async () => {
+      try {
+        setIsAliasSaving(true);
+        setError(null);
+        const payload = {
+          staffAlias: selectedWaiter,
+          finalizedByAlias: selectedWaiter,
+          paymentMarkedBy: selectedWaiter,
+        };
+        const res = await fetch(
+          `${apiBase}/api/${restaurantId}/bills/${bill._id}`,
+          {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${staffToken}`,
+            },
+            body: JSON.stringify(payload),
+          }
+        );
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || "Failed to auto-save waiter name");
+        }
+        const updatedBill = await res.json();
+        setBill(updatedBill);
+        setAliasInput(""); // Clear manual input on successful auto-save
+        setSuccess("✅ Waiter name auto-saved.");
+        setTimeout(() => setSuccess(null), 1600);
+      } catch (err: any) {
+        setError(err?.message || "Failed to auto-save waiter name");
+      } finally {
+        setIsAliasSaving(false);
+      }
+    };
+
+    autoSave();
+  }, [selectedWaiter, bill, restaurantId, staffToken, apiBase]);
 
   // ===== Status / actions =====
   /**
@@ -423,10 +480,10 @@ export default function BillingViewCompact({
 
   // Styling for different order statuses
   const statusColors: Record<string, string> = {
-    accepted: "bg-blue-100 text-blue-700 border-blue-300",
-    preparing: "bg-amber-100 text-amber-700 border-amber-300",
-    ready: "bg-purple-100 text-purple-700 border-purple-300",
-    served: "bg-emerald-100 text-emerald-700 border-emerald-300",
+    accepted: "bg-blue-900/50 text-blue-300 border-blue-700",
+    preparing: "bg-amber-900/50 text-amber-300 border-amber-700",
+    ready: "bg-purple-900/50 text-purple-300 border-purple-700",
+    served: "bg-emerald-900/50 text-emerald-300 border-emerald-700",
   };
   const statusIcons: Record<string, string> = {
     accepted: "👍",
@@ -436,12 +493,12 @@ export default function BillingViewCompact({
   };
 
   return (
-    <section className="h-screen overflow-hidden bg-slate-50">
+    <section className="h-screen overflow-hidden bg-gray-950 text-gray-200">
       {/* Top bar with navigation and actions */}
-      <div className="flex items-center gap-2 px-3 sm:px-4 py-2 border-b border-slate-200 bg-white">
+      <div className="flex items-center gap-2 px-3 sm:px-4 py-3 border-b border-white/10 bg-gray-900">
         <button
           onClick={goBack}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-100 transition cursor-pointer"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium bg-amber-400 text-black border border-amber-600 hover:bg-amber-500 transition cursor-pointer"
         >
           <ChevronRight className="h-4 w-4 -rotate-180" />
           Back
@@ -450,7 +507,7 @@ export default function BillingViewCompact({
           <button
             onClick={() => fetchBill()}
             disabled={isRefreshing}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-slate-800 text-white hover:bg-slate-900 transition shadow disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white/10 text-white hover:bg-white/20 transition shadow disabled:opacity-50 cursor-pointer"
           >
             <RefreshCw
               className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
@@ -461,7 +518,7 @@ export default function BillingViewCompact({
             <button
               onClick={() => setBillModalOpen(true)}
               disabled={!bill}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 transition disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white/10 text-white border border-white/20 hover:bg-white/20 transition disabled:opacity-50 cursor-pointer"
             >
               <Receipt className="h-4 w-4" />
               View Bill
@@ -474,13 +531,13 @@ export default function BillingViewCompact({
       {(error || success) && (
         <div className="px-3 sm:px-4 py-2 bg-transparent">
           {error && (
-            <div className="bg-rose-50 border border-rose-200 text-rose-700 px-3 py-2 rounded-md text-xs sm:text-sm flex items-center gap-2">
+            <div className="bg-red-900/50 border border-red-500/30 text-red-300 px-3 py-2 rounded-lg text-xs sm:text-sm flex items-center gap-2">
               <span className="text-base">⚠️</span>
               {error}
             </div>
           )}
           {success && (
-            <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 px-3 py-2 rounded-md text-xs sm:text-sm flex items-center gap-2 mt-1">
+            <div className="bg-green-900/50 border border-green-500/30 text-green-300 px-3 py-2 rounded-lg text-xs sm:text-sm flex items-center gap-2 mt-1">
               <span className="text-base">✅</span>
               {success}
             </div>
@@ -489,18 +546,18 @@ export default function BillingViewCompact({
       )}
 
       {/* Main content grid */}
-      <div className="h-[calc(100vh-56px-0px)] grid grid-cols-1 lg:grid-cols-[45fr_55fr] xl:grid-cols-[45fr_55fr] gap-3 sm:gap-4 px-3 sm:px-4 pb-3">
+      <div className="h-[calc(100vh-68px)] grid grid-cols-1 lg:grid-cols-[45fr_55fr] xl:grid-cols-[45fr_55fr] gap-4 px-3 sm:px-4 pb-3">
         {/* LEFT COLUMN: Summary + Actions */}
-        <div className="min-w-0 h-full overflow-auto pr-1 space-y-3">
+        <div className="min-w-0 h-full overflow-auto pr-1 space-y-4">
           {/* Order & Bill Summary */}
-          <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-3.5">
+          <div className="bg-black/30 rounded-xl border border-white/10 shadow-lg p-4">
             <div className="flex items-start justify-between">
               <div>
-                <h3 className="text-base font-semibold text-slate-800 leading-snug">
+                <h3 className="text-lg font-bold text-white leading-snug">
                   Order & Bill
                 </h3>
                 {orderNumberForDay && (
-                  <span className="inline-block text-[11px] bg-slate-100 px-1.5 py-[1px] rounded-md border border-slate-200 text-slate-600 mt-0.5">
+                  <span className="inline-block text-[11px] bg-white/10 px-1.5 py-[1px] rounded-md border border-white/20 text-gray-300 mt-0.5">
                     #{orderNumberForDay}
                   </span>
                 )}
@@ -510,13 +567,13 @@ export default function BillingViewCompact({
                 <div
                   className={`inline-flex items-center gap-1 px-2 py-[1px] rounded-full text-[11px] font-semibold border ${
                     (paymentStatus ?? "unpaid") === "paid"
-                      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                      : "bg-rose-50 text-rose-700 border-rose-200"
+                      ? "bg-green-500/10 text-green-300 border-green-500/20"
+                      : "bg-red-500/10 text-red-300 border-red-500/20"
                   }`}
                 >
                   {(paymentStatus ?? "unpaid").toUpperCase()}
                 </div>
-                <div className="text-[10px] text-slate-500">
+                <div className="text-[10px] text-gray-400">
                   {lastUpdated
                     ? lastUpdated.toLocaleTimeString([], {
                         hour: "2-digit",
@@ -528,28 +585,28 @@ export default function BillingViewCompact({
             </div>
 
             {/* Table and Customer details */}
-            <div className="mt-2.5 grid grid-cols-2 gap-1.5 text-[13px]">
-              <div className="bg-slate-50 rounded-md p-1 border border-slate-200">
-                <div className="text-slate-500 text-[11px] font-medium leading-tight">
+            <div className="mt-3 grid grid-cols-2 gap-2 text-[13px]">
+              <div className="bg-white/5 rounded-lg p-2 border border-white/10">
+                <div className="text-gray-400 text-[11px] font-medium leading-tight">
                   Table
                 </div>
-                <div className="text-[13px] font-semibold text-slate-800 leading-tight">
+                <div className="text-[13px] font-semibold text-white leading-tight">
                   {tableDisplay}
                 </div>
               </div>
 
-              <div className="bg-slate-50 rounded-md p-1.5 border border-slate-200">
-                <div className="text-slate-500 text-[11px] font-medium leading-tight">
+              <div className="bg-white/5 rounded-lg p-2 border border-white/10">
+                <div className="text-gray-400 text-[11px] font-medium leading-tight">
                   Customer
                 </div>
-                <div className="font-semibold text-slate-800 truncate text-[13px] leading-snug">
+                <div className="font-semibold text-white truncate text-[13px] leading-snug">
                   {customerName}
                 </div>
-                <div className="text-[11px] text-slate-500 truncate leading-tight">
+                <div className="text-[11px] text-gray-400 truncate leading-tight">
                   {customerContact}
                 </div>
                 {customerEmail && (
-                  <div className="text-[11px] text-slate-500 truncate leading-tight">
+                  <div className="text-[11px] text-gray-400 truncate leading-tight">
                     {customerEmail}
                   </div>
                 )}
@@ -558,11 +615,11 @@ export default function BillingViewCompact({
 
             {/* Customer notes */}
             {customerNotes && (
-              <div className="mt-2.5 bg-slate-50 rounded-md p-2 border border-slate-200">
-                <div className="text-[11px] text-slate-500 font-medium mb-0.5 leading-tight">
+              <div className="mt-2.5 bg-white/5 rounded-lg p-2 border border-white/10">
+                <div className="text-[11px] text-gray-400 font-medium mb-0.5 leading-tight">
                   Notes
                 </div>
-                <div className="text-[13px] italic text-slate-700 leading-snug break-words">
+                <div className="text-[13px] italic text-gray-200 leading-snug break-words">
                   💬 {customerNotes}
                 </div>
               </div>
@@ -570,11 +627,11 @@ export default function BillingViewCompact({
           </div>
 
           {/* Order Status */}
-          <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4">
-            <h4 className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-1.5">
-              <Clock className="h-4 w-4 text-slate-700" /> Status
+          <div className="bg-black/30 rounded-xl border border-white/10 shadow-lg p-4">
+            <h4 className="text-base font-bold text-white mb-3 flex items-center gap-2">
+              <Clock className="h-4 w-4 text-gray-300" /> Status
             </h4>
-            <div className="grid grid-cols-2 gap-1.5">
+            <div className="grid grid-cols-2 gap-2">
               {(["accepted", "preparing", "ready", "served"] as const).map(
                 (status) => {
                   const isActive = order?.status === status;
@@ -583,13 +640,13 @@ export default function BillingViewCompact({
                       key={status}
                       onClick={() => handleStatusClick(status)}
                       disabled={isActive || isPending(orderId)}
-                      className={`px-2.5 py-1.5 rounded-md text-[13px] font-semibold border transition ${
+                      className={`px-2.5 py-1.5 rounded-lg text-[13px] font-semibold border transition-colors ${
                         isActive
                           ? `${statusColors[status]} border-2`
-                          : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
+                          : "bg-white/5 border-white/10 text-gray-300 hover:bg-white/10"
                       }`}
                     >
-                      <span className="text-base mr-1">
+                      <span className="text-base mr-1.5">
                         {statusIcons[status]}
                       </span>
                       {status}
@@ -601,19 +658,23 @@ export default function BillingViewCompact({
           </div>
 
           {/* Waiter selection */}
-          <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4">
-            <h4 className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-1.5">
-              <User className="h-4 w-4 text-slate-700" /> Waiter
+          <div className="bg-black/30 rounded-xl border border-white/10 shadow-lg p-4">
+            <h4 className="text-base font-bold text-white mb-3 flex items-center gap-2">
+              <User className="h-4 w-4 text-gray-300" /> Waiter
             </h4>
-            <div className="flex gap-1.5">
+            <div className="flex gap-2">
               <select
                 value={selectedWaiter}
                 onChange={(e) => setSelectedWaiter(e.target.value)}
-                className="flex-1 px-2.5 py-1.5 rounded-md border border-slate-200 text-[13px] focus:ring-1 focus:ring-slate-500"
+                className="flex-1 px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-gray-200 text-[13px] focus:ring-2 focus:ring-yellow-400/50 focus:border-yellow-400 outline-none"
               >
-                <option value="">Select</option>
+                <option className="bg-gray-700 text-white" value="">
+                  Select
+                </option>
                 {waiters.map((w) => (
-                  <option key={w}>{w}</option>
+                  <option className="bg-gray-700 text-white" key={w}>
+                    {w}
+                  </option>
                 ))}
               </select>
               <input
@@ -621,52 +682,48 @@ export default function BillingViewCompact({
                 placeholder="Enter Manually"
                 value={aliasInput}
                 onChange={(e) => setAliasInput(e.target.value)}
-                className="flex-1 px-2.5 py-1.5 rounded-md border border-slate-200 text-[13px] placeholder-slate-400"
+                className="flex-1 px-3 py-2 rounded-lg border border-white/10 bg-white/5 text-[13px] placeholder-gray-500 focus:ring-2 focus:ring-yellow-400/50 focus:border-yellow-400 outline-none"
               />
               <button
                 onClick={handleAliasUpdate}
                 disabled={isAliasSaving || (!aliasInput && !selectedWaiter)}
-                className={`px-2.5 py-1.5 rounded-md text-[13px] font-semibold ${
-                  isAliasSaving || (!aliasInput && !selectedWaiter)
-                    ? "bg-slate-200 text-slate-400"
-                    : "bg-slate-700 text-white hover:bg-slate-800"
-                }`}
+                className="px-3 py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50 bg-yellow-400 text-black hover:bg-yellow-500 disabled:bg-white/5 disabled:text-gray-500"
               >
                 {isAliasSaving ? "..." : "✔"}
               </button>
             </div>
-            <div className="text-[12px] text-slate-600 mt-1.5">
-              Current: <span className="font-semibold">{staffAlias}</span>
+            <div className="text-[12px] text-gray-400 mt-2">
+              Current: <span className="font-semibold text-white">{staffAlias}</span>
             </div>
           </div>
 
           {/* Action buttons */}
-          <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4">
-            <h4 className="text-sm font-bold text-slate-800 mb-2">Actions</h4>
+          <div className="bg-black/30 rounded-xl border border-white/10 shadow-lg p-4">
+            <h4 className="text-base font-bold text-white mb-3">Actions</h4>
 
             {bill?.status === "finalized" ? (
               <>
-                <div className="flex flex-col gap-1.5">
+                <div className="flex flex-col gap-2">
                   {bill?.paymentStatus !== "paid" && (
                     <button
                       onClick={() => setIsPaying(true)}
-                      className="w-full px-3 py-2.5 rounded-md text-[14px] font-semibold bg-emerald-600 text-white hover:bg-emerald-700 flex items-center justify-center gap-2 shadow-sm"
+                      className="w-full px-3 py-2.5 rounded-lg text-sm font-semibold bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:opacity-90 flex items-center justify-center gap-2 shadow-lg"
                     >
                       <CreditCard className="h-5 w-5" /> Pay Bill
                     </button>
                   )}
 
-                  <div className="grid grid-cols-2 gap-1.5 mt-1.5">
+                  <div className="grid grid-cols-2 gap-2 mt-1">
                     <button
                       onClick={handleCloseOrder}
-                      className="px-2.5 py-1.5 rounded-md text-[13px] font-semibold bg-slate-700 text-white hover:bg-slate-800 flex items-center justify-center gap-1"
+                      className="px-2.5 py-1.5 rounded-lg text-[13px] font-semibold bg-white/10 hover:bg-white/20 text-gray-200 flex items-center justify-center gap-1"
                     >
                       Close
                     </button>
                     <button
                       onClick={handleRejectOrder}
                       disabled={rejecting}
-                      className="px-2.5 py-1.5 rounded-md text-[13px] font-semibold bg-rose-600 text-white hover:bg-rose-700 flex items-center justify-center gap-1"
+                      className="px-2.5 py-1.5 rounded-lg text-[13px] font-semibold bg-gradient-to-r from-red-600 to-rose-700 text-white hover:opacity-90 flex items-center justify-center gap-1"
                     >
                       {rejecting ? "Rejecting..." : "Reject"}
                     </button>
@@ -675,10 +732,10 @@ export default function BillingViewCompact({
               </>
             ) : (
               <>
-                <div className="grid grid-cols-2 gap-1.5">
+                <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => bill && setEditingBill(bill)}
-                    className="px-2.5 py-1.5 rounded-md text-[13px] font-semibold bg-amber-500 text-white hover:bg-amber-600 flex items-center justify-center gap-1"
+                    className="px-2.5 py-2 rounded-lg text-sm font-semibold bg-gradient-to-r from-amber-500 to-yellow-600 text-white hover:opacity-90 flex items-center justify-center gap-1.5"
                   >
                     <Edit className="h-4 w-4" /> Edit
                   </button>
@@ -727,22 +784,22 @@ export default function BillingViewCompact({
                       });
                       setConfirmModalOpen(true);
                     }}
-                    className="px-2.5 py-1.5 rounded-md text-[13px] font-semibold bg-emerald-600 text-white hover:bg-emerald-700 flex items-center justify-center gap-1"
+                    className="px-2.5 py-2 rounded-lg text-sm font-semibold bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:opacity-90 flex items-center justify-center gap-1.5"
                   >
                     <CheckCircle className="h-4 w-4" /> Finalize
                   </button>
 
                   <button
                     onClick={handleCloseOrder}
-                    className="px-2.5 py-1.5 rounded-md text-[13px] font-semibold bg-slate-700 text-white hover:bg-slate-800 flex items-center justify-center gap-1"
+                    className="col-span-2 mt-1 px-2.5 py-1.5 rounded-lg text-[13px] font-semibold bg-white/10 hover:bg-white/20 text-gray-200 flex items-center justify-center gap-1"
                   >
-                    Close
+                    Close Order
                   </button>
                   <button
                     onClick={handleRejectOrder}
-                    className="px-2.5 py-1.5 rounded-md text-[13px] font-semibold bg-rose-600 text-white hover:bg-rose-700 flex items-center justify-center gap-1"
+                    className="col-span-2 mt-1 px-2.5 py-1.5 rounded-lg text-[13px] font-semibold bg-red-800/50 hover:bg-red-800/80 text-red-200 flex items-center justify-center gap-1"
                   >
-                    Reject
+                    Reject Order
                   </button>
                 </div>
               </>
@@ -752,18 +809,18 @@ export default function BillingViewCompact({
 
         {/* RIGHT COLUMN: Items + Breakdown */}
         <div className="h-full overflow-hidden">
-          <div className="h-full overflow-auto space-y-3">
+          <div className="h-full overflow-auto space-y-4">
             {/* Order Items */}
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
-                <h4 className="text-sm font-bold text-slate-800">
+            <div className="bg-black/30 rounded-xl border border-white/10 shadow-lg overflow-hidden">
+              <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
+                <h4 className="text-base font-bold text-white">
                   Order Items
                 </h4>
-                <span className="text-[11px] text-slate-500">
+                <span className="text-xs text-gray-400">
                   {bill?.items?.length ? `${bill.items.length} item(s)` : "—"}
                 </span>
               </div>
-              <div className="divide-y divide-slate-200">
+              <div className="divide-y divide-white/10">
                 {bill && bill.items?.length ? (
                   bill.items.map((item: any, i: number) => {
                     const price = item.priceAtOrder ?? item.price ?? 0;
@@ -771,24 +828,24 @@ export default function BillingViewCompact({
                     return (
                       <div
                         key={`${item.itemId || i}`}
-                        className="px-4 py-3 hover:bg-slate-50 transition"
+                        className="px-4 py-3 hover:bg-white/5 transition"
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0 flex-1">
-                            <div className="font-semibold text-slate-800 text-[14px] truncate">
+                            <div className="font-semibold text-white text-sm truncate">
                               {item.name}
                             </div>
-                            <div className="text-[12px] text-slate-500 mt-0.5">
+                            <div className="text-xs text-gray-400 mt-0.5">
                               {qty} × {formatINR(price)}
                             </div>
                             {item.notes && (
-                              <div className="text-[11px] italic text-slate-600 mt-0.5 flex items-center gap-1 min-w-0 truncate">
+                              <div className="text-xs italic text-gray-300 mt-1 flex items-center gap-1.5 min-w-0 truncate">
                                 <span>💭</span>
                                 <span className="truncate">{item.notes}</span>
                               </div>
                             )}
                           </div>
-                          <div className="text-base font-bold text-slate-800 whitespace-nowrap">
+                          <div className="text-base font-bold text-white whitespace-nowrap">
                             {formatINR(qty * price)}
                           </div>
                         </div>
@@ -796,7 +853,7 @@ export default function BillingViewCompact({
                     );
                   })
                 ) : (
-                  <div className="px-4 py-10 text-center text-slate-500 text-sm">
+                  <div className="px-4 py-10 text-center text-gray-400 text-sm">
                     No items in bill.
                   </div>
                 )}
@@ -804,16 +861,16 @@ export default function BillingViewCompact({
             </div>
 
             {/* Bill Breakdown */}
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
-                <h4 className="text-sm font-bold text-slate-800">
+            <div className="bg-black/30 rounded-xl border border-white/10 shadow-lg overflow-hidden">
+              <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
+                <h4 className="text-base font-bold text-white">
                   Bill Breakdown
                 </h4>
                 {bill?.status === "finalized" &&
                   bill.paymentStatus !== "paid" && (
                     <button
                       onClick={() => setIsPaying(true)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 shadow"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:opacity-90 shadow"
                     >
                       <CreditCard className="h-4 w-4" /> Pay
                     </button>
@@ -821,19 +878,19 @@ export default function BillingViewCompact({
               </div>
 
               {bill && billBreakdown ? (
-                <div className="px-4 py-4 space-y-2 text-[13px]">
+                <div className="px-4 py-4 space-y-2 text-sm">
                   <Row
                     label="Subtotal"
                     value={formatINR(billBreakdown.subtotal)}
-                    labelClass="text-slate-600"
-                    valueClass="font-semibold text-slate-800"
+                    labelClass="text-gray-300"
+                    valueClass="font-semibold text-white"
                   />
 
                   {appliedDiscountPercent > 0 && (
                     <Row
                       label={`Discount (${appliedDiscountPercent}%)`}
                       value={`-${formatINR(billBreakdown.discountAmount)}`}
-                      valueClass="text-emerald-700"
+                      valueClass="text-green-400 font-semibold"
                     />
                   )}
 
@@ -860,19 +917,19 @@ export default function BillingViewCompact({
                     />
                   ))}
 
-                  <div className="border-t pt-3 mt-2">
+                  <div className="border-t border-white/10 pt-3 mt-3">
                     <div className="flex justify-between items-center">
-                      <span className="text-base font-bold text-slate-800">
+                      <span className="text-base font-bold text-white">
                         Settlement Amount
                       </span>
-                      <span className="text-xl font-bold text-emerald-700">
+                      <span className="text-2xl font-bold text-green-400">
                         {formatINR(billBreakdown.total)}
                       </span>
                     </div>
                   </div>
                 </div>
               ) : (
-                <div className="px-4 py-6 text-slate-500 text-sm text-center">
+                <div className="px-4 py-6 text-gray-400 text-sm text-center">
                   {isRefreshing ? "Loading bill details..." : "No bill found."}
                 </div>
               )}
@@ -941,8 +998,8 @@ export default function BillingViewCompact({
 function Row({
   label,
   value,
-  labelClass = "text-slate-700",
-  valueClass = "text-slate-700",
+  labelClass = "text-gray-400",
+  valueClass = "text-gray-200",
 }: {
   label: string;
   value: string | number | null | undefined;
