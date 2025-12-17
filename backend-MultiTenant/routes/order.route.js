@@ -63,7 +63,7 @@ try {
 }
 
 try {
-  rateLimit = require("../common/middlewares/rateLimit.middleware") || {};
+  rateLimit = require("../common/middlewares/customRateLimit.middleware") || {};
 } catch {
   rateLimit = {};
 }
@@ -130,7 +130,7 @@ router.get(
   "/active",
   authMiddleware,
   requireRole(["staff", "admin"]),
-  limiter("standardLimiter"),
+  limiter("highTrafficLimiter"),
   orderController.getActiveOrders
 );
 
@@ -138,7 +138,7 @@ router.get(
   "/history",
   authMiddleware,
   requireRole(["staff", "admin"]),
-  limiter("standardLimiter"),
+  limiter("highTrafficLimiter"),
   orderController.getOrderHistory
 );
 
@@ -146,7 +146,7 @@ router.get(
   "/", // This route handles /api/:rid/orders?status=...
   authMiddleware,
   requireRole(["staff", "admin"]),
-  limiter("standardLimiter"),
+  limiter("highTrafficLimiter"),
   orderController.getOrderHistory
 );
 
@@ -154,7 +154,7 @@ router.get(
   "/waiters",
   authMiddleware,
   requireRole(["staff", "admin"]),
-  limiter("standardLimiter"),
+  limiter("highTrafficLimiter"),
   orderController.getOrderWaiters
 );
 
@@ -162,7 +162,7 @@ router.get(
   "/table/:tableId",
   authMiddleware,
   requireRole(["staff", "admin"]),
-  limiter("standardLimiter"),
+  limiter("highTrafficLimiter"),
   orderController.getOrdersByTable
 );
 
@@ -175,7 +175,7 @@ router.get(
   "/bill/:orderId",
   authMiddleware,
   requireRole(["staff", "admin"]),
-  limiter("standardLimiter"),
+  limiter("lowTrafficLimiter"),
   billController.getBillByOrderId
 );
 
@@ -184,14 +184,14 @@ router.post(
   "/:orderId/bill",
   authMiddleware,
   requireRole(["staff", "admin"]),
-  limiter("standardLimiter"),
+  limiter("lowTrafficLimiter"),
   billController.createBillFromOrder
 );
 
 // ✔ Public bill (QR scan)
 router.get(
   "/public/bill/:orderId",
-  limiter("standardLimiter"),
+  limiter("highTrafficLimiter"),
   billController.getBillByOrderIdPublic
 );
 
@@ -202,7 +202,7 @@ router.patch(
   "/:id/status",
   authMiddleware,
   requireRole(["staff", "admin"]),
-  limiter("standardLimiter"),
+  limiter("lowTrafficLimiter"),
   orderController.updateOrderStatus
 );
 
@@ -218,7 +218,7 @@ router.patch(
   "/:id",
   authMiddleware,
   requireRole(["staff", "admin"]),
-  limiter("standardLimiter"),
+  limiter("lowTrafficLimiter"),
   orderController.updateOrderFromBill
 );
 
