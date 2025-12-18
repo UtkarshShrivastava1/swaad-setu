@@ -3,6 +3,7 @@
 
 const Table = require("../models/table.model");
 const Call = require("../models/call.model"); // Import Call model
+const Order = require("../models/order.model"); // Import Order model
 
 // Defensive logger (fallback to console)
 let logger = console;
@@ -457,6 +458,13 @@ async function toggleTableActive(req, res, next) {
       return res.status(400).json({ error: "isActive (boolean) is required" });
     }
 
+    const updates = { isActive };
+    if (isActive === false) {
+      // When deactivating, also clear session details
+      updates.currentSessionId = null;
+      updates.staffAlias = null;
+    }
+
     const table = await Table.findOneAndUpdate(
       {
         _id: id,
@@ -517,6 +525,12 @@ async function resetTable(req, res, next) {
     await Call.updateMany(
       { restaurantId: rid, tableId: id, status: "active" },
       { $set: { status: "resolved", resolvedAt: Date.now() } }
+    );
+
+    // Also cancel any active orders for this table
+    await Order.updateMany(
+      { restaurantId: rid, tableId: id, status: { $nin: ["billed", "paid", "cancelled"] } },
+      { $set: { status: "cancelled", isOrderComplete: true, updatedAt: Date.now() } }
     );
 
     safePublish(`restaurant:${rid}:staff`, {
