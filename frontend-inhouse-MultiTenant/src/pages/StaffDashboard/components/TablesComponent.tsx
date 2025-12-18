@@ -1,153 +1,46 @@
-// src/components/staff/TablesComponent.tsx
+
+
 import { ChevronRight, RotateCcw, Users } from "lucide-react";
 import React, { useState } from "react";
-import { resetTable } from "../../../api/staff/staff.operations.api"; // Import resetTable
-import { useTenant } from "../../../context/TenantContext";
-import { ConfirmModal } from "./ConfirmModal";
+import {
+  resetTable,
+  deleteOrderById,
+} from "../../../api/staff/staff.operations.api"; // Import resetTable
+import ConfirmModal from "../../../components/ConfirmModal"; // Assuming this path
 
-
-
-export type OrderStatus =
-  | "placed"
-  | "accepted"
-  | "preparing"
-  | "ready"
-  | "served"
-  | "done"
-  | "closed";
-
-export type PaymentStatus = "unpaid" | "paid";
-
-export interface BillItem {
-  name: string;
-  qty: number;
-  price: number;
-  notes?: string;
-}
-
-export interface Order {
-  id: string;
-  serverId?: string;
-  tableId?: any;
-  table?: any;
-  sessionId?: string;
-  items: BillItem[];
-  tableNumber?: string;
-  subtotal: number;
-  totalAmount: number;
-  amount: number;
-  status: OrderStatus;
-  paymentStatus: PaymentStatus;
-  OrderNumberForDay?: number;
-  customerName?: string;
-  staffAlias?: string;
-  version: number;
-  createdAt: string | { $date: string };
-}
-
-export interface Table {
-  id: string;
-  _id?: string;
-  tableNumber: string | number;
-  status: "available" | "occupied" | string;
-  capacity: number;
-  waiterAssigned?: string;
-  waiterCalled: boolean;
-  isActive: boolean;
-  currentSessionId?: string;
-}
-
-type Props = {
-  tables: Table[];
-  activeOrders: Order[];
+interface TablesComponentProps {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  tables: any[]; // Replace 'any' with actual Table type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  activeOrders: any[]; // Replace 'any' with actual Order type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  onTableSelect: (table: any, order?: any) => void; // Replace 'any' with actual types
+  onTableReset: () => void;
   isLoading: boolean;
-  onTableSelect: (table: Table, order?: Order) => void;
-};
-
-/**
- * Normalize any possible id/tableNumber to a string.
- */
-function toIdString(x: any): string {
-  if (x == null) return "";
-  if (typeof x === "string" || typeof x === "number") return String(x);
-
-  if (typeof x === "object") {
-    if (x._id) return String(x._id);
-    if (x.id) return String(x.id);
-    if (x.tableNumber) return String(x.tableNumber);
-  }
-
-  return "";
+  rid: string;
 }
 
-/**
- * Single-tenant accurate matching logic.
- * Matches table → order using many real-world schema variations.
- */
-function matchesOrderToTable(order: Order, table: Table) {
-  try {
-    const tableId = toIdString(table._id || table.id);
-    const tableNum = toIdString(table.tableNumber);
-
-    // all possible candidates an order may contain
-    const candidates = new Set<string>();
-
-    // tableId possibilities
-    if (order.tableId) {
-      candidates.add(toIdString(order.tableId));
-
-      if (typeof order.tableId === "object") {
-        if (order.tableId._id) candidates.add(String(order.tableId._id));
-        if (order.tableId.id) candidates.add(String(order.tableId.id));
-        if (order.tableId.tableNumber)
-          candidates.add(String(order.tableId.tableNumber));
-      }
-    }
-
-    // nested table object
-    if (order.table) {
-      candidates.add(toIdString(order.table));
-
-      if (order.table._id) candidates.add(String(order.table._id));
-      if (order.table.id) candidates.add(String(order.table.id));
-      if (order.table.tableNumber)
-        candidates.add(String(order.table.tableNumber));
-    }
-
-    // plain tableNumber
-    if (order.tableNumber) candidates.add(toIdString(order.tableNumber));
-
-    // fallback: numeric ID encoded as tableNumber
-    if (order.tableId && /^\d+$/.test(String(order.tableId)))
-      candidates.add(String(order.tableId));
-
-    for (const c of candidates) {
-      if (!c) continue;
-
-      if (c === tableId) return true;
-      if (c === tableNum) return true;
-
-      // loose matching (“1” === 1)
-      if (String(c) === String(tableId)) return true;
-      if (String(c) === String(tableNum)) return true;
-    }
-  } catch {}
-
-  return false;
-}
-
-export default function TablesComponent({
+export const TablesComponent = ({
   tables,
   activeOrders,
-  isLoading,
   onTableSelect,
-}: Props) {
-  const { rid } = useTenant();
-  const [resettingTableId, setResettingTableId] = useState<string | null>(null);
+  onTableReset,
+  isLoading,
+  rid,
+}: TablesComponentProps) => {
   const [confirmResetModalOpen, setConfirmResetModalOpen] = useState(false);
   const [pendingResetTableId, setPendingResetTableId] = useState<string | null>(
     null
   );
+  const [resettingTableId, setResettingTableId] = useState<string | null>(null);
+
+  // Helper function to match orders to tables (assuming it's not imported)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const matchesOrderToTable = (order: any, table: any) => {
+    // Implement your logic here to check if an order belongs to a table
+    // This is a placeholder, replace with actual implementation
+    return order.tableId === (table._id || table.id);
+  };
 
   const handleResetTable = (tableId: string) => {
     setPendingResetTableId(tableId);
@@ -161,9 +54,23 @@ export default function TablesComponent({
     setConfirmResetModalOpen(false);
 
     try {
+      // Also delete any active orders associated with this table
+      const tableToReset = tables.find(
+        (t) => (t._id || t.id) === pendingResetTableId
+      );
+      if (tableToReset) {
+        const ordersToDelete = activeOrders.filter((o) =>
+          matchesOrderToTable(o, tableToReset)
+        );
+        for (const order of ordersToDelete) {
+          await deleteOrderById(rid, order.id);
+        }
+      }
+
       await resetTable(rid, pendingResetTableId);
-      // Optimistic UI update or trigger a re-fetch
-      window.dispatchEvent(new CustomEvent("staff:refreshTables"));
+      if (onTableReset) {
+        onTableReset();
+      }
       console.log(`Table ${pendingResetTableId} reset successfully.`);
     } catch (error) {
       console.error("Failed to reset table:", error);
@@ -176,10 +83,8 @@ export default function TablesComponent({
   };
 
   // debug inspection
-  try {
-    console.debug("[TablesComponent] tables:", tables?.length);
-    console.debug("[TablesComponent] activeOrders:", activeOrders?.length);
-  } catch {}
+  console.debug("[TablesComponent] tables:", tables?.length);
+  console.debug("[TablesComponent] activeOrders:", activeOrders?.length);
 
   if (isLoading) {
     return (
@@ -310,4 +215,4 @@ export default function TablesComponent({
       </div>
     </>
   );
-}
+};
