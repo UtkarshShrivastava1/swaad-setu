@@ -6,7 +6,7 @@ import {
   resetTable,
   deleteOrderById,
 } from "../../../api/staff/staff.operations.api"; // Import resetTable
-import ConfirmModal from "./ConfirmModal";
+import { ConfirmModal } from "./ConfirmModal";
 
 interface TablesComponentProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
