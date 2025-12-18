@@ -19,7 +19,7 @@ import BillingView from "./components/BillingView";
 import NotificationsView from "./components/NotificationsView";
 import OrdersComponent from "./components/OrdersComponent";
 import TableDetail from "./components/TableDetail";
-import TablesComponent from "./components/TablesComponent";
+import { TablesComponent } from "./components/TablesComponent";
 import { formatINR } from "./utils/formatters";
 
 import { createOrder } from "../../api/admin/order.api"; // Import createOrder
@@ -161,7 +161,7 @@ export default function StaffDashboard() {
       });
     }
     sessionStorage.setItem("calls", JSON.stringify(calls));
-  }, [calls]);
+  }, [calls, tables]);
 
   const { isPending } = usePendingTracker();
 
@@ -218,10 +218,18 @@ export default function StaffDashboard() {
         fetchTables();
         fetchCalls();
       }
-    }, 15000);
+    }, 5000); // Polling interval reduced for faster sync
 
     return () => clearInterval(interval);
-  }, [navigate, view, rid, fetchActiveOrders, fetchWaiters, fetchCalls]);
+  }, [
+    navigate,
+    view,
+    rid,
+    fetchActiveOrders,
+    fetchWaiters,
+    fetchCalls,
+    fetchTables,
+  ]);
 
   useEffect(() => {
     const fn = () => {
@@ -506,6 +514,7 @@ export default function StaffDashboard() {
                     activeOrders={activeOrders}
                     isLoading={loading}
                     onTableSelect={handleTableSelect}
+                    onTableReset={fetchTables}
                   />
                 )}
 
