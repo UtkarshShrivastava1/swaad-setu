@@ -1,12 +1,9 @@
 import React, { useEffect, useRef } from "react";
 import {
   motion,
-  useScroll,
-  useTransform,
   useInView,
 } from "framer-motion";
 import { animate } from "motion";
-import Image from "../assets/heroImage.png";
 import { FlipWords } from "../component/ui/Flipwords";
 import { useNavigate } from "react-router-dom";
 
@@ -35,7 +32,7 @@ const StatCounter: React.FC<StatCounterProps> = ({
       duration: 2,
       delay,
       easing: "easeOut",
-      onUpdate(value) => {
+      onUpdate: (value) => {
         if (!spanRef.current) return;
         spanRef.current.textContent = `${Math.floor(value)}`;
       },
@@ -59,8 +56,6 @@ const StatCounter: React.FC<StatCounterProps> = ({
 
 const HeroText = () => {
   const navigate = useNavigate();
-  const { scrollY } = useScroll();
-  const y1 = useTransform(scrollY, [0, 500], [0, 100]);
   const words = ["Smart", "Optimize", "SmartServe"];
 
   const variants = {

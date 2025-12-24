@@ -327,6 +327,7 @@ const AddItemDrawer: React.FC<AddItemDrawerProps> = ({
       description,
       isVegetarian: isVeg,
       isActive,
+      isChefSpecial,
       categoryId: category._id,
       category: category.name, // Also include category name as per backend error hint
 
@@ -337,7 +338,7 @@ const AddItemDrawer: React.FC<AddItemDrawerProps> = ({
         ...(serves && parseInt(serves, 10) > 0
           ? { serves: parseInt(serves, 10) }
           : {}),
-        ...(isChefSpecial ? { chefSpecial: true } : {}),
+        chefSpecial: isChefSpecial, // Include isChefSpecial in metadata
       },
     };
 

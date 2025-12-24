@@ -1,4 +1,4 @@
-import { Clock, Egg, IndianRupee, LeafyGreen, Pencil, Trash2 } from "lucide-react";
+import { Clock, Egg, IndianRupee, LeafyGreen, Pencil, Star, Trash2 } from "lucide-react";
 import React from "react";
 
 export interface MenuItem {
@@ -12,6 +12,7 @@ export interface MenuItem {
   isActive?: boolean;
   isVegetarian?: boolean;
   preparationTime?: number;
+  metadata?: Record<string, unknown> | string;
 }
 
 interface MenuItemCardProps {
@@ -30,6 +31,20 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
   const handleActionClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
   };
+
+  let parsedMeta: Record<string, unknown> | null = null;
+  if (item.metadata) {
+    if (typeof item.metadata === 'string') {
+      try {
+        parsedMeta = JSON.parse(item.metadata);
+      } catch {
+        // console.error("Failed to parse metadata:", e);
+        parsedMeta = null;
+      }
+    } else {
+      parsedMeta = item.metadata;
+    }
+  }
 
   /** 🔥 VERY STRONG VISUAL DISTINCTION */
   const auraWrapper =
@@ -76,6 +91,17 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
           ) : (
             <div className="flex items-center justify-center h-full bg-gray-200 dark:bg-gray-800">
               <span className="text-gray-400 text-sm">No Image</span>
+            </div>
+          )}
+
+          {/* CHEF'S SPECIAL BADGE */}
+          {parsedMeta?.chefSpecial && (
+            <div
+              className="absolute top-3 left-3 flex items-center gap-1.5 bg-gradient-to-r from-amber-400 to-orange-500 text-white 
+              px-2.5 py-1.5 rounded-full text-xs font-bold shadow-lg ring-2 ring-white/50"
+            >
+              <Star size={14} className="fill-white" />
+              <span>Chef's Special</span>
             </div>
           )}
 
