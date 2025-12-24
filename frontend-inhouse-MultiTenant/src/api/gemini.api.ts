@@ -56,9 +56,10 @@ const generateContent = async (
  */
 export const generateContentWithRateLimit = async (
   tenantId: string,
-  prompt: string
+  prompt: string,
+  forceGenerate: boolean = false
 ): Promise<GeminiResponse> => {
-  return geminiRateLimitManager.generateContent(tenantId, prompt);
+  return geminiRateLimitManager.generateContent(tenantId, prompt, forceGenerate);
 };
 
 export const generateDailyBriefing = async (
@@ -196,7 +197,7 @@ Return only the description text
 Food Item: ${itemName}
 `;
 
-  const response = await generateContentWithRateLimit(rid, prompt);
+  const response = await generateContentWithRateLimit(rid, prompt, true);
 
   if (response.success && response.content) {
     let text = response.content;

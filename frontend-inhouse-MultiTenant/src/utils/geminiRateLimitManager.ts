@@ -384,7 +384,8 @@ class GeminiRateLimitManager {
    */
   public async generateContent(
     tenantId: string,
-    prompt: string
+    prompt: string,
+    forceGenerate: boolean = false
   ): Promise<GeminiResponse> {
     // Validate inputs
     if (!tenantId?.trim()) {
@@ -412,14 +413,16 @@ class GeminiRateLimitManager {
       )}...`
     );
 
-    // Check cache first
-    const cached = this.getCachedResponse(prompt);
-    if (cached) {
-      return {
-        success: true,
-        content: cached,
-        fromCache: true,
-      };
+    // Check cache first ONLY IF NOT forcing generation
+    if (!forceGenerate) {
+      const cached = this.getCachedResponse(prompt);
+      if (cached) {
+        return {
+          success: true,
+          content: cached,
+          fromCache: true,
+        };
+      }
     }
 
     // Check if rate limited
