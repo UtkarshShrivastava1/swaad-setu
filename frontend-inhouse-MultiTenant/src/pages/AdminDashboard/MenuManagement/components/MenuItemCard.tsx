@@ -148,17 +148,17 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
           </div>
 
           {/* DESCRIPTION */}
-          {item.description && (isExpanded || window.innerWidth >= 768) && (
+          {item.description && (
             <p
-              className="mt-1 text-sm text-gray-600 dark:text-gray-400 
-              line-clamp-2 min-h-[40px]"
+              className={`mt-1 text-sm text-gray-600 dark:text-gray-400 
+              line-clamp-2 min-h-[40px] ${isExpanded ? 'block' : 'hidden md:block'}`}
             >
               {item.description || " "}
             </p>
           )}
 
           {/* PRICE + TIME */}
-          {(isExpanded || window.innerWidth >= 768) && (
+          {(isExpanded ? 'flex' : 'hidden md:flex') && (
             <div className="mt-auto flex items-center justify-between pt-4">
               <span
                 className="inline-flex items-center gap-1 px-3 py-1 rounded-full
@@ -218,7 +218,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
             </button>
 
             <span
-              className={`md:block px-2 py-0.5 rounded-full text-xs font-semibold
+              className={`hidden md:block px-2 py-0.5 rounded-full text-xs font-semibold
               ${
                 item.isActive
                   ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300"
