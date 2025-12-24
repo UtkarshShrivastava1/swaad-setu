@@ -1,5 +1,5 @@
-import { Clock, Egg, IndianRupee, LeafyGreen, Pencil, Star, Trash2, GripVertical } from "lucide-react";
-import React from "react";
+import { Clock, Egg, IndianRupee, LeafyGreen, Pencil, Star, Trash2, GripVertical, ChevronDown, ChevronUp } from "lucide-react";
+import React, { useState } from "react";
 
 export interface MenuItem {
   _id: string;
@@ -31,6 +31,8 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
   onToggleStatus,
   dragHandleProps // Destructure new prop
 }) => {
+  const [isExpanded, setIsExpanded] = useState(false); // State for expansion
+
   const handleActionClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
   };
@@ -53,7 +55,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
   const auraWrapper =
     item.isVegetarian === true
       ? "bg-gradient-to-br from-emerald-400 via-emerald-500 to-green-600 p-[2px] shadow-[0_0_35px_rgba(16,185,129,0.6)]"
-      : item.isVegetarian === false
+      : item.isVegetation === false
       ? "bg-gradient-to-br from-red-400 via-red-500 to-rose-600 p-[2px] shadow-[0_0_35px_rgba(239,68,68,0.6)]"
       : "bg-gray-200 dark:bg-gray-700 p-[1px]";
 
@@ -67,10 +69,11 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
   return (
     <div className={`rounded-2xl ${auraWrapper}`}>
       <div
-        className="relative flex flex-col w-full min-h-[380px] rounded-2xl 
+        className={`relative flex flex-col w-full rounded-2xl 
         bg-white/90 dark:bg-gray-900/90 
         border border-white/20 dark:border-gray-800
-        hover:-translate-y-1 transition-all duration-300"
+        hover:-translate-y-1 transition-all duration-300
+        min-h-[240px] md:min-h-[380px]`}
       >
         {/* TOP COLOR STRIP */}
         <div className={`h-[5px] w-full rounded-t-2xl ${topStrip}`} />
@@ -78,7 +81,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
         {/* IMAGE */}
         <div
           onClick={() => item.isActive && onClick()}
-          className={`relative h-40 md:h-48 w-full overflow-hidden 
+          className={`relative h-24 md:h-40 lg:h-48 w-full overflow-hidden 
           ${item.isActive ? "cursor-pointer" : "opacity-60"}`}
         >
           {item.image ? (
@@ -145,31 +148,45 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
           </div>
 
           {/* DESCRIPTION */}
-          <p
-            className="mt-1 text-sm text-gray-600 dark:text-gray-400 
-            line-clamp-2 min-h-[40px]"
-          >
-            {item.description || " "}
-          </p>
+          {item.description && (isExpanded || window.innerWidth >= 768) && (
+            <p
+              className="mt-1 text-sm text-gray-600 dark:text-gray-400 
+              line-clamp-2 min-h-[40px]"
+            >
+              {item.description || " "}
+            </p>
+          )}
 
           {/* PRICE + TIME */}
-          <div className="mt-auto flex items-center justify-between pt-4">
-            <span
-              className="inline-flex items-center gap-1 px-3 py-1 rounded-full
-              bg-emerald-100 text-emerald-700 
-              dark:bg-emerald-900/50 dark:text-emerald-300
-              text-sm font-semibold min-w-[80px] justify-center"
-            >
-              <IndianRupee size={14} />
-              {item.price}
-            </span>
+          {(isExpanded || window.innerWidth >= 768) && (
+            <div className="mt-auto flex items-center justify-between pt-4">
+              <span
+                className="inline-flex items-center gap-1 px-3 py-1 rounded-full
+                bg-emerald-100 text-emerald-700 
+                dark:bg-emerald-900/50 dark:text-emerald-300
+                text-sm font-semibold min-w-[80px] justify-center"
+              >
+                <IndianRupee size={14} />
+                {item.price}
+              </span>
 
-            <span className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 min-w-[70px] justify-end">
-              <Clock size={14} />
-              {item.preparationTime || 0} min
-            </span>
-          </div>
+              <span className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 min-w-[70px] justify-end">
+                <Clock size={14} />
+                {item.preparationTime || 0} min
+              </span>
+            </div>
+          )}
         </div>
+
+        {/* EXPAND BUTTON FOR MOBILE */}
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="absolute bottom-2 left-1/2 -translate-x-1/2 md:hidden 
+          p-2 bg-gray-700/80 hover:bg-gray-600/80 text-white rounded-full shadow-lg"
+          aria-label={isExpanded ? "View less" : "View more"}
+        >
+          {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        </button>
 
         {/* FOOTER */}
         <div
@@ -201,7 +218,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
             </button>
 
             <span
-              className={`px-2 py-0.5 rounded-full text-xs font-semibold
+              className={`md:block px-2 py-0.5 rounded-full text-xs font-semibold
               ${
                 item.isActive
                   ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300"
