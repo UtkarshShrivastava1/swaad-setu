@@ -84,6 +84,9 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
     );
   }, [cartItems]);
 
+  // Determine if we have an active order - now properly synced
+  const orderExists = !!(activeOrder?._id || localOrderId);
+
   // Debug logging
   useEffect(() => {
     console.log("Tenant data:", tenant);
