@@ -75,50 +75,27 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
     );
   }, [cartItems]);
 
-  // Sync localOrderId with activeOrder and sessionStorage
+  // Sync localOrderId with activeOrder and sessionStorage for persistence
   useEffect(() => {
+    const activeOrderIdKey = `activeOrderId_${tableId}`;
+
     if (activeOrder?._id) {
-      console.log("🔵 Setting localOrderId from activeOrder:", activeOrder._id);
+      console.log("🔵 Setting localOrderId from activeOrder (prop):", activeOrder._id);
       setLocalOrderId(activeOrder._id);
-      return; // Prioritize activeOrder prop
-    }
-
-    if (isPlacingOrder) {
-      return; // Don't interfere while placing an order
-    }
-
-    const checkExistingOrder = () => {
-      const ongoingOrders = safeParse<any[]>(
-        sessionStorage.getItem("ongoingOrders"),
-        []
-      );
-      const existingOrder = ongoingOrders.find(
-        (order) =>
-          order?.tableId === tableId || order?.order?.tableId === tableId
-      );
-
-      if (existingOrder) {
-        const orderId = getOrderId(existingOrder);
-        if (orderId) {
-          console.log("🟢 Found existing order in sessionStorage:", orderId);
-          setLocalOrderId(orderId);
-        } else {
-          setLocalOrderId(null);
-        }
-      } else {
-        console.log(
-          "🔴 No activeOrder and no order in sessionStorage. Clearing localOrderId."
-        );
-        setLocalOrderId(null);
-      }
-    };
-
-    if (tableId) {
-      checkExistingOrder();
+      sessionStorage.setItem(activeOrderIdKey, activeOrder._id); // Persist the server's truth
     } else {
-      setLocalOrderId(null);
+      // If activeOrder prop is null, check sessionStorage for a previously known active order for this table
+      const storedOrderId = sessionStorage.getItem(activeOrderIdKey);
+      if (storedOrderId) {
+        console.log("🟡 Setting localOrderId from sessionStorage:", storedOrderId);
+        setLocalOrderId(storedOrderId);
+      } else {
+        console.log("🔴 No activeOrder prop or stored order. Clearing localOrderId.");
+        setLocalOrderId(null);
+        sessionStorage.removeItem(activeOrderIdKey); // Ensure cleanup if no order exists
+      }
     }
-  }, [activeOrder, tableId, isPlacingOrder]);
+  }, [activeOrder, tableId]); // Dependencies: activeOrder and tableId
 
   // FIXED: Determine if we have an active order - now properly synced
   const orderExists = !!(activeOrder?._id || localOrderId);
@@ -202,6 +179,7 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
       const orderId = getOrderId(res);
       if (orderId) {
         setLocalOrderId(orderId); // Track order locally for immediate UI update
+        sessionStorage.setItem(`activeOrderId_${tableId}`, orderId); // Persist the active order ID
       }
 
       clear();
@@ -278,6 +256,7 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
       const orderId = getOrderId(res);
       if (orderId) {
         setLocalOrderId(orderId); // Track order locally for immediate UI update
+        sessionStorage.setItem(`activeOrderId_${tableId}`, orderId); // Persist the active order ID
       }
 
       clear();
@@ -323,6 +302,7 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
     const handleClearCustomerInfo = () => {
       if (tableId) {
         sessionStorage.removeItem(`customerInfo_${tableId}`);
+        sessionStorage.removeItem(`activeOrderId_${tableId}`); // Clear the persisted active order ID
       }
       sessionStorage.removeItem("ongoingOrders");
       setLocalOrderId(null);
