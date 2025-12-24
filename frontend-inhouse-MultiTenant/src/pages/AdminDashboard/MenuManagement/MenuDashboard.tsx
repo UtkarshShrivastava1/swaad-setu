@@ -1,5 +1,5 @@
 import { Maximize, Menu, Minimize, Sparkles, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import {
@@ -21,6 +21,8 @@ import MenuSidebar from "./components/MenuSidebar";
 import SettingsDrawer from "./components/SettingsDrawer";
 import { SkeletonContent, SkeletonSidebar } from "./components/SkeletonLoader";
 
+import { useSocket } from "../../../context/SocketContext";
+
 interface MenuDashboardProps {
   setActiveTab: (tab: any) => void;
   onEdit: (item: any) => void;
@@ -33,6 +35,7 @@ interface MenuDashboardProps {
 
 const MenuDashboard: React.FC<MenuDashboardProps> = ({ setActiveTab, onEdit, onCreate, onFullscreenChange, isParentFullscreen, searchQuery, setSearchQuery }) => {
   const { rid } = useParams<{ rid: string }>();
+  const socket = useSocket();
 
   const [items, setItems] = useState<MenuItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -71,45 +74,16 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({ setActiveTab, onEdit, onC
 
   const didAutoSelect = useRef(false);
 
-  /* ================= FETCH MENU ================= */
+  /* ================= FETCH MENU & SOCKET LISTENER ================= */
 
-  useEffect(() => {
-    const fetchMenuData = async () => {
-      if (!rid) return;
-
-      try {
-        setLoading(true);
-        const res = await getMenu(rid);
-        // Filter out items without itemId to prevent TypeError
-        const validItems = (res.menu || []).filter((item: MenuItem) => item && item.itemId);
-        setItems(validItems);
-        setCategories(res.categories || []);
-        setBranding(res.branding || {});
-        setTaxes(res.taxes || []);
-        setServiceCharge(res.serviceCharge || 0);
-        setMenuExists(true);
-      } catch (err: any) {
-        if (err.response?.status === 404) {
-          setMenuExists(false);
-        } else {
-          setError("Failed to fetch menu data.");
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchMenuData();
-  }, [rid]);
-
-  const refreshMenu = async () => {
+  const fetchMenuData = useCallback(async () => {
     if (!rid) return;
-    console.log("MenuDashboard: refreshMenu called. Fetching updated menu data...");
+
     try {
+      setLoading(true);
       const res = await getMenu(rid);
       // Filter out items without itemId to prevent TypeError
-      const validItems = (res.menu || []).filter((item: MenuItem) => item && item.itemId);
-      console.log("MenuDashboard: refreshMenu fetched data:", validItems);
+      const validItems = (res.menu || []).filter((item: MenuItem) => item && item.itemId && !item.isDeleted);
       setItems(validItems);
       setCategories(res.categories || []);
       setBranding(res.branding || {});
@@ -121,16 +95,43 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({ setActiveTab, onEdit, onC
         setMenuExists(false);
       } else {
         setError("Failed to fetch menu data.");
-        console.error("MenuDashboard: Error fetching menu data during refresh:", err);
       }
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [rid]);
 
+  useEffect(() => {
+    fetchMenuData();
+  }, [fetchMenuData]);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleMenuUpdate = (data: any) => {
+      console.log("Received menu_update event:", data);
+      const validItems = (data.menu || []).filter((item: MenuItem) => item && item.itemId && !item.isDeleted);
+      setItems(validItems);
+      setCategories(data.categories || []);
+      setBranding(data.branding || {});
+      setTaxes(data.taxes || []);
+      setServiceCharge(data.serviceCharge || 0);
+      setMenuExists(true);
+      toast.info("Menu has been updated in real-time!");
+    };
+
+    socket.on("menu_update", handleMenuUpdate);
+
+    return () => {
+      socket.off("menu_update", handleMenuUpdate);
+    };
+  }, [socket]);
+  
   const handleMenuCreated = async () => {
     if (!rid) return;
     const res = await getMenu(rid);
     // Filter out items without itemId to prevent TypeError
-    const validItems = (res.menu || []).filter((item: MenuItem) => item && item.itemId);
+    const validItems = (res.menu || []).filter((item: MenuItem) => item && item.itemId && !item.isDeleted);
     setItems(validItems);
     setCategories(res.categories || []);
     setBranding(res.branding || {});
@@ -162,25 +163,59 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({ setActiveTab, onEdit, onC
       sourceDroppableId === "menu-items" &&
       destDroppableId === "menu-items"
     ) {
-      if (searchQuery || selectedFilter !== "All") {
-        // TODO: Implement reordering with filters active.
-        // This is complex because source/destination indices are for the filtered list.
-        alert(
-          "Drag-and-drop reordering is disabled when search or filters are active."
-        );
-        return;
-      }
-      const selectedCategory = categories.find(
-        (c) => c._id === selectedCategoryId
-      );
       if (!selectedCategory) return;
 
-      const newItems = Array.from(selectedCategory.itemIds);
-      const [reorderedItem] = newItems.splice(source.index, 1);
-      newItems.splice(destination.index, 0, reorderedItem);
+      const draggedItemId = draggableId;
+      const originalCategoryItemIds = Array.from(selectedCategory.itemIds);
+      const filteredItemIds = filteredItems.map((item) => item.itemId);
+
+      // 1. Remove the dragged item from its original position in the unfiltered list
+      const currentItemIds = originalCategoryItemIds.filter(
+        (id) => id !== draggedItemId
+      );
+
+      // 2. Determine the insertion point in the UNFILTERED list
+      let insertIndex = -1;
+
+      if (destination.index === 0) {
+        // If dropping at the very beginning of the filtered list
+        if (filteredItemIds.length > 0 && filteredItemIds[0] !== draggedItemId) {
+          insertIndex = currentItemIds.indexOf(filteredItemIds[0]);
+        } else {
+          insertIndex = 0; // Or insert at the actual beginning if no other items or only dragged item
+        }
+      } else if (destination.index === filteredItemIds.length) {
+        // If dropping at the very end of the filtered list
+        insertIndex = currentItemIds.length;
+      } else {
+        // If dropping in between filtered items
+        const itemAfterDest = filteredItemIds[destination.index];
+        const itemBeforeDest = filteredItemIds[destination.index - 1];
+
+        const indexAfter = currentItemIds.indexOf(itemAfterDest);
+        const indexBefore = currentItemIds.indexOf(itemBeforeDest);
+
+        if (indexAfter !== -1) {
+          insertIndex = indexAfter;
+        } else if (indexBefore !== -1) {
+          insertIndex = indexBefore + 1;
+        } else {
+          // Fallback, should not happen if filtered items are present in original
+          insertIndex = destination.index; // Approximate position
+        }
+      }
+
+      // Ensure insertIndex is within bounds
+      if (insertIndex < 0) insertIndex = 0;
+      if (insertIndex > currentItemIds.length) insertIndex = currentItemIds.length;
+
+      // Insert the dragged item at the determined index
+      currentItemIds.splice(insertIndex, 0, draggedItemId);
 
       const newCategories = categories.map((cat) =>
-        cat._id === selectedCategory._id ? { ...cat, itemIds: newItems } : cat
+        cat._id === selectedCategory._id
+          ? { ...cat, itemIds: currentItemIds }
+          : cat
       );
 
       setCategories(newCategories);
@@ -269,12 +304,15 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({ setActiveTab, onEdit, onC
     );
   }, [categoriesWithUncategorized, selectedCategoryId, items]);
 
+  const selectedCategoryItems = useMemo(() => {
+    if (!selectedCategory) return [];
+    return items.filter(item => selectedCategory.itemIds.includes(item.itemId));
+  }, [items, selectedCategory]);
+
   const filteredItems = useMemo(() => {
     if (!selectedCategory) return [];
 
-    let list = items.filter((item) =>
-      selectedCategory.itemIds.includes(item.itemId)
-    );
+    let list = selectedCategoryItems;
 
     if (selectedFilter === "Veg")
       list = list.filter((item) => item.isVegetarian);
@@ -291,7 +329,7 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({ setActiveTab, onEdit, onC
     }
 
     return list;
-  }, [items, selectedCategory, selectedFilter, searchQuery]);
+  }, [selectedCategory, selectedCategoryItems, selectedFilter, searchQuery]);
 
   /* ================= EARLY RETURNS ================= */
 
@@ -331,7 +369,6 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({ setActiveTab, onEdit, onC
                 setCategoryToDelete(category);
                 setIsConfirmCategoryDeleteOpen(true);
               }}
-              onRefreshMenu={refreshMenu}
             />
           }
           mainContent={
@@ -413,7 +450,7 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({ setActiveTab, onEdit, onC
                 }}
                 category={selectedCategory}
                 item={selectedItem}
-                onItemSuccessfullyAddedAndMenuNeedsRefresh={refreshMenu} // New prop
+                onItemSuccessfullyAddedAndMenuNeedsRefresh={fetchMenuData}
               />
 
               <SettingsDrawer
@@ -429,11 +466,13 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({ setActiveTab, onEdit, onC
                 onClose={() => setIsConfirmModalOpen(false)}
                 onConfirm={async () => {
                   if (!itemToHandle || !rid) return;
-                  await deleteMenuItem(rid, itemToHandle.itemId);
-                  setItems((p) =>
-                    p.filter((i) => i.itemId !== itemToHandle.itemId)
-                  );
                   setIsConfirmModalOpen(false);
+                  try {
+                    await deleteMenuItem(rid, itemToHandle.itemId, false);
+                    fetchMenuData();
+                  } catch (error) {
+                    console.error("Error deleting menu item:", error);
+                  }
                 }}
                 title="Delete Menu Item"
                 message={`Delete "${itemToHandle?.name}" permanently?`}
