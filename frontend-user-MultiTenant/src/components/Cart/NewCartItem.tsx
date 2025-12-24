@@ -1,11 +1,12 @@
-import { ArrowLeft, Minus, Plus, Trash } from "lucide-react";
+import { createOrder } from "@/api/order.api";
+import { useTable } from "@/context/TableContext";
+import { useTenant } from "@/context/TenantContext";
+import { useCart } from "@/stores/cart.store"; // Import useCart from Zustand
+import { useMenuStore } from "@/stores/menu.store";
+import { usePricingStore } from "@/stores/pricing.store";
+import { ArrowLeft, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { createOrder } from "../../api/order.api";
-import { useTable } from "../../context/TableContext";
-import { useTenant } from "../../context/TenantContext";
-import { useCart } from "../../stores/cart.store"; // Import useCart from Zustand
-import { GENERIC_ITEM_IMAGE_FALLBACK } from "../../utils/constants";
 import FooterNav from "../Layout/Footer";
 import TablePickerModal from "../TableSelect/TablePickerModal";
 import { CartItem } from "./CartItem";
@@ -55,10 +56,18 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerContact, setCustomerContact] = useState("");
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
-  const [localOrderId, setLocalOrderId] = useState<string | null>(null);
+  const [currentTableOrderId, setCurrentTableOrderId] = useState<string | null>(null);
   const navigate = useNavigate();
   const { rid, tenant } = useTenant();
   const { tableId } = useTable();
+  const { menuData } = useMenuStore();
+  const { pricingConfig, fetchPricingConfig } = usePricingStore();
+
+  useEffect(() => {
+    if (rid) {
+      fetchPricingConfig(rid);
+    }
+  }, [rid, fetchPricingConfig]);
 
   const sessionId =
     sessionStorage.getItem("resto_session_id") ||
@@ -75,59 +84,37 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
     );
   }, [cartItems]);
 
-  // Sync localOrderId with activeOrder and sessionStorage
+  // Sync currentTableOrderId with activeOrder and sessionStorage for persistence
   useEffect(() => {
+    const sessionStorageKey = `activeOrderId_${tableId}`;
     if (activeOrder?._id) {
-      console.log("🔵 Setting localOrderId from activeOrder:", activeOrder._id);
-      setLocalOrderId(activeOrder._id);
-      return; // Prioritize activeOrder prop
-    }
-
-    if (isPlacingOrder) {
-      return; // Don't interfere while placing an order
-    }
-
-    const checkExistingOrder = () => {
-      const ongoingOrders = safeParse<any[]>(
-        sessionStorage.getItem("ongoingOrders"),
-        []
-      );
-      const existingOrder = ongoingOrders.find(
-        (order) =>
-          order?.tableId === tableId || order?.order?.tableId === tableId
-      );
-
-      if (existingOrder) {
-        const orderId = getOrderId(existingOrder);
-        if (orderId) {
-          console.log("🟢 Found existing order in sessionStorage:", orderId);
-          setLocalOrderId(orderId);
-        } else {
-          setLocalOrderId(null);
-        }
-      } else {
-        console.log(
-          "🔴 No activeOrder and no order in sessionStorage. Clearing localOrderId."
-        );
-        setLocalOrderId(null);
-      }
-    };
-
-    if (tableId) {
-      checkExistingOrder();
+      console.log("🔵 Setting currentTableOrderId from activeOrder:", activeOrder._id);
+      setCurrentTableOrderId(activeOrder._id);
+      sessionStorage.setItem(sessionStorageKey, activeOrder._id);
     } else {
-      setLocalOrderId(null);
+      // If activeOrder is null, check sessionStorage for a previously known active order
+      const storedOrderId = sessionStorage.getItem(sessionStorageKey);
+      if (storedOrderId) {
+        console.log("🟡 Setting currentTableOrderId from sessionStorage:", storedOrderId);
+        setCurrentTableOrderId(storedOrderId);
+      } else {
+        console.log("🔴 No activeOrder or stored order. Clearing currentTableOrderId.");
+        setCurrentTableOrderId(null);
+      }
     }
-  }, [activeOrder, tableId, isPlacingOrder]);
+  }, [activeOrder, tableId]);
 
   // FIXED: Determine if we have an active order - now properly synced
-  const orderExists = !!(activeOrder?._id || localOrderId);
+  const orderExists = !!(activeOrder?._id || currentTableOrderId);
 
   // Debug logging
   useEffect(() => {
+    console.log("Tenant data:", tenant);
+    console.log("Menu data from store:", menuData);
+    console.log("Pricing config from store:", pricingConfig);
     console.log("📊 Order Status:", {
       activeOrderId: activeOrder?._id,
-      localOrderId,
+      currentTableOrderId,
       orderExists,
       tableId,
       cartItemsCount: cartItems.length,
@@ -135,11 +122,14 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
     });
   }, [
     activeOrder,
-    localOrderId,
+    currentTableOrderId,
     orderExists,
     tableId,
     cartItems.length,
     isPlacingOrder,
+    tenant,
+    menuData,
+    pricingConfig,
   ]);
 
   const subtotal = cartItems.reduce(
@@ -147,20 +137,55 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
     0
   );
 
-  const taxDetails =
-    tenant?.taxes?.map((tax) => ({
-      name: tax.name,
-      amount: subtotal * (tax.percent / 100),
-    })) ?? [];
+  const priceAdjustments: {
+    name: string;
+    amount: number;
+    type: string;
+  }[] = [];
 
-  const serviceChargeAmount = tenant?.serviceCharge
-    ? subtotal * (tenant.serviceCharge / 100)
-    : 0;
+  if (pricingConfig) {
+    // Taxes
+    if (pricingConfig.taxes) {
+      for (const tax of pricingConfig.taxes) {
+        priceAdjustments.push({
+          name: `${tax.name} (${tax.percent}%)`,
+          amount: subtotal * (tax.percent / 100),
+          type: "tax",
+        });
+      }
+    }
+
+    // Service Charge
+    if (pricingConfig.serviceChargePercent) {
+      priceAdjustments.push({
+        name: `Service Charge (${pricingConfig.serviceChargePercent}%)`,
+        amount: subtotal * (pricingConfig.serviceChargePercent / 100),
+        type: "service_charge",
+      });
+    }
+
+    // Global Discount
+    if (pricingConfig.globalDiscountPercent) {
+      const discountAmount =
+        subtotal * (pricingConfig.globalDiscountPercent / 100);
+      priceAdjustments.push({
+        name: `Global Discount (${pricingConfig.globalDiscountPercent}%)`,
+        amount: -discountAmount, // Negative amount for discount
+        type: "discount",
+      });
+    }
+  }
+
+  // Log the full breakdown for debugging
+  useEffect(() => {
+    console.log("Full Price Breakdown:", {
+      subtotal,
+      adjustments: priceAdjustments,
+    });
+  }, [subtotal, priceAdjustments]);
 
   const grandTotal =
-    subtotal +
-    taxDetails.reduce((sum, tax) => sum + tax.amount, 0) +
-    serviceChargeAmount;
+    subtotal + priceAdjustments.reduce((sum, adj) => sum + adj.amount, 0);
 
   const handleConfirmOrder = async () => {
     const cleanedContact = customerContact.replace(/\s+/g, "").trim();
@@ -201,7 +226,8 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
 
       const orderId = getOrderId(res);
       if (orderId) {
-        setLocalOrderId(orderId); // Track order locally for immediate UI update
+        setCurrentTableOrderId(orderId); // Track order locally for immediate UI update
+        sessionStorage.setItem(`activeOrderId_${tableId}`, orderId); // Persist
       }
 
       clear();
@@ -262,7 +288,6 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
       customerContact: cleanedContact,
       customerEmail: email,
       isCustomerOrder: true,
-      ...(activeOrder?._id && { orderId: activeOrder._id }), // Conditionally add orderId
       items: cartItems.map((item) => ({
         menuItemId: item.itemId,
         name: item.name,
@@ -277,7 +302,8 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
 
       const orderId = getOrderId(res);
       if (orderId) {
-        setLocalOrderId(orderId); // Track order locally for immediate UI update
+        setCurrentTableOrderId(orderId); // Track order locally for immediate UI update
+        sessionStorage.setItem(`activeOrderId_${tableId}`, orderId); // Persist
       }
 
       clear();
@@ -301,6 +327,17 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
       return;
     }
 
+    // Prioritize using customer details from the active order if it exists
+    if (activeOrder) {
+      handleConfirmOrderWithSavedInfo(
+        activeOrder.customerName,
+        activeOrder.customerContact,
+        activeOrder.customerEmail
+      );
+      return;
+    }
+
+    // Fallback to checking sessionStorage if there's no active order
     const savedCustomerInfo = safeParse<{
       name: string;
       contact: string;
@@ -323,16 +360,15 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
     const handleClearCustomerInfo = () => {
       if (tableId) {
         sessionStorage.removeItem(`customerInfo_${tableId}`);
+        sessionStorage.removeItem(`activeOrderId_${tableId}`); // Clear persisted order ID
       }
       sessionStorage.removeItem("ongoingOrders");
-      setLocalOrderId(null);
+      setCurrentTableOrderId(null);
     };
     window.addEventListener("clearTableSession", handleClearCustomerInfo);
     return () =>
       window.removeEventListener("clearTableSession", handleClearCustomerInfo);
   }, [tableId]);
-
-
 
   return (
     <div className="min-h-screen bg-gray-900 text-white pb-32 flex flex-col relative">
@@ -348,14 +384,19 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
                 onClick={() => navigate(-1)}
                 className="p-2 rounded-xl bg-gray-700/50 hover:bg-gray-600/70 transition-all duration-200"
               >
-                <ArrowLeft size={20} className="text-yellow-400" strokeWidth={2.5} />
+                <ArrowLeft
+                  size={20}
+                  className="text-yellow-400"
+                  strokeWidth={2.5}
+                />
               </button>
               <div>
                 <h1 className="font-bold text-xl sm:text-2xl tracking-tight text-yellow-400">
                   Your Order
                 </h1>
                 <p className="text-gray-400 text-xs sm:text-sm">
-                  {cartItems.length} {cartItems.length === 1 ? "item" : "items"} in your cart
+                  {cartItems.length} {cartItems.length === 1 ? "item" : "items"}{" "}
+                  in your cart
                 </p>
               </div>
             </div>
@@ -412,28 +453,21 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
                 <span className="font-semibold">₹{subtotal.toFixed(2)}</span>
               </div>
 
-              {/* Taxes */}
-              {taxDetails.map((tax) => (
+              {/* Unified Price Adjustments */}
+              {priceAdjustments.map((adj, index) => (
                 <div
-                  key={tax.name}
-                  className="flex justify-between items-center text-gray-400"
+                  key={index}
+                  className={`flex justify-between items-center ${
+                    adj.amount < 0 ? "text-green-400" : "text-gray-400"
+                  }`}
                 >
-                  <span className="font-medium text-sm">{tax.name}</span>
+                  <span className="font-medium text-sm">{adj.name}</span>
                   <span className="font-semibold text-sm">
-                    ₹{tax.amount.toFixed(2)}
+                    {adj.amount < 0 ? "-₹" : "₹"}
+                    {Math.abs(adj.amount).toFixed(2)}
                   </span>
                 </div>
               ))}
-
-              {/* Service Charge */}
-              {serviceChargeAmount > 0 && (
-                <div className="flex justify-between items-center text-gray-400">
-                  <span className="font-medium text-sm">Service Charge</span>
-                  <span className="font-semibold text-sm">
-                    ₹{serviceChargeAmount.toFixed(2)}
-                  </span>
-                </div>
-              )}
 
               {/* Divider */}
               <div className="border-t border-dashed border-gray-600 my-4"></div>
@@ -707,5 +741,4 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
     </div>
   );
 };
-
 export default NewCartItem;
