@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Maximize, Minimize } from 'lucide-react';
+import { Maximize, Minimize, Menu } from 'lucide-react';
 
 interface MenuManagementLayoutProps {
   sidebar: React.ReactNode;
