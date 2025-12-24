@@ -1,4 +1,4 @@
-import { Clock, Egg, IndianRupee, LeafyGreen, Pencil, Star, Trash2 } from "lucide-react";
+import { Clock, Egg, IndianRupee, LeafyGreen, Pencil, Star, Trash2, GripVertical } from "lucide-react";
 import React from "react";
 
 export interface MenuItem {
