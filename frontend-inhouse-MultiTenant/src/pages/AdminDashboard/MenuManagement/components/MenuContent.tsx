@@ -9,6 +9,7 @@ interface MenuItem {
   price: number;
   isActive?: boolean;
   isVegetarian?: boolean;
+  isChefSpecial?: boolean;
 }
 
 interface MenuContentProps {
@@ -127,7 +128,6 @@ const MenuContent: React.FC<MenuContentProps> = ({
                       <div
                         ref={provided.innerRef}
                         {...provided.draggableProps}
-                        {...provided.dragHandleProps}
                         className="h-full"
                       >
                         <MenuItemCard
@@ -135,6 +135,7 @@ const MenuContent: React.FC<MenuContentProps> = ({
                           onClick={() => onItemSelect(item)}
                           onDeleteItem={() => onDeleteItem(item)}
                           onToggleStatus={() => onToggleStatus(item)}
+                          dragHandleProps={provided.dragHandleProps}
                         />
                       </div>
                     )}

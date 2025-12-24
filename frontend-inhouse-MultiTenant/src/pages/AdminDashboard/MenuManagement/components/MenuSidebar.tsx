@@ -18,6 +18,7 @@ export interface MenuItem {
   isActive?: boolean;
   isVegetarian?: boolean;
   preparationTime?: number;
+  isChefSpecial?: boolean;
 }
 
 export interface Category {
@@ -111,10 +112,10 @@ const MenuSidebar: React.FC<MenuSidebarProps> = ({
                 setIsAddingComboCategory(false); // Ensure false for regular category
                 setIsAddCategoryModalOpen(true);
               }}
-              className="flex items-center justify-center gap-1 px-2 py-1 bg-yellow-400 text-black rounded-md hover:bg-yellow-500 cursor-pointer"
+              className="flex items-center justify-center gap-1 px-3 py-2 bg-yellow-400 text-black rounded-md hover:bg-yellow-500 cursor-pointer text-sm"
             >
               <Plus className="h-4 w-4" />
-              <span className="text-xs sm:text-sm">Add Category</span>
+              <span>Add Category</span>
             </button>
           </div>
           <div className="flex-grow overflow-y-auto">
@@ -200,7 +201,7 @@ const MenuSidebar: React.FC<MenuSidebarProps> = ({
                                           e.stopPropagation();
                                           onDeleteCategory(category);
                                         }}
-                                        className="p-1 rounded-full hover:bg-red-500/20 text-gray-400 hover:text-red-500"
+                                        className="p-2 rounded-full hover:bg-red-500/20 text-gray-400 hover:text-red-500"
                                         aria-label="Delete category"
                                       >
                                         <Trash2 size={16} />
@@ -235,10 +236,10 @@ const MenuSidebar: React.FC<MenuSidebarProps> = ({
                 setIsAddingComboCategory(true); // Indicate combo category creation
                 setIsAddCategoryModalOpen(true); // Open AddCategoryModal
               }}
-              className="flex items-center justify-center gap-1 px-2 py-1 bg-yellow-400 text-black rounded-md hover:bg-yellow-500 cursor-pointer"
+              className="flex items-center justify-center gap-1 px-3 py-2 bg-yellow-400 text-black rounded-md hover:bg-yellow-500 cursor-pointer text-sm"
             >
               <Plus className="h-4 w-4" />
-              <span className="text-xs sm:text-sm">Create Combo</span>
+              <span>Create Combo</span>
             </button>
           </div>
           <div className="flex-grow overflow-y-auto">
@@ -274,7 +275,7 @@ const MenuSidebar: React.FC<MenuSidebarProps> = ({
                           e.stopPropagation();
                           handleOpenComboBuilder(category);
                         }}
-                        className="p-1 rounded-full hover:bg-blue-500/20 text-gray-400 hover:text-blue-500"
+                        className="p-2 rounded-full hover:bg-blue-500/20 text-gray-400 hover:text-blue-500"
                         aria-label="Edit combo"
                       >
                         <Pencil size={16} />
@@ -284,7 +285,7 @@ const MenuSidebar: React.FC<MenuSidebarProps> = ({
                           e.stopPropagation();
                           onDeleteCategory(category);
                         }}
-                        className="p-1 rounded-full hover:bg-red-500/20 text-gray-400 hover:text-red-500"
+                        className="p-2 rounded-full hover:bg-red-500/20 text-gray-400 hover:text-red-500"
                         aria-label="Delete combo"
                       >
                         <Trash2 size={16} />

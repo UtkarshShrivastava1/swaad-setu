@@ -20,6 +20,8 @@ interface MenuItemCardProps {
   onClick: () => void;
   onDeleteItem: () => void;
   onToggleStatus: () => void;
+  // New prop for drag handle
+  dragHandleProps?: any; 
 }
 
 const MenuItemCard: React.FC<MenuItemCardProps> = ({
@@ -27,6 +29,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
   onClick,
   onDeleteItem,
   onToggleStatus,
+  dragHandleProps // Destructure new prop
 }) => {
   const handleActionClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
@@ -64,7 +67,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
   return (
     <div className={`rounded-2xl ${auraWrapper}`}>
       <div
-        className="relative flex flex-col w-full h-[380px] rounded-2xl 
+        className="relative flex flex-col w-full min-h-[380px] rounded-2xl 
         bg-white/90 dark:bg-gray-900/90 
         border border-white/20 dark:border-gray-800
         hover:-translate-y-1 transition-all duration-300"
@@ -75,7 +78,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
         {/* IMAGE */}
         <div
           onClick={() => item.isActive && onClick()}
-          className={`relative h-[175px] w-full overflow-hidden 
+          className={`relative h-40 md:h-48 w-full overflow-hidden 
           ${item.isActive ? "cursor-pointer" : "opacity-60"}`}
         >
           {item.image ? (
@@ -127,12 +130,19 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
           }`}
         >
           {/* TITLE */}
-          <h3
-            className="text-[17px] font-bold text-gray-900 dark:text-gray-100 
-            leading-tight line-clamp-2 min-h-[44px]"
-          >
-            {item.name}
-          </h3>
+          <div className="flex items-center justify-between">
+            <h3
+              className="text-base sm:text-lg font-bold text-gray-900 dark:text-gray-100 
+              leading-tight line-clamp-2 min-h-[44px] flex-grow"
+            >
+              {item.name}
+            </h3>
+            {dragHandleProps && (
+              <span {...dragHandleProps} className="ml-2 p-1 cursor-grab text-gray-400 hover:text-gray-200 transition-colors">
+                <GripVertical size={20} />
+              </span>
+            )}
+          </div>
 
           {/* DESCRIPTION */}
           <p

@@ -15,6 +15,17 @@ const MenuManagementLayout: React.FC<MenuManagementLayoutProps> = ({ sidebar, ma
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
+    if (isSidebarOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isSidebarOpen]);
+
+  useEffect(() => {
     const handleFullscreenChange = () => {
       const fsElement = document.fullscreenElement || (document as any).webkitFullscreenElement || (document as any).mozFullScreenElement || (document as any).msFullscreenElement;
       const currentlyFullscreen = fsElement === layoutRef.current;
@@ -69,9 +80,9 @@ const MenuManagementLayout: React.FC<MenuManagementLayoutProps> = ({ sidebar, ma
           ${
             isSidebarOpen
               ? 'fixed inset-y-0 left-0 transform translate-x-0 transition-transform duration-300 ease-in-out'
-              : 'fixed inset-y-0 left-0 transform -translate-x-full transition-transform duration-300 ease-in-out'
+              : 'fixed inset-y-0 left-0 transform -translate-x-full transition-transform duration-300 ease-in-out md:translate-x-0'
           }
-          md:static md:translate-x-0
+          md:static
         `}
         aria-hidden={!isSidebarOpen}
       >
@@ -88,20 +99,29 @@ const MenuManagementLayout: React.FC<MenuManagementLayoutProps> = ({ sidebar, ma
       )}
 
       {/* Main content */}
-              <div className="flex-1 flex flex-col overflow-hidden md:w-[calc(100%-18rem)]">
-                <div className="flex justify-end p-2 bg-white dark:bg-gray-900">
-                  <button
-                    onClick={toggleFullscreen}
-                    className="p-2 rounded-full text-gray-600 hover:bg-gray-200 dark:text-gray-400 dark:hover:bg-gray-700"
-                    aria-label={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
-                  >
-                    {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
-                  </button>
-                </div>
-                <div className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto">
-                  {mainContent}
-                </div>
-              </div>
+      <div className="flex-1 flex flex-col overflow-hidden md:w-[calc(100%-18rem)]">
+        <div className="flex justify-between items-center p-2 bg-white dark:bg-gray-900">
+          {/* Mobile Sidebar Toggle */}
+          <button
+            onClick={toggleSidebar}
+            className="md:hidden p-2 rounded-full text-gray-600 hover:bg-gray-200 dark:text-gray-400 dark:hover:bg-gray-700"
+            aria-label="Toggle sidebar"
+          >
+            <Menu size={20} />
+          </button>
+          {/* Fullscreen Toggle */}
+          <button
+            onClick={toggleFullscreen}
+            className="p-2 rounded-full text-gray-600 hover:bg-gray-200 dark:text-gray-400 dark:hover:bg-gray-700 ml-auto"
+            aria-label={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+          >
+            {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
+          </button>
+        </div>
+        <div className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto">
+          {mainContent}
+        </div>
+      </div>
                       {modals && modals(isFullscreen)}
                     </div>
                   );
