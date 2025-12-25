@@ -31,6 +31,8 @@ export default function OrderView({ orderId }: { orderId: string }) {
   const { tableId } = useTable();
   const sessionId = sessionStorage.getItem("resto_session_id");
 
+  console.log(`[OrderView] Component mounted for orderId: ${orderId}, rid: ${rid}, tableId: ${tableId}`);
+
   const handlePayment = () => {
     if (!tenant?.UPISettings?.UPI_ID || !order?.totalAmount) {
       alert("UPI payment details are not configured for this restaurant.");
@@ -47,85 +49,120 @@ export default function OrderView({ orderId }: { orderId: string }) {
   };
 
   const logoutAndRedirect = useCallback(() => {
-    console.log("Order paid. Logging out session...");
+    console.log("[OrderView] Order paid. Logging out session...");
     sessionStorage.removeItem("resto_session_id");
     // Clear customer info associated with this table
     if (tableId) { // Ensure tableId is available
       sessionStorage.removeItem(`customerInfo_${tableId}`);
+      console.log(`[OrderView] Cleared customerInfo_${tableId} from sessionStorage.`);
     }
     navigate(`/t/${rid}`);
   }, [rid, navigate, tableId]);
 
   const fetchOrder = useCallback(async () => {
-    if (!orderId || !rid) return;
+    console.log(`[OrderView] Fetching order: ${orderId} for rid: ${rid}`);
+    if (!orderId || !rid) {
+      console.log("[OrderView] Missing orderId or rid, cannot fetch order.");
+      return;
+    }
     try {
       setLoading(true);
       const res = await getOrderById(rid, orderId, sessionId!);
       setOrder(res.order);
       setError(null);
+      console.log(`[OrderView] Successfully fetched order: ${orderId}`);
     } catch (err) {
-      console.error("❌ Failed to fetch order:", err);
+      console.error("❌ [OrderView] Failed to fetch order:", err);
       setError("Failed to load order details.");
     } finally {
       setLoading(false);
+      console.log("[OrderView] Loading set to false.");
     }
   }, [orderId, rid, sessionId]);
 
   useEffect(() => {
+    console.log("[OrderView] useEffect triggered for fetchOrder.");
     fetchOrder();
   }, [fetchOrder]);
 
   const socketService = useSocket();
+  console.log(`[OrderView] SocketService instance obtained: ${socketService ? 'exists' : 'null'}`);
 
   useEffect(() => {
-    if (!socketService) return;
+    console.log("[OrderView] useEffect for Socket.IO listeners triggered.");
+    if (!socketService) {
+      console.warn("[OrderView] SocketService is null, cannot attach listeners.");
+      return;
+    }
+
+    // Connect to socket.io server
+    if (rid && tableId) {
+        console.log(`[OrderView] Calling socketService.connect with RID: ${rid}, TableID: ${tableId}`);
+        socketService.connect(rid, tableId);
+    } else {
+        console.warn(`[OrderView] Cannot connect socket. Missing RID: ${rid}, TableID: ${tableId}`);
+    }
+
 
     const handleOrderUpdate = (updatedOrder: Order) => {
-      console.log("Received order_update event:", updatedOrder);
+      console.log(`[OrderView] Received order_update event for order: ${updatedOrder._id}. Current order: ${orderId}`);
       if (updatedOrder._id === orderId) {
         setOrder(updatedOrder);
+        console.log(`[OrderView] Updated order state for orderId: ${orderId}`);
       }
     };
 
     const handleAnnouncement = (data: { message: string }) => {
+      console.log(`[OrderView] Received announcement event: ${data.message}`);
       alert(`Announcement: ${data.message}`);
     };
 
     const handleMenuUpdated = () => {
+      console.log("[OrderView] Received menu_updated event.");
       alert("Menu has been updated. Please check the menu for new items.");
     };
 
     socketService.on("order_update", handleOrderUpdate);
     socketService.on("announcement", handleAnnouncement);
     socketService.on("menu_updated", handleMenuUpdated);
+    console.log("[OrderView] Socket.IO listeners registered.");
 
     return () => {
+      console.log("[OrderView] Cleaning up Socket.IO listeners.");
       socketService.off("order_update", handleOrderUpdate);
       socketService.off("announcement", handleAnnouncement);
       socketService.off("menu_updated", handleMenuUpdated);
+      // It might be good to disconnect here if this component is the only one
+      // using this specific socket connection, but often socketService is global.
+      // socketService.disconnect(); // Uncomment if socketService should disconnect when this component unmounts
     };
-  }, [socketService, orderId]);
+  }, [socketService, orderId, rid, tableId]); // Added rid, tableId to dependencies
 
   // Effect to show Thank You modal when order is paid
   useEffect(() => {
     if (order?.paymentStatus === "paid") {
       setShowThankYou(true);
+      console.log("[OrderView] Order paymentStatus is 'paid', showing thank you modal.");
     }
   }, [order?.paymentStatus]);
 
   const handleDownloadPdf = async () => {
+    console.log("[OrderView] Attempting to download PDF.");
     const billElement = document.getElementById("bill-to-print");
-    if (!billElement) return;
+    if (!billElement) {
+      console.error("[OrderView] Bill element not found for PDF download.");
+      return;
+    }
 
     setIsDownloading(true);
+    console.log("[OrderView] Setting isDownloading to true.");
 
     try {
       const canvas = await html2canvas(billElement, {
         scale: 2,
         backgroundColor: "#ffffff",
         onclone: (clonedDoc) => {
-          // Aggressive cleanup to prevent any inherited styles from interfering.
-          // This ensures that only the simple, inline styles of the 'bill-to-print' div are rendered.
+          console.log("[OrderView] Cloning document for PDF generation.");
           clonedDoc
             .querySelectorAll("style, link[rel='stylesheet']")
             .forEach((el) => el.remove());
@@ -148,11 +185,13 @@ export default function OrderView({ orderId }: { orderId: string }) {
 
       pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
       pdf.save(`Bill-Order-${order?._id.slice(-6)}.pdf`);
+      console.log("[OrderView] PDF saved successfully.");
     } catch (err) {
-      console.error("Failed to generate PDF", err);
+      console.error("❌ [OrderView] Failed to generate PDF", err);
       alert("Sorry, we could not generate the PDF.");
     } finally {
       setIsDownloading(false);
+      console.log("[OrderView] Setting isDownloading to false.");
     }
   };
 
@@ -162,7 +201,7 @@ export default function OrderView({ orderId }: { orderId: string }) {
         <div className="animate-spin mb-4">
           <RefreshCw size={32} className="text-yellow-500" />
         </div>
-        <span className="text-lg">Loading your order...</span>
+        <span className="text-lg">[OrderView] Loading your order...</span>
       </div>
     );
   }
@@ -170,7 +209,7 @@ export default function OrderView({ orderId }: { orderId: string }) {
   if (error || !order) {
     return (
       <div className="flex flex-col h-screen justify-center items-center bg-gray-900 text-gray-400 px-4">
-        <h2 className="font-bold text-2xl text-white mb-2">Order Not Found</h2>
+        <h2 className="font-bold text-2xl text-white mb-2">[OrderView] Order Not Found</h2>
         <p className="text-gray-500 mb-6 text-center">
           {error || "We couldn't find the order you're looking for."}
         </p>

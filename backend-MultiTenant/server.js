@@ -37,6 +37,7 @@ async function boot() {
   );
 
   const bootStart = Date.now();
+  logger.info("[SERVER] Starting boot sequence...");
 
   // ------------------------------------------------------------
   // CONFIG VALIDATION
@@ -45,9 +46,11 @@ async function boot() {
   try {
     config.validate();
     console.log(chalk.green("✔ OK"));
+    logger.info("[SERVER] Configuration validated successfully.");
   } catch (err) {
     console.log(chalk.red("✖ FAILED"));
     console.error(err.message);
+    logger.error(`[SERVER] Configuration validation failed: ${err.message}`);
     process.exit(1);
   }
 
@@ -55,14 +58,23 @@ async function boot() {
   // MONGODB CONNECTION
   // ------------------------------------------------------------
   process.stdout.write(chalk.yellow("🛢️  MONGODB CONNECT ........ "));
-  await connectDB();
-  console.log(chalk.green("✔ CONNECTED"));
+  try {
+    await connectDB();
+    console.log(chalk.green("✔ CONNECTED"));
+    logger.info("[SERVER] MongoDB connected successfully.");
+  } catch (err) {
+    console.log(chalk.red("✖ FAILED"));
+    logger.error(`[SERVER] MongoDB connection failed: ${err.message}`);
+    process.exit(1);
+  }
 
   // ------------------------------------------------------------
   // LOAD TENANTS + METRICS
   // ------------------------------------------------------------
   console.log(chalk.yellow("📊 LOADING TENANTS ........"));
+  logger.info("[SERVER] Loading tenants...");
   const tenants = await loadTenants();
+  logger.info(`[SERVER] Loaded ${tenants.length} tenants.`);
 
   // Note: Detailed metrics like menu/table counts are no longer displayed here
   // to simplify boot. They can be re-added if needed.
@@ -97,12 +109,15 @@ async function boot() {
   // SOCKET.IO + REDIS
   // ------------------------------------------------------------
   process.stdout.write(chalk.yellow("📡 SOCKET.IO + REDIS ....... "));
+  logger.info("[SERVER] Initializing Socket.IO and Redis bridge...");
   try {
     io = await initializeSocket(server);
     console.log(chalk.green("✔ READY"));
+    logger.info("[SERVER] Socket.IO initialized successfully.");
   } catch (err) {
     console.log(chalk.red("⚠ FALLBACK MODE"));
     console.warn("   Reason:", err.message);
+    logger.warn(`[SERVER] Socket.IO initialization failed, entering fallback mode: ${err.message}`);
     io = null;
   }
 
@@ -112,6 +127,7 @@ async function boot() {
   // START HTTP SERVER
   // ------------------------------------------------------------
   const PORT = config.PORT || process.env.PORT || 5001;
+  logger.info(`[SERVER] Attempting to start HTTP server on port: ${PORT}`);
 
   server.listen(PORT, () => {
     console.log(chalk.greenBright("🚀  SERVER ONLINE"));
@@ -126,6 +142,9 @@ async function boot() {
       chalk.white(`🗄  Redis: `) +
         (config.REDIS_URL ? chalk.green("Configured") : chalk.gray("Disabled"))
     );
+    logger.info(`[SERVER] HTTP server listening on port: ${PORT}`);
+    logger.info(`[SERVER] Redis configured: ${!!config.REDIS_URL}`);
+
 
     divider();
 
@@ -156,16 +175,20 @@ async function boot() {
 // ------------------------------------------------------------
 async function gracefulShutdown(sig) {
   console.log(chalk.redBright(`\n⚠ Received ${sig}, shutting down...`));
+  logger.warn(`[SERVER] Received signal ${sig}, initiating graceful shutdown.`);
 
   if (io && io.close) {
     await new Promise((resolve) => io.close(resolve));
     console.log(chalk.green("   ✔ Socket.IO closed"));
+    logger.info("[SERVER] Socket.IO server closed.");
   }
 
   await new Promise((resolve) => server.close(resolve));
   console.log(chalk.green("   ✔ HTTP server closed"));
+  logger.info("[SERVER] HTTP server closed.");
 
   console.log(chalk.blue("👋 Shutdown complete"));
+  logger.info("[SERVER] Shutdown complete.");
   process.exit(0);
 }
 
@@ -175,11 +198,13 @@ async function gracefulShutdown(sig) {
 
 process.on("uncaughtException", (err) => {
   console.error(chalk.red("💥 Uncaught exception:"), err);
+  logger.error(`[SERVER] Uncaught exception: ${err.message}`, { stack: err.stack });
   gracefulShutdown("uncaughtException");
 });
 
 process.on("unhandledRejection", (reason) => {
   console.error(chalk.red("💥 Unhandled rejection:"), reason);
+  logger.error(`[SERVER] Unhandled rejection: ${reason instanceof Error ? reason.message : reason}`, { reason });
   gracefulShutdown("unhandledRejection");
 });
 

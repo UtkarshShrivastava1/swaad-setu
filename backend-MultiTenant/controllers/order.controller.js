@@ -167,15 +167,20 @@ async function createBillForNewOrder(order) {
 
 // Safe publish wrapper
 function safePublish(channel, message) {
-  if (typeof publishEvent !== "function") return;
+  if (typeof publishEvent !== "function") {
+    logger?.warn(`[OrderController] safePublish: publishEvent not available. Channel: ${channel}, Event: ${message?.event}`);
+    return;
+  }
   try {
+    logger.info(`[OrderController] safePublish: Attempting to publish to channel: ${channel}, Event: ${message?.event}`);
     const out = publishEvent(channel, message);
-    if (out && typeof out.then === "function")
+    if (out && typeof out.then === "function") {
       out.catch(
-        (e) => logger && logger.error && logger.error("publishEvent err:", e)
+        (e) => logger && logger.error && logger.error(`[OrderController] publishEvent err for channel ${channel}, event ${message?.event}:`, e)
       );
+    }
   } catch (e) {
-    logger && logger.error && logger.error("publishEvent error:", e);
+    logger && logger.error && logger.error(`[OrderController] publishEvent error for channel ${channel}, event ${message?.event}:`, e);
   }
 }
 

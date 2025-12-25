@@ -25,7 +25,7 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
   const { rid: ridFromUrl } = useParams();
   const { rid, setRid, tenant, setTenant } = useTenant();
-  const socket = useSocket();
+  const socketService = useSocket(); // Changed `socket` to `socketService` for clarity and consistency
 
   const { tables } = useTables(rid);
   const { calls: waiterCalls } = useCalls(rid);
@@ -53,6 +53,8 @@ export default function AdminDashboard() {
 
   const tokenKey = `adminToken_${rid}`;
 
+  console.log(`[AdminDashboard] Component mounted for rid: ${ridFromUrl}`);
+
   useEffect(() => {
     if (ridFromUrl) {
       setRid(ridFromUrl);
@@ -64,7 +66,7 @@ export default function AdminDashboard() {
       getRestaurantByRid(rid)
         .then(setTenant)
         .catch((err) => {
-          console.error("Failed to fetch restaurant data:", err);
+          console.error("[AdminDashboard] Failed to fetch restaurant data:", err);
           // Optionally set an error state to show in the UI
         });
     }
@@ -84,10 +86,24 @@ export default function AdminDashboard() {
 
   // ====== Socket.IO Listeners for Orders ======
   useEffect(() => {
-    if (!socket) return;
+    console.log("[AdminDashboard] useEffect for Socket.IO listeners triggered.");
+    if (!socketService) {
+      console.warn("[AdminDashboard] SocketService is null, cannot attach listeners.");
+      return;
+    }
+
+    // Connect to socket.io server
+    const token = localStorage.getItem(tokenKey);
+    if (rid && token) {
+        console.log(`[AdminDashboard] Calling socketService.connect with RID: ${rid}`);
+        socketService.connect(rid, token);
+    } else {
+        console.warn(`[AdminDashboard] Cannot connect socket. Missing RID: ${rid} or Token.`);
+    }
+
 
     const handleOrderUpdate = (updatedOrder: any) => {
-      console.log("Admin: Received order_update event:", updatedOrder);
+      console.log(`[AdminDashboard] Received order_update event for order: ${updatedOrder._id}.`);
       setAllActiveOrders((prev) => {
         const existingOrderIndex = prev.findIndex(
           (o) => o._id === updatedOrder._id
@@ -111,14 +127,17 @@ export default function AdminDashboard() {
           // Adjust ordersCount based on status change
           if (wasOldOrderActive && !isNewOrderActive) {
             orderCountChange = -1;
+            console.log(`[AdminDashboard] Order ${updatedOrder._id} changed from active to inactive. Decrementing ordersCount.`);
           } else if (!wasOldOrderActive && isNewOrderActive) {
             orderCountChange = 1;
+            console.log(`[AdminDashboard] Order ${updatedOrder._id} changed from inactive to active. Incrementing ordersCount.`);
           }
         } else {
           // This is a genuinely new order (not an update to an existing one)
           if (isNewOrderActive) {
             newOrders.push(updatedOrder);
             orderCountChange = 1;
+            console.log(`[AdminDashboard] New active order ${updatedOrder._id} received. Incrementing ordersCount.`);
           }
         }
 
@@ -133,16 +152,18 @@ export default function AdminDashboard() {
                 // Update existing takeout order
                 const newTakeouts = [...tPrev];
                 newTakeouts[existingTakeoutIndex] = updatedOrder;
+                console.log(`[AdminDashboard] Updated existing takeout order: ${updatedOrder._id}.`);
                 return newTakeouts;
               } else {
                 // Add new takeout order
-                takeoutOrdersChange = 1; // Increment for `ordersCount` for `takeoutOrders`
+                console.log(`[AdminDashboard] New takeout order ${updatedOrder._id} added.`);
                 return [...tPrev, updatedOrder];
               }
-            } else {
+            }
+            else {
               // Remove if no longer active
               if (existingTakeoutIndex > -1) {
-                takeoutOrdersChange = -1; // Decrement for `ordersCount` for `takeoutOrders`
+                console.log(`[AdminDashboard] Takeout order ${updatedOrder._id} is no longer active, removing.`);
                 return tPrev.filter((o) => o._id !== updatedOrder._id);
               }
             }
@@ -150,27 +171,38 @@ export default function AdminDashboard() {
           });
         } else {
           // If it was a takeout order and now it's not (e.g., tableNumber changed or cleared)
-          setTakeoutOrders((tPrev) =>
-            tPrev.filter((o) => o._id !== updatedOrder._id)
-          );
+          setTakeoutOrders((tPrev) => {
+              if (tPrev.some(o => o._id === updatedOrder._id)) {
+                  console.log(`[AdminDashboard] Order ${updatedOrder._id} is no longer a takeout order.`);
+              }
+              return tPrev.filter(o => o._id !== updatedOrder._id)
+          });
         }
 
-        setOrdersCount((c) => c + orderCountChange);
+        setOrdersCount((c) => {
+            const newCount = c + orderCountChange;
+            console.log(`[AdminDashboard] ordersCount updated: ${newCount} (change: ${orderCountChange}).`);
+            return newCount;
+        });
         return newOrders;
       });
     };
 
-    socket.on("order_update", handleOrderUpdate);
+    socketService.on("order_update", handleOrderUpdate);
+    console.log("[AdminDashboard] Socket.IO 'order_update' listener registered.");
 
     return () => {
-      socket.off("order_update", handleOrderUpdate);
+      console.log("[AdminDashboard] Cleaning up Socket.IO 'order_update' listener.");
+      socketService.off("order_update", handleOrderUpdate);
+      // socketService.disconnect(); // Uncomment if socketService should disconnect when this component unmounts
     };
-  }, [socket]);
+  }, [socketService, rid, tokenKey]); // Added rid, tokenKey to dependencies
 
   // ====== Initial Fetch for Orders (non-polling) ======
   useEffect(() => {
     if (!rid) return;
     async function fetchInitialOrders() {
+      console.log(`[AdminDashboard] Fetching initial orders for rid: ${rid}`);
       try {
         const orders = await getOrder(rid, "all"); // Fetch all orders
         const active = orders.filter(
@@ -179,8 +211,9 @@ export default function AdminDashboard() {
         setAllActiveOrders(active);
         setOrdersCount(active.length);
         setTakeoutOrders(active.filter((o: any) => String(o.tableNumber) === "999"));
+        console.log(`[AdminDashboard] Initial orders fetched. Active: ${active.length}, Takeout: ${active.filter((o: any) => String(o.tableNumber) === "999").length}`);
       } catch (err) {
-        console.error("❌ Failed to fetch initial orders:", err);
+        console.error("❌ [AdminDashboard] Failed to fetch initial orders:", err);
       }
     }
     fetchInitialOrders();
@@ -188,6 +221,7 @@ export default function AdminDashboard() {
 
   // ====== Logout ======
   const handleLogout = () => {
+    console.log("[AdminDashboard] Logging out admin.");
     localStorage.removeItem("staffToken");
     localStorage.removeItem(tokenKey);
     navigate(`/t/${rid}/admin-login`);
