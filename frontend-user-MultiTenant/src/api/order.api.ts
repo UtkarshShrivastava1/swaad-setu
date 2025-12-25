@@ -1,4 +1,4 @@
-import { api } from "./client";
+import { api } from "@/api/client";
 
 // ====== TYPES ======
 export type OrderItem = {
@@ -41,6 +41,9 @@ export type Order = {
 
 // ====== NORMALIZER ======
 function normalizeOrderPayload(rid: string, tableId: string, payload: any) {
+  // Defensively remove orderId to prevent accidental merging
+  delete payload.orderId;
+
   // Create/reuse a customer session ID
   const sessionId =
     payload.sessionId ||
@@ -64,6 +67,9 @@ function normalizeOrderPayload(rid: string, tableId: string, payload: any) {
     combos: payload.combos || [],
     items: payload.items || [],
   };
+
+  // Final check to ensure orderId is not present
+  delete (normalized as any).orderId;
 
   console.log("📦 Normalized Order Payload:", normalized);
   return normalized;
@@ -176,6 +182,29 @@ export async function getOrderById(
   console.log(res)
 
   return res ; 
+}
+
+// ====== GET ACTIVE ORDER BY TABLE ID ======
+export async function getActiveOrderByTableId(
+  rid: string,
+  tableId: string
+): Promise<Order | null> {
+  if (!tableId) return null;
+
+  try {
+    const result = await api<Order>(
+      `/api/${rid}/tables/${tableId}/active-order`,
+      {
+        method: "GET",
+      }
+    );
+    return result;
+  } catch (error) {
+    // Assuming a 404 error means no active order, which is a valid case.
+    // The api client should be configured to not throw on 404, or handle it here.
+    console.log(`No active order for table ${tableId}.`);
+    return null;
+  }
 }
 
 // ✅ ====== NEW: GET BILL (Public - No Auth Required) ======

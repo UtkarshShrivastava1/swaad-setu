@@ -38,7 +38,7 @@ export interface Restaurant {
   city?: string;
   state?: string;
   zip?: string;
-  upiSettings?: {
+  UPISettings?: {
     UPI_ID?: string;
     UPI_NAME?: string;
     UPI_CURRENCY?: string;
@@ -56,6 +56,6 @@ export const getRestaurantByRid = async (rid: string): Promise<Restaurant> => {
     },
   });
 
-  console.log("API Response:", response);
+  console.log("API Response for getRestaurantByRid:", response);
   return response;
 };

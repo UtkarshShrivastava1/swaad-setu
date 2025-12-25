@@ -406,15 +406,14 @@ export function useBilling(
         (o) => o.id === orderId || o.serverId === orderId
       );
       if (!order) throw new Error("Order not found");
+      if (typeof order.version !== "number") {
+        throw new Error("Order version is missing or invalid");
+      }
       if (isPending(orderId)) throw new Error("Operation pending");
 
       markPending(orderId);
       try {
-        const res = await updateOrderStatus(
-          orderId,
-          newStatus,
-          order.version ?? 1
-        );
+        const res = await updateOrderStatus(orderId, newStatus, order.version);
 
         setActiveOrders((prev: Order[]) =>
           prev.map((o: Order) =>

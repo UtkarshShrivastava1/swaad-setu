@@ -116,15 +116,15 @@ export default function BillHistory({
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 border border-slate-200">
+    <div className="bg-zinc-800 rounded-xl shadow-lg p-4 sm:p-6 border border-zinc-700">
       {/* Header section with title and refresh button */}
       <div className="flex items-center justify-between gap-4 mb-4">
         <div>
-          <h2 className="text-lg sm:text-xl font-semibold text-slate-800 flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-slate-600" />
+          <h2 className="text-lg sm:text-xl font-semibold text-white flex items-center gap-2">
+            <Calendar className="h-5 w-5 text-yellow-400" />
             Today's Bill History
           </h2>
-          <p className="text-xs sm:text-sm text-slate-500">
+          <p className="text-xs sm:text-sm text-gray-300">
             Showing completed bills for today.
           </p>
         </div>
@@ -132,7 +132,7 @@ export default function BillHistory({
         <button
           onClick={loadTodaysBills}
           disabled={isHistoryLoading}
-          className="flex items-center justify-center gap-2 px-3 py-2 rounded-md bg-indigo-600 text-white text-sm hover:bg-indigo-700 transition disabled:bg-indigo-400"
+          className="flex items-center justify-center gap-2 px-3 py-2 rounded-md bg-yellow-500 text-black text-sm hover:bg-yellow-400 transition disabled:opacity-50"
         >
           {isHistoryLoading ? (
             <RotateCcw className="h-4 w-4 animate-spin" />
@@ -144,15 +144,15 @@ export default function BillHistory({
       </div>
 
       {/* Display error message if any */}
-      {historyError && <div className="mb-3 text-sm text-rose-600">❌ {historyError}</div>}
+      {historyError && <div className="mb-3 text-sm text-rose-400">❌ {historyError}</div>}
 
       {/* Daily Summary section */}
       {summary && (
-        <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 mb-4">
-          <h3 className="text-sm font-semibold text-slate-700">
+        <div className="bg-zinc-700 border border-zinc-600 rounded-lg p-4 mb-4">
+          <h3 className="text-sm font-semibold text-gray-200">
             Today's Summary
           </h3>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-2 text-sm">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-2 text-sm text-gray-100">
             <div>Subtotal: {formatINR(summary.subtotal)}</div>
             <div>Tax: {formatINR(summary.tax)}</div>
             <div>Service: {formatINR(summary.serviceCharge)}</div>
@@ -166,11 +166,11 @@ export default function BillHistory({
       {/* Bill List, Loading state, or Empty message */}
       {isHistoryLoading && billHistory.length === 0 ? (
         <div className="py-8 flex items-center justify-center">
-          <div className="animate-spin h-10 w-10 border-t-2 border-indigo-600 rounded-full"></div>
+          <div className="animate-spin h-10 w-10 border-t-2 border-yellow-400 rounded-full"></div>
         </div>
       ) : billHistory.length === 0 ? (
-        <div className="text-center py-12 text-slate-500">
-          <Receipt className="h-12 w-12 mx-auto mb-3 text-slate-300" />
+        <div className="text-center py-12 text-gray-400">
+          <Receipt className="h-12 w-12 mx-auto mb-3 text-gray-500" />
           No bills found for today.
         </div>
       ) : (
@@ -178,46 +178,46 @@ export default function BillHistory({
           {billHistory.map((bill, index) => (
             <div
               key={`${bill._id || index}`}
-              className="bg-white border border-slate-200 rounded-lg hover:shadow-md transition-shadow p-4 cursor-pointer"
+              className="bg-zinc-700 border border-zinc-600 rounded-lg hover:shadow-lg transition-shadow p-4 cursor-pointer"
               onClick={() => handleViewBill(bill._id)}
             >
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
-                  <div className="h-10 w-10 rounded-lg bg-indigo-50 flex items-center justify-center">
-                    <Utensils className="h-5 w-5 text-indigo-500" />
+                  <div className="h-10 w-10 rounded-lg bg-yellow-400/20 flex items-center justify-center">
+                    <Utensils className="h-5 w-5 text-yellow-400" />
                   </div>
                   <div>
-                    <p className="font-semibold text-slate-800">
+                    <p className="font-semibold text-white">
                       #{bill.orderNumberForDay ?? "N/A"} - Table {bill.tableNumber ?? "N/A"}
                     </p>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-gray-300">
                       {bill.customerName || "Guest"} • {bill.staffAlias || "Staff"}
                     </p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="font-bold text-base text-emerald-600">
+                  <p className="font-bold text-base text-emerald-400">
                     {formatINR(bill.total || bill.totalAmount || 0)}
                   </p>
                    <span
                     className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                       bill.paymentStatus === "paid"
-                        ? "bg-emerald-100 text-emerald-800"
-                        : "bg-amber-100 text-amber-800"
+                        ? "bg-emerald-900/20 text-emerald-300"
+                        : "bg-amber-900/20 text-amber-300"
                     }`}
                   >
                     {bill.paymentStatus}
                   </span>
                 </div>
               </div>
-              <div className="border-t border-dashed border-slate-200 my-3"></div>
-              <div className="flex justify-between items-center text-xs text-slate-600">
+              <div className="border-t border-dashed border-zinc-600 my-3"></div>
+              <div className="flex justify-between items-center text-xs text-gray-400">
                  <div className="flex items-center gap-1.5">
-                    <Receipt className="h-4 w-4 text-slate-400" />
+                    <Receipt className="h-4 w-4 text-gray-400" />
                     <span>{bill.items?.length ?? 0} items</span>
                  </div>
                  <div className="flex items-center gap-1.5">
-                    <Clock className="h-4 w-4 text-slate-400" />
+                    <Clock className="h-4 w-4 text-gray-400" />
                     <span>
                       {bill.createdAt
                         ? new Date(bill.createdAt).toLocaleTimeString([], {
@@ -227,7 +227,7 @@ export default function BillHistory({
                         : "--:--"}
                     </span>
                  </div>
-                 <ChevronRight className="h-5 w-5 text-slate-400" />
+                 <ChevronRight className="h-5 w-5 text-yellow-400" />
               </div>
             </div>
           ))}
@@ -240,19 +240,19 @@ export default function BillHistory({
           <button
             onClick={handlePrevPage}
             disabled={pagination.page <= 1}
-            className="px-3 py-1 text-sm bg-slate-100 rounded hover:bg-slate-200 disabled:opacity-50"
+            className="px-3 py-1 text-sm bg-zinc-700 text-gray-100 rounded hover:bg-zinc-600 disabled:opacity-50"
           >
             Prev
           </button>
 
-          <span className="text-sm text-slate-600">
+          <span className="text-sm text-gray-300">
             Page {pagination.page} / {pagination.pages}
           </span>
 
           <button
             onClick={handleNextPage}
             disabled={pagination.page >= pagination.pages}
-            className="px-3 py-1 text-sm bg-slate-100 rounded hover:bg-slate-200 disabled:opacity-50"
+            className="px-3 py-1 text-sm bg-zinc-700 text-gray-100 rounded hover:bg-zinc-600 disabled:opacity-50"
           >
             Next
           </button>

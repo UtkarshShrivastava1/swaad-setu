@@ -129,12 +129,29 @@ export const normalizeOrder = (
 
   const tableId = extractTableId(apiOrder.tableId);
 
+  // Add warning for missing tableNumber
+  if (!resolvedTableNumber || resolvedTableNumber.trim() === "") {
+    console.warn(`[normalizeOrder] Missing or empty tableNumber for order ID: ${apiOrder._id}`, apiOrder);
+  }
+
+  const normalizedItems = normalizeBillItems(apiOrder.items || []);
+
+  // Add warning for items with missing or zero price
+  normalizedItems.forEach((item, index) => {
+    if (item.price == null || item.price === 0) {
+      console.warn(
+        `[normalizeOrder] Item '${item.name}' (index ${index}) in order ID: ${apiOrder._id} has missing or zero priceAtOrder. Raw item:`,
+        apiOrder.items?.[index]
+      );
+    }
+  });
+
   const normalized: Order = {
     id: String(apiOrder._id),
     serverId: String(apiOrder._id),
     tableId,
     tableNumber: resolvedTableNumber,
-    items: normalizeBillItems(apiOrder.items || []),
+    items: normalizedItems,
     subtotal: apiOrder.totalAmount,
     totalAmount: apiOrder.totalAmount,
     amount: apiOrder.totalAmount,

@@ -1,4 +1,5 @@
 import axios from "axios";
+import { ChevronLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTable } from "../context/TableContext";
@@ -53,6 +54,19 @@ export default function TableLanding() {
     if (rid) fetchTables();
   }, [baseUrl, rid]);
 
+  const handleBack = () => {
+    const inhouseUrl = import.meta.env.VITE_INHOUSE_API_URL;
+    if (inhouseUrl && rid) {
+      window.location.href = `${inhouseUrl}/t/${rid}`;
+    } else {
+      console.error(
+        "VITE_INHOUSE_API_URL or rid is not defined",
+        inhouseUrl,
+        rid
+      );
+    }
+  };
+
   const handleConfirm = () => {
     if (selectedOrderType === "dine_in") {
       if (!selectedTable) {
@@ -87,7 +101,15 @@ export default function TableLanding() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#0b0b0c] text-white px-6">
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-md relative">
+        <button
+          onClick={handleBack}
+          className="mb-4 sm:mb-0 sm:absolute sm:top-0 sm:right-full sm:mr-4 flex items-center gap-2 bg-yellow-500 text-black px-3 py-2 rounded-lg font-semibold hover:bg-yellow-400 transition-all"
+          aria-label="Go back"
+        >
+          <ChevronLeft size={20} />
+          <span>Back</span>
+        </button>
         {/* Card */}
         <div className="bg-white/5 backdrop-blur-xl border border-yellow-500/20 rounded-3xl p-8 shadow-2xl">
           {/* Logo */}

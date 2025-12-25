@@ -74,9 +74,7 @@ export async function fetchBill(rid: string) {
 export async function getBillHistory(rid: string): Promise<Bill[]> {
   try {
     const res = await client.get(`/api/${rid}/bills/history`);
-    // The interceptor already extracts .data, so 'res' is the actual response data.
-    // Ensure it's an array, or default to an empty array.
-    return (res || []) as Bill[];
+    return res.bills || [];
   } catch (error) {
     console.error("Error fetching bill history:", error);
     return []; // Return empty array on error

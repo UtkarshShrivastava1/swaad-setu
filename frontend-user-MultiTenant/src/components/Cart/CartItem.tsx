@@ -1,6 +1,6 @@
 import { Minus, Plus, Trash } from "lucide-react";
-import type { CartItem as CartItemType } from "../../stores/cart.store";
-import { GENERIC_ITEM_IMAGE_FALLBACK } from "../../utils/constants";
+import type { CartItem as CartItemType } from "@/stores/cart.store";
+import { GENERIC_ITEM_IMAGE_FALLBACK } from "@/utils/constants";
 
 type Props = {
   item: CartItemType;

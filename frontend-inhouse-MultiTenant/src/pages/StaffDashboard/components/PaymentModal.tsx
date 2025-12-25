@@ -13,6 +13,7 @@ import {
   resetTable,
 } from "../../../api/staff/staff.operations.api";
 import { useTenant } from "../../../context/TenantContext";
+import { getRestaurantByRid } from "../../../api/restaurant.api";
 
 type PaymentModalProps = {
   bill: any;
@@ -20,10 +21,6 @@ type PaymentModalProps = {
   staffToken?: string;
   onPaid: (updatedBill: any) => void;
   formatINR?: (n?: number | null) => string;
-  handleUpdateOrderStatus?: (
-    orderId: string,
-    newStatus: string
-  ) => Promise<void>;
   staffAlias?: string;
 };
 
@@ -33,10 +30,9 @@ export default function PaymentModal({
   staffToken,
   onPaid,
   formatINR,
-  handleUpdateOrderStatus,
   staffAlias,
 }: PaymentModalProps) {
-  const { rid, tenant, admin } = useTenant();
+  const { rid, tenant, admin, setTenant } = useTenant();
   const [method, setMethod] = useState<string>("CASH");
   const [txId, setTxId] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
@@ -54,6 +50,20 @@ export default function PaymentModal({
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
+
+  useEffect(() => {
+    const fetchTenantData = async () => {
+      if (rid) {
+        try {
+          const latestTenant = await getRestaurantByRid(rid);
+          setTenant(latestTenant);
+        } catch (error) {
+          console.error("Failed to fetch latest tenant data:", error);
+        }
+      }
+    };
+    fetchTenantData();
+  }, [rid, setTenant]);
 
   const safeFormatINR = useMemo(() => {
     if (typeof formatINR === "function") return formatINR;
@@ -116,14 +126,6 @@ export default function PaymentModal({
         staffAlias || "Unknown Staff",
         undefined // paymentNote
       );
-
-      if (bill?.orderId && typeof handleUpdateOrderStatus === "function") {
-        try {
-          await handleUpdateOrderStatus(bill.orderId, "done");
-        } catch (e) {
-          console.error("Failed to update order status:", e);
-        }
-      }
 
       onPaid(updatedBill);
       setSuccessMsg("Payment successful");
@@ -229,7 +231,7 @@ export default function PaymentModal({
               onChange={(e) => handleMethodChange(e.target.value)}
               className="p-4 w-full border-2 border-gray-600 rounded-xl text-lg font-bold bg-gray-800 text-white shadow-sm cursor-pointer transition-all"
             >
-              <option value="CASH">💵 Cash</option>
+              <option value="CASH">₹ Cash</option>
               <option value="CARD">💳 Card</option>
               <option value="UPI">📱 UPI</option>
               <option value="WALLET">🪙 Wallet</option>
@@ -345,7 +347,7 @@ export default function PaymentModal({
               "Processing..."
             ) : (
               <>
-                <Receipt className="w-7 h-7" /> Confirm
+                <IndianRupee className="w-7 h-7" /> Confirm
               </>
             )}
           </button>

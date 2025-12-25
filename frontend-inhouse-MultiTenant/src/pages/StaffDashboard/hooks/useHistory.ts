@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useSocket } from "../../../context/SocketContext";
 import type { ApiBill } from "../../../api/staff/bill.api";
 import { getBillsHistory } from "../../../api/staff/bill.api";
 import { normalizeBill } from "../utils/normalize";
@@ -15,6 +16,23 @@ export function useHistory(rid: string) {
   const [pagination, setPagination] = useState(null);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
+  const socket = useSocket();
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleNewHistoricalBill = (newBill: ApiBill) => {
+      console.log("Received new_historical_bill event:", newBill);
+      const normalized = normalizeBill(newBill);
+      setBillHistory(prevHistory => [normalized, ...prevHistory]);
+    };
+
+    socket.on("new_historical_bill", handleNewHistoricalBill);
+
+    return () => {
+      socket.off("new_historical_bill", handleNewHistoricalBill);
+    };
+  }, [socket]);
 
   /**
    * Fetch bill history from backend (tenant-aware)

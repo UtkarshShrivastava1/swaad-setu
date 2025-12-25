@@ -674,9 +674,9 @@ async function createBillFromOrder(req, res, next) {
       orderId,
     });
 
-    safePublish(`restaurant:${rid}:tables:${bill.tableId}`, {
-      event: "billCreated",
-      data: bill,
+    safePublish(`restaurant:${rid}:staff`, {
+      event: "bill_update",
+      data: { orderId: bill.orderId, bill: bill },
     });
 
     if (lockKey) await safeReleaseLock(lockKey).catch(() => {});
@@ -939,9 +939,9 @@ async function createBillManual(req, res, next) {
     });
 
     // publish event (non-blocking)
-    safePublish(`restaurant:${rid}:tables:${tableId}`, {
-      event: "billCreated",
-      data: bill,
+    safePublish(`restaurant:${rid}:staff`, {
+      event: "bill_update",
+      data: { orderId: bill.orderId, bill: bill },
     });
     logger &&
       logger.debug &&
@@ -1153,9 +1153,9 @@ async function updateBillDraft(req, res) {
     });
 
     // Real-time updates
-    safePublish(`restaurant:${rid}:tables:${bill.tableId}`, {
-      event: "billUpdated",
-      data: bill,
+    safePublish(`restaurant:${rid}:staff`, {
+      event: "bill_update",
+      data: { orderId: bill.orderId, bill: bill },
     });
 
     // -------------------------------
@@ -1347,13 +1347,13 @@ async function finalizeBill(req, res, next) {
     // 📡 Notify subscribers
     // ===========================
     await syncLinkedOrder(bill, "finalized");
-    safePublish(`restaurant:${rid}:tables:${bill.tableId}`, {
-      event: "billFinalized",
-      data: bill,
+    safePublish(`restaurant:${rid}:staff`, {
+      event: "bill_update",
+      data: { orderId: bill.orderId, bill: bill },
     });
 
     logger?.debug?.("[finalizeBill] publish attempted", {
-      channel: `restaurant:${rid}:tables:${bill.tableId}`,
+      channel: `restaurant:${rid}:staff`,
     });
 
     // ✅ Done
@@ -1445,10 +1445,38 @@ async function markBillPaid(req, res, next) {
         markedBy: staffAlias,
       });
     await syncLinkedOrder(bill, "paid");
+
+    // Notify table about payment
     safePublish(`restaurant:${rid}:tables:${bill.tableId}`, {
-      event: "billPaid",
-      data: bill,
+      event: "payment_received",
+      data: { orderId: bill.orderId, billId: bill._id, paymentStatus: "paid" },
     });
+
+    // Notify staff about new historical bill
+    safePublish(`restaurant:${rid}:staff`, {
+        event: "new_historical_bill",
+        data: bill,
+    });
+
+    // Update table status to available and notify staff
+    if (bill.tableId) {
+        try {
+            const table = await Table.findOneAndUpdate(
+                { _id: bill.tableId, restaurantId: rid },
+                { $set: { status: "available", CurrentOrderId: null, currentSessionId: null } },
+                { new: true }
+            );
+            if (table) {
+                safePublish(`restaurant:${rid}:staff`, {
+                    event: "table_update",
+                    data: table,
+                });
+            }
+        } catch (e) {
+            logger?.warn?.("[markBillPaid] failed to reset table", e);
+        }
+    }
+
     logger &&
       logger.debug &&
       logger.debug("[markBillPaid] publish attempted", {
@@ -1737,14 +1765,14 @@ async function incrementBillItem(req, res, next) {
     await bill.save();
 
     // Publish event
-    safePublish(`restaurant:${rid}:tables:${bill.tableId}`, {
-      event: "billItemIncremented",
-      data: bill,
+    safePublish(`restaurant:${rid}:staff`, {
+      event: "bill_update",
+      data: { orderId: bill.orderId, bill: bill },
     });
     logger &&
       logger.debug &&
       logger.debug("[incrementBillItem] publish attempted", {
-        channel: `restaurant:${rid}:tables:${bill.tableId}`,
+        channel: `restaurant:${rid}:staff`,
       });
 
     return res.json(bill);
@@ -1873,17 +1901,14 @@ async function decrementBillItem(req, res, next) {
 
     await bill.save();
 
-    safePublish(`restaurant:${rid}:tables:${bill.tableId}`, {
-      event:
-        actionTaken === "item_removed"
-          ? "billItemRemoved"
-          : "billItemDecremented",
-      data: bill,
+    safePublish(`restaurant:${rid}:staff`, {
+      event: "bill_update",
+      data: { orderId: bill.orderId, bill: bill },
     });
     logger &&
       logger.debug &&
       logger.debug("[decrementBillItem] publish attempted", {
-        channel: `restaurant:${rid}:tables:${bill.tableId}`,
+        channel: `restaurant:${rid}:staff`,
       });
 
     return res.json(bill);

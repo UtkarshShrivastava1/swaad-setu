@@ -1,4 +1,5 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useSocket } from "../../../context/SocketContext";
 import { getWaiterNames } from "../../../api/staff/staff.operations.api";
 
 /**
@@ -13,32 +14,22 @@ export function useWaiters(rid: string) {
   const [waiterNames, setWaiterNames] = useState<string[]>([]);
   const [waitersLoading, setWaitersLoading] = useState(false);
   const [waitersError, setWaitersError] = useState<string | null>(null);
+  const socket = useSocket();
 
-  const fetchWaiters = useCallback(async () => {
-    try {
-      setWaitersLoading(true);
-      setWaitersError(null);
+  useEffect(() => {
+    if (!socket) return;
 
-      let resp: any;
-      try {
-        // Try fetching with restaurant ID
-        resp = await getWaiterNames(rid);
-      } catch (e) {
-        // Fallback to no-arg call (for compatibility)
-        resp = await getWaiterNames();
-      }
+    const handleWaitersUpdate = (data: { waiters: string[] }) => {
+      console.log("Received waiters_update event:", data);
+      setWaiterNames(data.waiters || []);
+    };
 
-      const names =
-        resp && Array.isArray(resp.waiterNames) ? resp.waiterNames : [];
-      setWaiterNames(names);
-    } catch (err: any) {
-      console.warn("useWaiters: fetchWaiters failed", err);
-      setWaitersError(err?.message ?? "Failed to load waiters");
-      setWaiterNames([]);
-    } finally {
-      setWaitersLoading(false);
-    }
-  }, [rid]);
+    socket.on("waiters_update", handleWaitersUpdate);
 
-  return { waiterNames, waitersLoading, waitersError, fetchWaiters };
+    return () => {
+      socket.off("waiters_update", handleWaitersUpdate);
+    };
+  }, [socket]);
+
+  return { waiterNames, waitersLoading, waitersError };
 }

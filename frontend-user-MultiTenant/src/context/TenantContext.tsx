@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react';
-import { getRestaurant, type Restaurant } from '../api/restaurant.api';
+import { getRestaurant, type Restaurant } from '@/api/restaurant.api';
 
 interface TenantContextType {
   rid: string | null;

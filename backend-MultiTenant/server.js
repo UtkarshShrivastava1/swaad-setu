@@ -15,7 +15,7 @@ const { loadTenants } = require("./common/middlewares/tenant.middleware");
 // Models for tenant metrics (now handled in middleware)
 // const Menu = require("./models/menu.model");
 // const TableModel = require("./models/table.model");
-// const StaffModel = require("./models/admin.model"); 
+// const StaffModel = require("./models/admin.model");
 
 const server = http.createServer(app);
 let io = null;
@@ -111,7 +111,7 @@ async function boot() {
   // ------------------------------------------------------------
   // START HTTP SERVER
   // ------------------------------------------------------------
-  const PORT = config.PORT || process.env.PORT || 3000;
+  const PORT = config.PORT || process.env.PORT || 5001;
 
   server.listen(PORT, () => {
     console.log(chalk.greenBright("🚀  SERVER ONLINE"));

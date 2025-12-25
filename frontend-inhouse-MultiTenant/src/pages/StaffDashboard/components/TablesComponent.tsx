@@ -2,10 +2,7 @@
 
 import { ChevronRight, RotateCcw, Users } from "lucide-react";
 import React, { useState } from "react";
-import {
-  resetTable,
-  deleteOrderById,
-} from "../../../api/staff/staff.operations.api"; // Import resetTable
+import { resetTable } from "../../../api/staff/staff.operations.api";
 import { ConfirmModal } from "./ConfirmModal";
 
 interface TablesComponentProps {
@@ -15,7 +12,6 @@ interface TablesComponentProps {
   activeOrders: any[]; // Replace 'any' with actual Order type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onTableSelect: (table: any, order?: any) => void; // Replace 'any' with actual types
-  onTableReset: () => void;
   isLoading: boolean;
   rid: string;
 }
@@ -24,7 +20,6 @@ export const TablesComponent = ({
   tables,
   activeOrders,
   onTableSelect,
-  onTableReset,
   isLoading,
   rid,
 }: TablesComponentProps) => {
@@ -54,23 +49,8 @@ export const TablesComponent = ({
     setConfirmResetModalOpen(false);
 
     try {
-      // Also delete any active orders associated with this table
-      const tableToReset = tables.find(
-        (t) => (t._id || t.id) === pendingResetTableId
-      );
-      if (tableToReset) {
-        const ordersToDelete = activeOrders.filter((o) =>
-          matchesOrderToTable(o, tableToReset)
-        );
-        for (const order of ordersToDelete) {
-          await deleteOrderById(rid, order.id);
-        }
-      }
-
+      // The backend will emit a 'table_update' event on success
       await resetTable(rid, pendingResetTableId);
-      if (onTableReset) {
-        onTableReset();
-      }
       console.log(`Table ${pendingResetTableId} reset successfully.`);
     } catch (error) {
       console.error("Failed to reset table:", error);

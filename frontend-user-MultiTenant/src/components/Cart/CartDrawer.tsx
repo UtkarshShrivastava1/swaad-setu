@@ -1,7 +1,7 @@
 import { Phone } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { createOrder, getOrdersByTable } from "../../api/order.api";
+import { createOrder } from "../../api/order.api";
 import { useTable } from "../../context/TableContext";
 import { useTenant } from "../../context/TenantContext";
 import { useCart } from "../../stores/cart.store";
@@ -37,7 +37,7 @@ export default function CartDrawer() {
   const updateQty = useCart((s) => s.updateQty);
   const clear = useCart((s) => s.clear);
 
-  const { tableId } = useTable();
+  const { tableId, activeOrder } = useTable(); // Use activeOrder from context
   const { rid } = useTenant();
   const navigate = useNavigate();
 
@@ -47,7 +47,6 @@ export default function CartDrawer() {
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerContact, setCustomerContact] = useState("");
-  const [hasActiveOrder, setHasActiveOrder] = useState(false);
 
   const sessionId =
     sessionStorage.getItem("resto_session_id") ||
@@ -56,19 +55,6 @@ export default function CartDrawer() {
   useEffect(() => {
     sessionStorage.setItem("resto_session_id", sessionId);
   }, [sessionId]);
-
-  useEffect(() => {
-    if (tableId && rid) {
-      getOrdersByTable(rid, tableId).then((ordersForTable) => {
-        const activeOrder = ordersForTable.find(
-          (o) => o.status !== "completed" && o.status !== "cancelled"
-        );
-        setHasActiveOrder(!!activeOrder);
-      });
-    } else {
-      setHasActiveOrder(false);
-    }
-  }, [rid, tableId]);
 
   useEffect(() => {
     if (tableId) {
@@ -92,18 +78,12 @@ export default function CartDrawer() {
 
     setLoading(true);
     try {
-      const ordersForTable = await getOrdersByTable(rid, tableId);
-      const activeOrder = ordersForTable.find(
-        (o) => o.status !== "completed" && o.status !== "cancelled"
-      );
-
       if (activeOrder) {
         await placeOrderWithDetails(
           activeOrder.customerName,
           activeOrder.customerContact || "",
           activeOrder.customerEmail,
-          false,
-          activeOrder
+          false
         );
       } else {
         const savedInfo = sessionStorage.getItem(`customerInfo_${tableId}`);
@@ -130,8 +110,7 @@ export default function CartDrawer() {
     name: string,
     contact: string,
     email: string | null,
-    isNewCustomer: boolean,
-    activeOrder: ApiOrder | null = null
+    isNewCustomer: boolean
   ) => {
     const payload = {
       sessionId,
@@ -139,7 +118,6 @@ export default function CartDrawer() {
       customerContact: contact,
       customerEmail: email,
       isCustomerOrder: true,
-      ...(activeOrder?._id && { orderId: activeOrder._id }),
       items: items.map((i) => ({
         menuItemId: i.itemId,
         name: i.name,
@@ -313,7 +291,7 @@ export default function CartDrawer() {
           >
             {loading
               ? "Placing..."
-              : hasActiveOrder
+              : activeOrder
                 ? "Add More Items"
                 : "Place Order"}
           </button>

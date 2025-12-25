@@ -2,6 +2,7 @@ import { Route, Routes, Navigate } from "react-router-dom";
 import TenantGuard from "./guards/TenantGuard";
 import TableSetter from "./guards/TableSetter";
 import { TableProvider } from "./context/TableContext";
+import { SocketProvider } from "./context/SocketContext";
 import HomePage from "./pages/HomePage";
 import RootPage from "./pages/RootPage";
 
@@ -14,13 +15,15 @@ function App() {
         element={
           <TenantGuard>
             <TableProvider>
-              <Routes>
-                {/* QR Code Entry Route */}
-                <Route path="table/:tableId" element={<TableSetter />} />
+              <SocketProvider>
+                <Routes>
+                  {/* QR Code Entry Route */}
+                  <Route path="table/:tableId" element={<TableSetter />} />
 
-                {/* Main App Routes */}
-                <Route path="*" element={<HomePage />} />
-              </Routes>
+                  {/* Main App Routes */}
+                  <Route path="*" element={<HomePage />} />
+                </Routes>
+              </SocketProvider>
             </TableProvider>
           </TenantGuard>
         }

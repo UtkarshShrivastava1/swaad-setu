@@ -68,3 +68,36 @@ export type ComboItem = {
 
 // Union type for items that can be displayed
 export type DisplayableItem = (MenuItem & { type: 'item' }) | ComboItem;
+
+export interface Tax {
+  name: string;
+  percent: number;
+  code: string;
+  inclusive: boolean;
+}
+
+export interface Offer {
+  code: string;
+  title: string;
+  description: string;
+  discountType: string;
+  discountValue: number;
+  minOrderValue: number;
+  maxDiscountValue: number;
+  isActive: boolean;
+  validFrom: string;
+  validTill: string;
+}
+
+export interface PricingConfig {
+  version: number;
+  active: boolean;
+  effectiveFrom: string;
+  globalDiscountPercent: number;
+  serviceChargePercent: number;
+  taxes: Tax[];
+  createdBy: string;
+  reason: string;
+  createdAt: string;
+  offers: Offer[];
+}

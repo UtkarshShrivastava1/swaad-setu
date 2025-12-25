@@ -221,7 +221,7 @@ async function updateTableStatus(req, res, next) {
 
     // publish event
     safePublish(`restaurant:${rid}:staff`, {
-      event: "tableStatusUpdated",
+      event: "table_update",
       data: table,
     });
 
@@ -297,9 +297,9 @@ async function assignSession(req, res, next) {
     }
 
     // Publish event (safe no-op if publishEvent unavailable)
-    safePublish(`restaurant:${rid}:tables:${id}`, {
-      event: "sessionAssigned",
-      data: { sessionId, tableId: id },
+    safePublish(`restaurant:${rid}:staff`, {
+      event: "table_update",
+      data: table,
     });
 
     return res.json(table);
@@ -347,7 +347,7 @@ async function createTable(req, res, next) {
 
     // Publish event
     safePublish(`restaurant:${rid}:staff`, {
-      event: "tableCreated",
+      event: "table_update",
       data: table,
     });
 
@@ -379,8 +379,8 @@ async function deleteTable(req, res, next) {
 
     // Publish event
     safePublish(`restaurant:${rid}:staff`, {
-      event: "tableDeleted",
-      data: { tableId: id },
+      event: "table_update",
+      data: { _id: id, _deleted: true },
     });
 
     return res.status(204).send();
@@ -431,9 +431,9 @@ async function updateStaffAlias(req, res, next) {
     }
 
     // Publish event (safe no-op if publishEvent unavailable)
-    safePublish(`restaurant:${rid}:tables:${id}`, {
-      event: "staffAssigned",
-      data: { tableId: id, staffAlias },
+    safePublish(`restaurant:${rid}:staff`, {
+      event: "table_update",
+      data: table,
     });
 
     return res.json(table);
@@ -481,7 +481,7 @@ async function toggleTableActive(req, res, next) {
 
     // publish event
     safePublish(`restaurant:${rid}:staff`, {
-      event: "tableStatusUpdated",
+      event: "table_update",
       data: table,
     });
 
@@ -529,12 +529,12 @@ async function resetTable(req, res, next) {
 
     // Also cancel any active orders for this table
     await Order.updateMany(
-      { restaurantId: rid, tableId: id, status: { $nin: ["billed", "paid", "cancelled"] } },
+      { restaurantId: rid, tableId: id, status: { $nin: ["billed", "paid", "cancelled", "done"] } },
       { $set: { status: "cancelled", isOrderComplete: true, updatedAt: Date.now() } }
     );
 
     safePublish(`restaurant:${rid}:staff`, {
-      event: "tableReset",
+      event: "table_update",
       data: table,
     });
 

@@ -7,19 +7,21 @@ export default function MobileFloatingButton(): JSX.Element {
       onClick={() => navigate("/select-restaurant")}
       aria-label="Floating action button"
       className="
-        fixed bottom-5 right-5 z-50
+        fixed top-20 right-0 z-50
         md:hidden
         flex items-center justify-center
-        w-24 h-14
-        rounded-xl
+        w-20 h-12
+        rounded-l-full
         bg-yellow-400 text-black
-        shadow-xl
-        transition-transform
+        shadow-lg
+        transition-all
         active:scale-95
-        hover:scale-105
+        hover:bg-yellow-500
+        font-semibold
+        pr-2
       "
     >
-      Go to app
+      App
     </button>
   );
 }

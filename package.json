@@ -1,0 +1,8 @@
+{
+  "devDependencies": {
+    "@types/react-icons": "^3.0.0"
+  },
+  "dependencies": {
+    "moment": "^2.30.1"
+  }
+}

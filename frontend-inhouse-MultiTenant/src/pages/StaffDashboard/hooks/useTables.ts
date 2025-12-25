@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useSocket } from "../../../context/SocketContext";
 import type { ApiTable } from "../../../api/staff/staff.operations.api";
 
 import {
@@ -17,6 +18,29 @@ export function useTables(rid: string) {
   const [tables, setTables] = useState<ApiTable[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [tableError, setTableError] = useState<string | null>(null);
+  const socket = useSocket();
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleTableUpdate = (updatedTable: ApiTable) => {
+      console.log("Received table_update event:", updatedTable);
+      setTables(prevTables => {
+        const tableExists = prevTables.some(t => t._id === updatedTable._id);
+        if (tableExists) {
+          return prevTables.map(t => t._id === updatedTable._id ? updatedTable : t);
+        } else {
+          return [...prevTables, updatedTable];
+        }
+      });
+    };
+
+    socket.on("table_update", handleTableUpdate);
+
+    return () => {
+      socket.off("table_update", handleTableUpdate);
+    };
+  }, [socket]);
 
   /**
    * Fetch all tables (full shape, no transformation)
@@ -93,7 +117,7 @@ export function useTables(rid: string) {
   );
 
   /**
-   * Assign session → refresh tables
+   * Assign session → backend emits table_update
    */
   const assignSession = useCallback(
     async (tableId: string, sessionId: string, staffAlias: string) => {
@@ -114,22 +138,14 @@ export function useTables(rid: string) {
           sessionId,
           staffAlias
         );
-
-        if (res?.success) {
-          console.log(
-            `%c[useTables] ✅ Session assigned → refreshing tables`,
-            "color:#4CAF50"
-          );
-          await fetchTables();
-        }
-
+        // No longer need to fetchTables() here, backend will emit 'table_update'
         return res;
       } catch (err) {
         console.error("[useTables] ❌ Session assign failed:", err);
         return { success: false };
       }
     },
-    [rid, fetchTables]
+    [rid]
   );
 
   /**
@@ -141,7 +157,7 @@ export function useTables(rid: string) {
       return;
     }
     fetchTables();
-  }, [rid]);
+  }, [rid, fetchTables]);
 
   return {
     // data

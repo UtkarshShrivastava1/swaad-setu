@@ -1,6 +1,3 @@
-// src/components/staff/BillingViewCompact.tsx (multi-tenant)
-
-// Import necessary icons and components
 import {
   CheckCircle,
   ChevronRight,
@@ -11,7 +8,7 @@ import {
   RefreshCw,
   User,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import type { ApiBill } from "../../../api/staff/bill.api";
 import {
@@ -19,6 +16,7 @@ import {
   getBillByOrderId,
   resetTable,
 } from "../../../api/staff/staff.operations.api";
+import { useSocket } from "../../../context/SocketContext";
 import { useTenant } from "../../../context/TenantContext";
 import BillModalComponent from "./BillModalComponent";
 import { ConfirmModal } from "./ConfirmModal";
@@ -42,12 +40,10 @@ function toIdString(x: any): string {
   return "";
 }
 
-// Constants
-const AUTO_REFRESH_MS = 15000; // 15s auto-refresh interval
-
 // Props for the BillingViewCompact component
 interface BillViewProps {
   showBillDetail: Order;
+  initialBill?: ApiBill | null;
   handleUpdateOrderStatus: (
     orderId: string,
     newStatus: string
@@ -65,6 +61,7 @@ interface BillViewProps {
  */
 export default function BillingViewCompact({
   showBillDetail,
+  initialBill,
   handleUpdateOrderStatus,
   goBack,
   formatINR,
@@ -74,6 +71,8 @@ export default function BillingViewCompact({
 }: BillViewProps) {
   // ===== Base entities =====
   const order = showBillDetail;
+  const socket = useSocket();
+  const debounceTimer = useRef<NodeJS.Timeout | null>(null);
 
   // Get restaurant ID from URL params or tenant context for multi-tenancy
   const { rid: ridFromUrl } = useParams();
@@ -94,7 +93,7 @@ export default function BillingViewCompact({
   const orderId = order?._id || order?.id || order?.serverId;
 
   // ===== State =====
-  const [bill, setBill] = useState<ApiBill | null>(null);
+  const [bill, setBill] = useState<ApiBill | null>(initialBill ?? null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [rejecting, setRejecting] = useState(false);
@@ -106,22 +105,27 @@ export default function BillingViewCompact({
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const autoRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [editingBill, setEditingBill] = useState<ApiBill | null>(null);
   const [isPaying, setIsPaying] = useState(false);
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<() => void>();
   const [confirmMessage, setConfirmMessage] = useState("");
 
-  // State for handling alias (waiter name) editing
   const [aliasInput, setAliasInput] = useState<string>("");
   const [isAliasSaving, setIsAliasSaving] = useState(false);
+  const [newlyAddedItems, setNewlyAddedItems] = useState<Set<string>>(new Set());
 
-  /**
-   * Fetches the bill details for the current order.
-   * @param opts - Options for fetching, such as `silent` to prevent loading indicators.
-   */
-  const fetchBill = async (opts?: { silent?: boolean }) => {
+  // Effect to clear highlight after a delay
+  useEffect(() => {
+    if (newlyAddedItems.size > 0) {
+      const timer = setTimeout(() => {
+        setNewlyAddedItems(new Set());
+      }, 5000); // Highlight for 5 seconds
+      return () => clearTimeout(timer);
+    }
+  }, [newlyAddedItems]);
+
+  const fetchBill = useCallback(async (opts?: { silent?: boolean }) => {
     const silent = opts?.silent ?? false;
     if (!orderId) {
       setError("Missing order ID");
@@ -132,45 +136,67 @@ export default function BillingViewCompact({
       if (!silent) setIsRefreshing(true);
       setError(null);
 
-      // Fetches bill using a multi-tenant aware API call
       const fresh = await getBillByOrderId(restaurantId, orderId);
 
-      setBill(fresh);
+      setBill(prevBill => {
+        if (prevBill && fresh.items.length > prevBill.items.length) {
+          const existingItemInstanceIds = new Set(
+            prevBill.items.map((item: any) => item._id)
+          );
+          const newItems = fresh.items.filter(
+            (item: any) => !existingItemInstanceIds.has(item._id)
+          );
+          if (newItems.length > 0) {
+            const newIds = new Set(newItems.map((item: any) => item._id));
+            setNewlyAddedItems(newIds);
+          }
+        }
+        return fresh;
+      });
+
       setLastUpdated(new Date());
     } catch (err: any) {
       setError(err?.message || "Failed to fetch bill details");
     } finally {
       if (!silent) setIsRefreshing(false);
     }
-  };
-
-  // Effect for initial bill fetch on component mount
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      if (!orderId) return;
-      try {
-        await fetchBill({ silent: true });
-      } finally {
-        if (!active) return;
-      }
-    })();
-    return () => {
-      active = false;
-    };
   }, [orderId, restaurantId]);
 
-  // Effect for setting up auto-refresh interval for bill data
+  const debouncedFetchBill = useCallback(() => {
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
+    debounceTimer.current = setTimeout(() => {
+      fetchBill({ silent: true });
+    }, 800);
+  }, [fetchBill]);
+
+  // Initial fetch and socket listener setup
   useEffect(() => {
-    if (!orderId || !restaurantId) return;
-    if (autoRefreshRef.current) clearInterval(autoRefreshRef.current);
-    autoRefreshRef.current = setInterval(() => {
-      fetchBill({ silent: true }).catch(() => {});
-    }, AUTO_REFRESH_MS);
-    return () => {
-      if (autoRefreshRef.current) clearInterval(autoRefreshRef.current);
-    };
-  }, [orderId, restaurantId]);
+    if (orderId) {
+      fetchBill();
+    }
+
+    if (socket) {
+      const handleOrderUpdate = (updatedOrder: { _id: string }) => {
+        if (updatedOrder._id === orderId) {
+          console.log(
+            `[BillingView] Debounced update for current order ${orderId}`
+          );
+          debouncedFetchBill();
+        }
+      };
+
+      socket.on("order_update", handleOrderUpdate);
+
+      return () => {
+        socket.off("order_update", handleOrderUpdate);
+        if (debounceTimer.current) {
+          clearTimeout(debounceTimer.current);
+        }
+      };
+    }
+  }, [orderId, socket, debouncedFetchBill]);
 
   // Effect for fetching the list of waiters
   useEffect(() => {
@@ -504,16 +530,6 @@ export default function BillingViewCompact({
           Back
         </button>
         <div className="ml-auto inline-flex items-center gap-2">
-          <button
-            onClick={() => fetchBill()}
-            disabled={isRefreshing}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white/10 text-white hover:bg-white/20 transition shadow disabled:opacity-50 cursor-pointer"
-          >
-            <RefreshCw
-              className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
-            />
-            {isRefreshing ? "Refreshing" : "Refresh"}
-          </button>
           {bill && (
             <button
               onClick={() => setBillModalOpen(true)}
@@ -822,13 +838,17 @@ export default function BillingViewCompact({
               </div>
               <div className="divide-y divide-white/10">
                 {bill && bill.items?.length ? (
-                  bill.items.map((item: any, i: number) => {
+                  bill.items.map((item: any) => {
                     const price = item.priceAtOrder ?? item.price ?? 0;
                     const qty = item.qty ?? 1;
+                    const isNew = newlyAddedItems.has(item._id);
+
                     return (
                       <div
-                        key={`${item.itemId || i}`}
-                        className="px-4 py-3 hover:bg-white/5 transition"
+                        key={item._id} // Use instance ID for stable key
+                        className={`px-4 py-3 transition-colors duration-500 ${
+                          isNew ? "bg-yellow-500/20" : "hover:bg-white/5"
+                        }`}
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0 flex-1">
@@ -984,8 +1004,10 @@ export default function BillingViewCompact({
             setBill(updatedBill);
             setIsPaying(false);
             fetchBill({ silent: true });
+            if (orderId) {
+              handleUpdateOrderStatus(orderId, "done");
+            }
           }}
-          handleUpdateOrderStatus={handleUpdateOrderStatus}
         />
       )}
     </section>

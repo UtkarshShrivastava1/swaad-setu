@@ -128,7 +128,7 @@ export function useOrders(
         setIsHistoryLoading(true);
         const safeParams = params || {};
 
-        let rawResp: any = await getOrderHistory(rid, safeParams);
+        const rawResp: any = await getOrderHistory(rid, safeParams);
         let ordersApi: ApiOrder[] = [];
 
         if (Array.isArray(rawResp)) ordersApi = rawResp;

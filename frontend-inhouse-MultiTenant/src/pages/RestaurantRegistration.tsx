@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
-import { Select } from "@/components/ui/Select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/Select";
 import { motion } from "framer-motion";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -44,7 +44,7 @@ const indianStates = [
   "Jammu and Kashmir",
   "Ladakh",
   "Lakshadweep",
-  "Puducherry"
+  "Puducherry",
 ];
 
 // Define the expected response shape from the registration API
@@ -71,7 +71,13 @@ const CheckCircle = ({ className }: { className?: string }) => (
 );
 
 // FormField component for consistent styling and animation
-const FormField = ({ id, label, as: Component = Input, children, ...props }) => (
+const FormField = ({
+  id,
+  label,
+  as: Component = Input,
+  children,
+  ...props
+}) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
@@ -100,6 +106,8 @@ export default function RestaurantRegistration() {
     ownerName: "",
     email: "",
     phone: "",
+    fssaiNumber: "",
+    gstNumber: "",
     address: {
       street: "",
       city: "",
@@ -115,12 +123,30 @@ export default function RestaurantRegistration() {
   const navigate = useNavigate();
   const { setRid } = useTenant();
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     const { name, value } = e.target;
 
     if (name === "phone") {
       const numericValue = value.replace(/[^0-9]/g, "");
       if (numericValue.length <= 10) {
+        setForm((prev) => ({ ...prev, [name]: numericValue }));
+      }
+      return;
+    }
+
+    if (name === "fssaiNumber") {
+      const numericValue = value.replace(/[^0-9]/g, "");
+      if (numericValue.length <= 14) {
+        setForm((prev) => ({ ...prev, [name]: numericValue }));
+      }
+      return;
+    }
+
+    if (name === "gstNumber") {
+      const numericValue = value.replace(/[^0-9]/g, "");
+      if (numericValue.length <= 15) {
         setForm((prev) => ({ ...prev, [name]: numericValue }));
       }
       return;
@@ -147,6 +173,8 @@ export default function RestaurantRegistration() {
         ownerName: form.ownerName,
         phone: form.phone,
         email: form.email,
+        fssaiNumber: form.fssaiNumber,
+        gstNumber: form.gstNumber,
         address: form.address,
         adminPin: "1111", // Default admin PIN
         staffPin: "2222", // Default staff PIN
@@ -274,6 +302,28 @@ export default function RestaurantRegistration() {
                   pattern="\d{10}"
                   title="Phone number must be 10 digits"
                 />
+                <FormField
+                  id="fssaiNumber"
+                  label="FSSAI Number"
+                  name="fssaiNumber"
+                  type="text"
+                  value={form.fssaiNumber}
+                  onChange={handleChange}
+                  maxLength={14}
+                  pattern="\d{14}"
+                  title="FSSAI Number must be 14 digits"
+                />
+                <FormField
+                  id="gstNumber"
+                  label="GST Number"
+                  name="gstNumber"
+                  type="text"
+                  value={form.gstNumber}
+                  onChange={handleChange}
+                  maxLength={15}
+                  pattern="\d{15}"
+                  title="GST Number must be 15 digits"
+                />
               </div>
 
               {/* Right Column */}
@@ -312,9 +362,13 @@ export default function RestaurantRegistration() {
                     onChange={handleChange}
                     required
                   >
-                    <option value="" disabled>Select a state</option>
-                    {indianStates.map(state => (
-                      <option key={state} value={state}>{state}</option>
+                    <option value="" disabled>
+                      Select a state
+                    </option>
+                    {indianStates.map((state) => (
+                      <option key={state} value={state}>
+                        {state}
+                      </option>
                     ))}
                   </FormField>
                 </div>
@@ -352,18 +406,18 @@ export default function RestaurantRegistration() {
 
             <div className="mt-10 pt-8 border-t dark:border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-4">
               <Button
+                type="button"
+                onClick={() => navigate("/select-restaurant")}
+                className="w-full sm:w-auto text-lg py-3 px-8 rounded-lg bg-gray-700 text-white hover:bg-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700 transition-colors"
+              >
+                Back
+              </Button>
+              <Button
                 type="submit"
                 disabled={loading}
                 className="w-full sm:w-auto text-lg py-3 px-8 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-blue-500/40 transform hover:-translate-y-0.5 transition-all duration-300"
               >
                 {loading ? "Registering..." : "Create Restaurant"}
-              </Button>
-              <Button
-                type="button"
-                onClick={() => navigate("/select-restaurant")}
-                className="w-full sm:w-auto text-lg py-3 px-8 rounded-lg bg-gray-700 text-white hover:bg-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700 transition-colors"
-              >
-                Back to Selector
               </Button>
             </div>
           </form>

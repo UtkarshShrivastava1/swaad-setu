@@ -3,6 +3,7 @@ const express = require("express");
 const router = express.Router({ mergeParams: true });
 
 const tableController = require("../controllers/table.controller");
+const orderController = require("../controllers/order.controller");
 
 // ------------------------------------------------------------
 // 🧱 Defensive middleware imports
@@ -156,6 +157,12 @@ router.get("/", tableController.getTables);
  * Public detail — FREE for all plans
  */
 router.get("/:id", tableController.getTableById);
+
+/**
+ * GET /api/:rid/tables/:id/active-order
+ * Publicly fetch the current active order for a table.
+ */
+router.get("/:id/active-order", orderController.getActiveOrderByTable);
 
 /**
  * PATCH /api/:rid/tables/:id/status

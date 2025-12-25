@@ -12,6 +12,32 @@ try {
   console.warn("Logger not found, using console fallback.");
 }
 
+// ---------------------- REDIS/SOCKETS (DEFENSIVE) ----------------------
+let publishEvent = null;
+(function tryLoadRedis() {
+  try {
+    const mod = require("../db/redis");
+    if (mod) {
+      publishEvent = mod.publishEvent || mod.publish || null;
+    }
+  } catch (e) {
+    logger.warn && logger.warn("Redis module not found, sockets disabled.");
+  }
+})();
+
+function safePublish(channel, message) {
+  if (typeof publishEvent !== "function") return;
+  try {
+    const out = publishEvent(channel, message);
+    if (out && typeof out.then === "function")
+      out.catch(
+        (e) => logger && logger.error && logger.error("publishEvent err:", e)
+      );
+  } catch (e) {
+    logger && logger.error && logger.error("publishEvent error:", e);
+  }
+}
+
 // ---------------------- HELPERS (DEFENSIVE) ----------------------
 let helpers = null;
 try {
@@ -138,6 +164,20 @@ async function createCall(req, res, next) {
     });
 
     await call.save();
+
+    // ------------------ NOTIFY SUBSCRIBERS ------------------
+    // Notify staff dashboard
+    safePublish(`restaurant:${rid}:staff`, {
+      event: "new_call",
+      data: call,
+    });
+
+    // Notify user at the table
+    safePublish(`restaurant:${rid}:tables:${tableId}`, {
+      event: "call_status_update",
+      data: { callId: call._id, status: "active" },
+    });
+
     return res.status(201).json(call);
   } catch (error) {
     logger.error && logger.error("Call creation error:", error);
@@ -203,6 +243,19 @@ async function resolveCall(req, res, next) {
       // Otherwise, the call truly doesn't exist.
       return res.status(404).json({ error: "Call not found." });
     }
+
+    // ------------------ NOTIFY SUBSCRIBERS ------------------
+    // Notify staff dashboard
+    safePublish(`restaurant:${rid}:staff`, {
+      event: "call_resolved",
+      data: call,
+    });
+
+    // Notify user at the table
+    safePublish(`restaurant:${rid}:tables:${call.tableId}`, {
+      event: "call_status_update",
+      data: { callId: call._id, status: "resolved" },
+    });
 
     return res.json(call);
   } catch (error) {

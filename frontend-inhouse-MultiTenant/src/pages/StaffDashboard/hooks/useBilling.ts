@@ -1,5 +1,5 @@
 // src/pages/StaffDashboard/hooks/useBilling.ts
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   addItemToBillForTable,
   decrementBillItem,
@@ -87,28 +87,6 @@ export function useBilling(
 
   // ================= ACTIONS =================== //
 
-  /** Refresh */
-  const onRefresh = useCallback(async (): Promise<Order | null> => {
-    const target = showBillDetail;
-    if (!target || !rid) return null;
-
-    const billId = getBillId(target)!;
-    markPending(billId);
-
-    try {
-      const resp = await fetchBillById(rid, billId); // 🔥 add rid
-      const normalized = normalizeBillResponseToOrder(resp, target);
-      updateLocalOrders(normalized);
-      return normalized;
-    } catch (e) {
-      console.error("[useBilling] refresh failed:", e);
-      setError("Failed to refresh bill");
-      return null;
-    } finally {
-      unmarkPending(billId);
-    }
-  }, [showBillDetail, rid]);
-
   /** Finalize */
   const onFinalize = useCallback(async (): Promise<Order> => {
     const target = showBillDetail;
@@ -119,6 +97,7 @@ export function useBilling(
 
     markPending(billId);
     try {
+      // Backend will emit 'bill_update'
       const resp = await finalizeBill(rid, billId); // 🔥 add rid
       const normalized = normalizeBillResponseToOrder(resp, target);
       updateLocalOrders(normalized);
@@ -141,10 +120,9 @@ export function useBilling(
 
       markPending(billId);
       try {
+        // Backend will emit 'payment_received' and 'bill_update'
         const resp = await markBillPaid(rid, billId, payment, payment.txId); // 🔥
-        const normalized = normalizeBillResponseToOrder(resp, target);
-        updateLocalOrders(normalized);
-        return normalized;
+        return resp;
       } catch (e) {
         setError("Failed to mark bill paid");
         throw e;
@@ -165,6 +143,7 @@ export function useBilling(
 
       markPending(billId);
       try {
+        // Backend will emit 'bill_update'
         const resp = await addItemToBillForTable(
           rid, // 🔥
           target.tableId ?? "",
@@ -191,6 +170,7 @@ export function useBilling(
 
       markPending(billId);
       try {
+        // Backend will emit 'bill_update'
         const resp = await incrementBillItem(rid, billId, itemId); // 🔥
         const normalized = normalizeBillResponseToOrder(resp, target);
         updateLocalOrders(normalized);
@@ -212,6 +192,7 @@ export function useBilling(
 
       markPending(billId);
       try {
+        // Backend will emit 'bill_update'
         const resp = await decrementBillItem(rid, billId, itemId); // 🔥
         const normalized = normalizeBillResponseToOrder(resp, target);
         updateLocalOrders(normalized);
@@ -241,6 +222,7 @@ export function useBilling(
 
         items[index] = { ...items[index], ...patch };
 
+        // Backend will emit 'bill_update'
         const resp = await updateBillDraft(rid, billId, {
           items,
           version: bill.version ?? null,
@@ -277,6 +259,7 @@ export function useBilling(
           nextItems = items.filter((it: any) => String(it.id) !== String(id));
         }
 
+        // Backend will emit 'bill_update'
         const resp = await updateBillDraft(rid, billId, {
           items: nextItems,
           version: bill.version ?? null,
@@ -302,6 +285,7 @@ export function useBilling(
 
       markPending(billId);
       try {
+        // Backend will emit 'bill_update'
         const resp = await updateBillStatus(rid, billId, newStatus); // 🔥
         const normalized = normalizeBillResponseToOrder(resp, target);
         updateLocalOrders(normalized);
@@ -320,14 +304,18 @@ export function useBilling(
         (o) => o.id === orderId || o.serverId === orderId
       );
       if (!order || !rid) throw new Error("Order not found");
+      if (typeof order.version !== "number") {
+        throw new Error("Order version is missing or invalid");
+      }
 
       markPending(orderId);
       try {
+        // Backend will emit 'order_update'
         const res = await updateOrderStatus(
           rid,
           orderId,
           newStatus,
-          order.version ?? 1
+          order.version
         );
 
         setActiveOrders((prev) =>
@@ -356,7 +344,6 @@ export function useBilling(
   );
 
   return {
-    onRefresh,
     onFinalize,
     onMarkPaid,
     onUpdateStatus,

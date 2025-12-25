@@ -43,7 +43,7 @@ const ComboAdvertisement: React.FC<ComboAdvertisementProps> = ({
           disableOnInteraction: false,
         }}
         pagination={{ clickable: true }}
-        className="w-full h-[220px] sm:h-[300px] md:h-[380px] lg:h-[420px] xl:h-[480px]"
+        className="w-full h-[180px] sm:h-[200px] md:h-[220px] lg:h-[280px] xl:h-[320px]"
       >
         {comboCategories.map((combo, index) => {
           // Cycle through the shuffled banners
@@ -74,7 +74,7 @@ const ComboAdvertisement: React.FC<ComboAdvertisementProps> = ({
 
                 {/* ✅ Content */}
                 <div
-                  className={`relative z-10 max-w-2xl w-full px-5 sm:px-10 text-white flex flex-col ${
+                  className={`relative z-10 max-w-2xl w-11/12 px-5 sm:px-10 text-white flex flex-col ${
                     contentPosition === "right"
                       ? "items-end text-right ml-auto"
                       : "items-start text-left"
@@ -84,7 +84,7 @@ const ComboAdvertisement: React.FC<ComboAdvertisementProps> = ({
                     🔥 Limited Time Combo
                   </p>
 
-                  <h2 className="text-xl sm:text-3xl md:text-4xl font-extrabold mb-3">
+                  <h2 className="text-lg sm:text-3xl md:text-4xl font-extrabold mb-3">
                     {combo.name}
                   </h2>
 
@@ -95,8 +95,8 @@ const ComboAdvertisement: React.FC<ComboAdvertisementProps> = ({
                   )}
 
                   {combo.comboMeta && (
-                    <div className="flex items-center gap-3 mb-4 md:mb-6">
-                      <span className="text-2xl sm:text-3xl font-bold text-yellow-400">
+                    <div className="flex items-center flex-wrap gap-3 mb-4 md:mb-6">
+                      <span className="text-xl sm:text-3xl font-bold text-yellow-400">
                         ₹{combo.comboMeta.discountedPrice}
                       </span>
 
@@ -112,7 +112,7 @@ const ComboAdvertisement: React.FC<ComboAdvertisementProps> = ({
 
                   <button
                     onClick={() => onViewCombo(combo.name)}
-                    className="px-6 py-3 sm:px-8 sm:py-4 bg-yellow-500 hover:bg-yellow-600 text-black font-bold rounded-lg transition text-sm sm:text-base"
+                    className="px-4 py-2 sm:px-8 sm:py-4 bg-yellow-500 hover:bg-yellow-600 text-black font-bold rounded-lg transition text-sm sm:text-base"
                   >
                     Get Combo
                   </button>

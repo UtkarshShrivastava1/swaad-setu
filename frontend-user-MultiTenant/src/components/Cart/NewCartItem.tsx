@@ -115,21 +115,33 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
   // Sync localOrderId with activeOrder and sessionStorage for persistence
   useEffect(() => {
     const activeOrderIdKey = `activeOrderId_${tableId}`;
-    console.log(`[localOrderId useEffect] Running for tableId: ${tableId}, activeOrder: ${activeOrder?._id}`);
+    console.log(
+      `[localOrderId useEffect] Running for tableId: ${tableId}, activeOrder: ${activeOrder?._id}`
+    );
 
     if (activeOrder?._id) {
-      console.log("🔵 Setting localOrderId from activeOrder (prop):", activeOrder._id);
+      console.log(
+        "🔵 Setting localOrderId from activeOrder (prop):",
+        activeOrder._id
+      );
       setLocalOrderId(activeOrder._id);
       sessionStorage.setItem(activeOrderIdKey, activeOrder._id); // Persist the server's truth
     } else {
       // If activeOrder prop is null, check sessionStorage for a previously known active order for this table
       const storedOrderId = sessionStorage.getItem(activeOrderIdKey);
-      console.log(`[localOrderId useEffect] No activeOrder prop. Checking sessionStorage for key: ${activeOrderIdKey}. Stored value: ${storedOrderId}`);
+      console.log(
+        `[localOrderId useEffect] No activeOrder prop. Checking sessionStorage for key: ${activeOrderIdKey}. Stored value: ${storedOrderId}`
+      );
       if (storedOrderId) {
-        console.log("🟡 Setting localOrderId from sessionStorage:", storedOrderId);
+        console.log(
+          "🟡 Setting localOrderId from sessionStorage:",
+          storedOrderId
+        );
         setLocalOrderId(storedOrderId);
       } else {
-        console.log("🔴 No activeOrder prop or stored order. Clearing localOrderId.");
+        console.log(
+          "🔴 No activeOrder prop or stored order. Clearing localOrderId."
+        );
         setLocalOrderId(null);
         sessionStorage.removeItem(activeOrderIdKey); // Ensure cleanup if no order exists
       }
@@ -577,7 +589,7 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
                 <div className="relative">
                   <input
                     type="tel"
-                    placeholder="10-digit mobile number"
+                    placeholder="Enter WhatsApp number to get bill"
                     value={customerContact}
                     onChange={(e) =>
                       setCustomerContact(e.target.value.replace(/[^0-9]/g, ""))
@@ -611,7 +623,7 @@ const NewCartItem = ({ activeOrder }: { activeOrder: ApiOrder | null }) => {
                 </label>
                 <input
                   type="email"
-                  placeholder="your.email@example.com"
+                  placeholder="Enter Email ID  to get bill"
                   value={customerEmail}
                   onChange={(e) => setCustomerEmail(e.target.value)}
                   className="w-full bg-gray-900 border-2 border-gray-700 px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all text-white"

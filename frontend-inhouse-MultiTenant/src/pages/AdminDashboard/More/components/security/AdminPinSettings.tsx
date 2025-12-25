@@ -49,8 +49,11 @@ export default function AdminPinSettings() {
         const newArr = [...pin];
         newArr[index] = "";
         setPin(newArr);
-      } else if (index > 0) {
-        refs.current[index - 1]?.focus();
+      }
+      if (index > 0) {
+        requestAnimationFrame(() => {
+          refs.current[index - 1]?.focus();
+        });
       }
     }
   };

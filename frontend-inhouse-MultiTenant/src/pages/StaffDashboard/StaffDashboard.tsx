@@ -1,13 +1,13 @@
 import {
   AlertCircle,
-  Bell,
+  Bell, // Import Package icon for Takeout
+  ClipboardList,
   History,
-  Receipt,
+  Package,
   ShoppingCart,
   Utensils,
-  Package, // Import Package icon for Takeout
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 
@@ -25,6 +25,7 @@ import { formatINR } from "./utils/formatters";
 import { createOrder } from "../../api/admin/order.api"; // Import createOrder
 import { getRestaurantByRid } from "../../api/restaurant.api";
 import { getBillByOrderId } from "../../api/staff/staff.operations.api";
+import { useSocket } from "../../context/SocketContext";
 import { useTenant } from "../../context/TenantContext";
 
 import { useBilling } from "./hooks/useBilling";
@@ -35,13 +36,17 @@ import { usePendingTracker } from "./hooks/usePendingTracker";
 import { useTables } from "./hooks/useTables";
 import { useWaiters } from "./hooks/useWaiters";
 
-import type { Order, Table } from "./types";
 import TakeoutOrders from "./components/TakeoutOrders";
+import type { Order, Table } from "./types";
+import type { ApiBill } from "../../api/staff/staff.operations.api"; // Import ApiBill type
 
 export default function StaffDashboard() {
   const navigate = useNavigate();
   const { rid: ridFromUrl } = useParams();
   const { rid: ridFromContext, admin, setRid, tenant, setTenant } = useTenant();
+  const socket = useSocket();
+  const debounceTimer = useRef<NodeJS.Timeout | null>(null);
+  const isInitialMount = useRef(true);
 
   const rid = ridFromUrl || ridFromContext || "";
 
@@ -64,31 +69,30 @@ export default function StaffDashboard() {
     }
   }, [ridFromUrl, ridFromContext, setRid]);
 
-  const [selectedTable, setSelectedTable] = useState<Table | null>(null);
-  const [showBillDetail, setShowBillDetail] = useState<Order | null>(null);
-  const [view, setView] = useState<"dashboard" | "table" | "billing">(
-    "dashboard"
-  );
-  const [activeTab, setActiveTab] = useState<
-    "tables" | "orders" | "notifications" | "history" | "takeout"
-  >("tables");
   const [searchQuery, setSearchQuery] = useState("");
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [view, setView] = useState("dashboard"); // 'dashboard', 'table', 'billing'
+  const [activeTab, setActiveTab] = useState("tables");
+  const [showBillDetail, setShowBillDetail] = useState<Order | null>(null);
+  const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [billLoadingId, setBillLoadingId] = useState<string | null>(null);
   const [newCall, setNewCall] = useState(false);
+  const [billLoadingId, setBillLoadingId] = useState<string | null>(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [isAddOrderModalOpen, setIsAddOrderModalOpen] = useState(false);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [selectedTableForQr, setSelectedTableForQr] = useState<Table | null>(
     null
   );
-  const [isAddOrderModalOpen, setIsAddOrderModalOpen] = useState(false); // State for AddOrderModal
-
+  const [currentBillDetails, setCurrentBillDetails] = useState<ApiBill | null>(
+    null
+  );
+  
   const {
     tables,
     setTables,
-    fetchTables,
     isLoading: tablesLoading,
     tableError,
+    fetchTables,
   } = useTables(rid);
 
   const {
@@ -98,7 +102,29 @@ export default function StaffDashboard() {
     isLoading: ordersLoading,
     error: ordersError,
     setActiveOrders,
-  } = useOrders(fetchTables as () => Promise<Table[]>, setTables);
+    highlightedOrders, // Destructure highlightedOrders
+  } = useOrders(fetchTables, setTables);
+
+  // Notification for new items
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+
+    if (highlightedOrders.size > 0) {
+      highlightedOrders.forEach((newItemIds, orderId) => {
+        const order = activeOrders.find((o) => o.id === orderId);
+        if (order) {
+          const tableDisplay =
+            order.tableNumber === "999"
+              ? "Takeout"
+              : `Table ${order.tableNumber}`;
+          toast.info(`New item(s) added to ${tableDisplay} order!`);
+        }
+      });
+    }
+  }, [highlightedOrders, activeOrders]);
 
   const { waiterNames, waitersLoading, waitersError, fetchWaiters } =
     useWaiters(rid);
@@ -110,6 +136,83 @@ export default function StaffDashboard() {
     isLoading: callsLoading,
     error: callsError,
   } = useCalls(rid);
+
+  // Debounced fetch function
+  const debouncedFetchActiveOrders = useCallback(() => {
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
+    debounceTimer.current = setTimeout(() => {
+      fetchActiveOrders();
+    }, 800); // 800ms delay
+  }, [fetchActiveOrders]);
+
+  // Function to update staff alias for an order
+  const handleUpdateOrderStaffAlias = async (orderId: string, newAlias: string) => {
+    if (!rid || !orderId) {
+      toast.error("Restaurant ID or Order ID not found.");
+      return;
+    }
+    try {
+      const staffToken = localStorage.getItem(`staffToken_${rid}`) || "";
+      if (!staffToken) {
+        toast.error("Staff not authenticated.");
+        return;
+      }
+      const apiBase = import.meta.env.VITE_API_BASE_URL;
+      const res = await fetch(
+        `${apiBase}/api/${rid}/orders/${orderId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${staffToken}`,
+          },
+          body: JSON.stringify({ staffAlias: newAlias }),
+        }
+      );
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || `Failed to update staff alias (${res.status})`);
+      }
+      toast.success(`Staff alias for order ${orderId.slice(-5)} updated to ${newAlias}`);
+      fetchActiveOrders(); // Refresh orders to reflect the change
+    } catch (err: any) {
+      console.error("Failed to update staff alias:", err);
+      toast.error(err.message || "Failed to update staff alias.");
+    }
+  };
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleNewOrder = (newOrder: Order) => {
+      console.log("Received new_order event:", newOrder);
+      toast.success(
+        `New order received for Table ${newOrder.tableNumber || "Takeout"}`
+      );
+      debouncedFetchActiveOrders();
+    };
+
+    const handleOrderUpdate = (updatedOrder: Order) => {
+      console.log("Received order_update event:", updatedOrder);
+      // Refetch all orders to ensure data is correctly normalized, but do it with a debounce
+      debouncedFetchActiveOrders();
+    };
+
+    socket.on("new_order", handleNewOrder);
+    socket.on("order_update", handleOrderUpdate);
+
+    return () => {
+      socket.off("new_order", handleNewOrder);
+      socket.off("order_update", handleOrderUpdate);
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current);
+      }
+    };
+  }, [socket, debouncedFetchActiveOrders]);
+
 
   useEffect(() => {
     if (callsLoading) {
@@ -214,22 +317,14 @@ export default function StaffDashboard() {
 
     const interval = setInterval(() => {
       if (view === "dashboard") {
-        fetchActiveOrders();
-        fetchTables();
-        fetchCalls();
+        // fetchActiveOrders(); // Replaced by socket event
+        // fetchTables(); // Replaced by socket event
+        // fetchCalls(); // Replaced by socket event
       }
-    }, 5000); // Polling interval reduced for faster sync
+    }, 5000);
 
     return () => clearInterval(interval);
-  }, [
-    navigate,
-    view,
-    rid,
-    fetchActiveOrders,
-    fetchWaiters,
-    fetchCalls,
-    fetchTables,
-  ]);
+  }, [navigate, view, rid, fetchActiveOrders, fetchWaiters, fetchTables]);
 
   useEffect(() => {
     const fn = () => {
@@ -289,9 +384,12 @@ export default function StaffDashboard() {
 
       try {
         billData = await getBillByOrderId(rid, orderId);
-        if (!billData || !billData._id) throw new Error("Bill missing id");
-      } catch (err) {
-        console.warn("No existing bill → creating new one…");
+        if (!billData || !billData._id) {
+          throw new Error("Missing bill ID from existing bill.");
+        }
+      } catch (err: any) {
+        // Log the error for debugging purposes but proceed to try creating a new one
+        console.warn("No existing bill found or existing bill is invalid. Attempting to create new one…", err);
 
         const res = await fetch(
           `${apiBase}/api/${rid}/orders/${orderId}/bill`,
@@ -309,18 +407,19 @@ export default function StaffDashboard() {
         );
 
         if (!res.ok) {
-          throw new Error(`Bill creation failed (${res.status})`);
+          const errorData = await res.json().catch(() => ({}));
+          throw new Error(errorData.message || `Bill creation failed with status ${res.status}`);
         }
 
         const json = await res.json();
         billData = json.bill || json;
+        if (!billData?._id) {
+          throw new Error("Bill creation succeeded but no bill ID returned.");
+        }
       }
 
-      if (!billData?._id) {
-        throw new Error("Bill creation succeeded but no bill ID returned.");
-      }
-
-      handleBillView(orderId, billData);
+      handleBillView(order, billData); // Pass the original order object and the billData
+      setCurrentBillDetails(billData); // Set currentBillDetails state
     } catch (err: any) {
       console.error("💥 Bill fetch/create error:", err);
       alert(err.message || "Unable to fetch or create bill.");
@@ -340,17 +439,14 @@ export default function StaffDashboard() {
     }
   };
 
-  const handleBillView = (orderId: string, _preFetchedBill?: any) => {
-    const order =
-      activeOrders.find((o) => o.id === orderId || o.serverId === orderId) ||
-      orderHistory.find((o) => o.id === orderId || o.serverId === orderId);
-
+  const handleBillView = (order: Order, preFetchedBillData?: ApiBill) => {
     if (!order) {
-      setError(`Order ${orderId} not found`);
+      setError(`Order not found`);
       return;
     }
 
     setShowBillDetail(order);
+    setCurrentBillDetails(preFetchedBillData || null); // Set currentBillDetails state
     setView("billing");
   };
 
@@ -363,6 +459,7 @@ export default function StaffDashboard() {
     setView("dashboard");
     setSelectedTable(null);
     setShowBillDetail(null);
+    setCurrentBillDetails(null); // Reset currentBillDetails
     fetchActiveOrders();
   };
 
@@ -396,10 +493,7 @@ export default function StaffDashboard() {
   );
 
   const takeoutOrders = useMemo(
-    () =>
-      activeOrders.filter(
-        (order) => String(order.tableNumber) === "999"
-      ),
+    () => activeOrders.filter((order) => String(order.tableNumber) === "999"),
     [activeOrders]
   );
 
@@ -452,7 +546,7 @@ export default function StaffDashboard() {
                   },
                   {
                     key: "orders",
-                    icon: <Receipt />,
+                    icon: <ClipboardList />,
                     label: `Orders (${activeOrders.length})`,
                   },
                   {
@@ -515,6 +609,7 @@ export default function StaffDashboard() {
                     isLoading={loading}
                     onTableSelect={handleTableSelect}
                     onTableReset={fetchTables}
+                    rid={rid}
                   />
                 )}
 
@@ -525,6 +620,9 @@ export default function StaffDashboard() {
                     handleBillView={handleBillView}
                     isPending={isPending}
                     formatINR={formatINR}
+                    waiterNames={waiterNames} // Pass waiterNames
+                    onUpdateStaffAlias={handleUpdateOrderStaffAlias} // Pass update function
+                    highlightedOrders={highlightedOrders} // Pass highlightedOrders
                   />
                 )}
 
@@ -586,6 +684,7 @@ export default function StaffDashboard() {
         {view === "billing" && showBillDetail && (
           <BillingView
             showBillDetail={showBillDetail}
+            initialBill={currentBillDetails}
             goBack={() =>
               selectedTable ? setView("table") : handleBackToDashboard()
             }

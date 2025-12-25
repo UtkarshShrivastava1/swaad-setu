@@ -8,7 +8,8 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { createCall, getCall } from "../../api/call.api";
+import { createCall } from "../../api/call.api";
+import { useSocket } from "../../context/SocketContext";
 import { useTenant } from "../../context/TenantContext";
 
 export default function Header({
@@ -23,6 +24,7 @@ export default function Header({
 }) {
   const navigate = useNavigate();
   const { rid, tenant } = useTenant();
+  const socketService = useSocket();
   const [isCalling, setIsCalling] = useState(false);
   const [callActive, setCallActive] = useState(() => {
     try {
@@ -47,34 +49,28 @@ export default function Header({
   const tableId = table?._id;
 
   useEffect(() => {
-    let intervalId: number | undefined;
+    if (!socketService) return;
 
-    if (callActive) {
+    const handleCallStatusUpdate = (data: {
+      callId: string;
+      status: string;
+    }) => {
       const activeCallData = sessionStorage.getItem("active_call");
       if (activeCallData) {
         const call = JSON.parse(activeCallData);
-        intervalId = setInterval(async () => {
-          try {
-            const updatedCall = await getCall(rid, call._id);
-            if (updatedCall.status !== "active") {
-              setCallActive(false);
-              sessionStorage.removeItem("active_call");
-              clearInterval(intervalId);
-            }
-          } catch (error) {
-            console.error("Failed to get call status:", error);
-            // Optional: handle error, maybe stop polling
-          }
-        }, 5000); // Poll every 5 seconds
-      }
-    }
-
-    return () => {
-      if (intervalId) {
-        clearInterval(intervalId);
+        if (call._id === data.callId && data.status !== "active") {
+          setCallActive(false);
+          sessionStorage.removeItem("active_call");
+        }
       }
     };
-  }, [callActive, rid]);
+
+    socketService.on("call_status_update", handleCallStatusUpdate);
+
+    return () => {
+      socketService.off("call_status_update", handleCallStatusUpdate);
+    };
+  }, [socketService]);
 
   const showToast = (type: "success" | "error", message: string) => {
     setToast({ type, message });

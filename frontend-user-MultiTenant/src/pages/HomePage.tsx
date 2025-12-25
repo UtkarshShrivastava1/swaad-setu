@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { getOrdersByTable, type Order as ApiOrderType } from "../api/order.api";
 import CartItem from "../components/Cart/NewCartItem";
 import FooterNav from "../components/Layout/Footer";
 import SubHeader from "../components/common/SubHeader";
@@ -13,7 +12,7 @@ import MenuPage from "./MenuPage";
 import TableLanding from "./TableLanding";
 
 export default function HomePage() {
-  const { table, tableId } = useTable();
+  const { table, tableId, activeOrder } = useTable(); // Use activeOrder from context
   const { rid } = useTenant();
   const location = useLocation();
 
@@ -24,7 +23,6 @@ export default function HomePage() {
   );
 
   const tableNumber = table?.tableNumber || "";
-  const [activeOrder, setActiveOrder] = useState<ApiOrderType | null>(null);
 
   const sessionId =
     sessionStorage.getItem("resto_session_id") ||
@@ -32,34 +30,6 @@ export default function HomePage() {
   useEffect(() => {
     sessionStorage.setItem("resto_session_id", sessionId);
   }, [sessionId]);
-
-  /* ================= ACTIVE ORDER FETCH ================= */
-
-  useEffect(() => {
-    const fetchActiveOrder = async () => {
-      if (!rid || !tableId) return;
-
-      try {
-        // Fetch all orders for the table WITH sessionId filter
-        // This ensures we get the latest active order regardless of sessionId
-        const data = await getOrdersByTable(rid, tableId, sessionId);
-        const foundOrder = data.find(
-          (o) => o.status !== "completed" && o.status !== "cancelled"
-        );
-
-        setActiveOrder(foundOrder || null);
-      } catch (error) {
-        console.error("Error fetching active order in HomePage:", error);
-        setActiveOrder(null);
-      }
-    };
-
-    fetchActiveOrder(); // Initial fetch
-
-    const intervalId = setInterval(fetchActiveOrder, 5000); // Poll every 5 seconds
-
-    return () => clearInterval(intervalId); // Cleanup on unmount
-  }, [rid, tableId]);
 
   /* ================= ROUTE LOGIC ================= */
 

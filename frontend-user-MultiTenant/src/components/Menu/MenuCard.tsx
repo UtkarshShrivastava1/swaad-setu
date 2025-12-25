@@ -1,4 +1,4 @@
-import { Flame, Leaf } from "lucide-react";
+
 import { useState } from "react";
 import type { MenuItem } from "../../types/types";
 import { GENERIC_ITEM_IMAGE_FALLBACK } from "../../utils/constants";
@@ -43,7 +43,7 @@ export default function MenuCard({ item, onAdd }: Props) {
     >
       <div className={`flex sm:block ${isExpanded ? 'flex-col' : ''}`}>
         {/* ================= IMAGE ================= */}
-        <div className={`relative ${isExpanded ? 'w-full h-40' : 'w-28'} sm:w-full sm:h-40 flex-shrink-0`}>
+        <div className={`relative ${isExpanded ? 'w-full h-40' : 'w-28'} sm:w-full sm:h-32 flex-shrink-0`}>
           <img
             src={item.image || GENERIC_ITEM_IMAGE_FALLBACK}
             alt={item.name}
@@ -51,27 +51,21 @@ export default function MenuCard({ item, onAdd }: Props) {
           />
           {item.isVegetarian !== undefined && (
             <div
-              className={`absolute top-2 right-2 p-1.5 sm:p-2 rounded-full shadow-lg ring-1 sm:ring-2 ring-white ${
+              className={`absolute top-2 right-2 w-3 h-3 sm:w-4 sm:h-4 rounded-full shadow-lg ring-1 sm:ring-2 ring-white ${
                 item.isVegetarian
-                  ? "bg-emerald-500 text-white"
-                  : "bg-red-500 text-white"
+                  ? "bg-emerald-500"
+                  : "bg-red-500"
               }`}
-            >
-              {item.isVegetarian ? (
-                <Leaf size={12} className="sm:w-4 sm:h-4" />
-              ) : (
-                <Flame size={12} className="sm:w-4 sm:h-4" />
-              )}
-            </div>
+            />
           )}
         </div>
 
         {/* ================= CONTENT ================= */}
-        <div className="p-3 sm:p-4 flex-1 flex flex-col">
+        <div className="p-3 sm:p-3 flex-1 flex flex-col">
           {/* TOP PART */}
           <div className="flex-1">
             <div className="flex justify-between items-start">
-              <h3 className="font-semibold text-gray-900 text-base sm:text-lg leading-tight line-clamp-2 pr-2">
+              <h3 className="font-semibold text-gray-900 text-base sm:text-base leading-tight line-clamp-2 pr-2">
                 {item.name}
               </h3>
             </div>
@@ -112,7 +106,7 @@ export default function MenuCard({ item, onAdd }: Props) {
           {/* BOTTOM PART */}
           <div className="mt-2 sm:mt-3 flex items-end justify-between">
             <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4">
-              <p className="font-bold text-lg sm:text-xl text-orange-600">
+              <p className="font-bold text-lg sm:text-lg text-orange-600">
                 ₹{item.price}
               </p>
               <div className="text-gray-500 text-xs mt-1 sm:mt-0">
@@ -131,7 +125,7 @@ export default function MenuCard({ item, onAdd }: Props) {
                 e.stopPropagation();
                 onAdd(item);
               }}
-              className="px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-bold text-black
+              className="px-3 py-1.5 sm:px-3 sm:py-1.5 rounded-xl text-xs sm:text-sm font-bold text-black
               bg-gradient-to-r from-yellow-400 to-orange-500
               hover:from-yellow-500 hover:to-orange-600
               transition-all shadow-md hover:shadow-lg active:scale-95 flex-shrink-0"

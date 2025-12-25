@@ -2,16 +2,12 @@
 const { Server } = require("socket.io");
 const logger = require("../common/libs/logger");
 
-// Try to load redis/emitter
-let redisEmitter = null;
-try {
-  const redisModule = require("../db/redis");
-  redisEmitter = redisModule.emitter || null;
-} catch (err) {
-  logger &&
-    logger.warn &&
-    logger.warn("Redis emitter not available:", err.message || err);
-}
+// Ensure the global emitter is created by loading the redis module first.
+require("../db/redis");
+
+// Directly access the global emitter to guarantee a singleton instance,
+// bypassing any potential module caching issues.
+const redisEmitter = global.swaadSetuEmitter;
 
 /**
  * Initialize Socket.IO and wire up Redis pub/sub bridge.
@@ -37,6 +33,9 @@ function initializeSocket(server) {
 
     logger.info("Client connected", { socketId: socket.id, rid, tableId });
 
+    // Join a general room for the restaurant for broadcast events
+    socket.join(`restaurant:${rid}`);
+
     // Join staff room for restaurant
     socket.join(`restaurant:${rid}:staff`);
 
@@ -47,6 +46,7 @@ function initializeSocket(server) {
 
     socket.on("disconnect", (reason) => {
       logger.info("Client disconnected", { socketId: socket.id, reason });
+      socket.leave(`restaurant:${rid}`);
       socket.leave(`restaurant:${rid}:staff`);
       if (tableId) {
         socket.leave(`restaurant:${rid}:tables:${tableId}`);
@@ -59,10 +59,12 @@ function initializeSocket(server) {
     redisEmitter.onAny
       ? redisEmitter.onAny((channel, message) => {
           // in case emitter supports onAny (like ioredis)
+          logger.info("Bridging event from Redis [onAny] to Socket.IO", { channel, event: message.event });
           io.to(channel).emit(message.event, message.data);
         })
       : redisEmitter.on("event", (channel, message) => {
           // fallback stub
+          logger.info("Bridging event from Redis [on] to Socket.IO", { channel, event: message.event });
           io.to(channel).emit(message.event, message.data);
         });
 
@@ -75,3 +77,4 @@ function initializeSocket(server) {
 }
 
 module.exports = { initializeSocket };
+

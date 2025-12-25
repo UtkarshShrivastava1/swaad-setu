@@ -267,6 +267,16 @@ router.post(
 );
 
 // -----------------------------------------------------------
+// 📢 ANNOUNCEMENTS (FREE)
+// -----------------------------------------------------------
+router.post(
+  "/announcements",
+  authMiddleware,
+  requireRole("admin"),
+  adminController.createAnnouncement
+);
+
+// -----------------------------------------------------------
 // 📊 ANALYTICS (STANDARD + PRO)
 // -----------------------------------------------------------
 router.get(
@@ -351,6 +361,11 @@ router.post(
 // -----------------------------------------------------------
 // 👨‍🍳 WAITER MANAGEMENT (FREE)
 // -----------------------------------------------------------
+const safeHandler = (handler, fallback) => {
+  if (handler && typeof handler === 'function') return handler;
+  return fallback || ((req, res) => res.status(501).json({ error: "Not Implemented" }));
+};
+
 /* ============================================================
    GET: admin + staff
    ============================================================ */
@@ -363,22 +378,21 @@ router.get(
     }
     return res.status(403).json({ error: "Forbidden" });
   },
-  adminController.getWaiterNames ||
-    (async (req, res, next) => {
-      try {
-        const Admin = require("../models/admin.model");
-        const admin = await Admin.findOne({
-          restaurantId: req.params.rid,
-        }).lean();
+  safeHandler(adminController.getWaiterNames, async (req, res, next) => {
+    try {
+      const Admin = require("../models/admin.model");
+      const admin = await Admin.findOne({
+        restaurantId: req.params.rid,
+      }).lean();
 
-        if (!admin)
-          return res.status(404).json({ error: "Admin config not found" });
+      if (!admin)
+        return res.status(404).json({ error: "Admin config not found" });
 
-        return res.json({ waiterNames: admin.waiterNames || [] });
-      } catch (err) {
-        next(err);
-      }
-    })
+      return res.json({ waiterNames: admin.waiterNames || [] });
+    } catch (err) {
+      next(err);
+    }
+  })
 );
 
 /* ============================================================
@@ -393,7 +407,7 @@ router.post(
   },
   limiter("sensitiveLimiter"),
   validate.addWaiterName || ((req, res, next) => next()),
-  adminController.addWaiterName
+  safeHandler(adminController.addWaiterName)
 );
 
 /* ============================================================
@@ -410,7 +424,7 @@ router.patch(
   },
   limiter("sensitiveLimiter"),
   validate.updateWaiterName || ((req, res, next) => next()),
-  adminController.updateWaiterName
+  safeHandler(adminController.updateWaiterName)
 );
 
 /* ============================================================
@@ -425,7 +439,7 @@ router.delete(
   },
   limiter("sensitiveLimiter"),
   validate.deleteWaiterName || ((req, res, next) => next()),
-  adminController.deleteWaiterName
+  safeHandler(adminController.deleteWaiterName)
 );
 
 // -----------------------------------------------------------

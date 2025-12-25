@@ -139,6 +139,8 @@ const AdminSchema = new Schema({
   ownerName: { type: String, default: null },
   phone: { type: String, default: null },
   email: { type: String, default: null },
+  fssaiNumber: { type: String, default: null, maxlength: 14, minlength: 14 },
+  gstNumber: { type: String, default: null, maxlength: 15, minlength: 15 },
 
   address: {
     street: { type: String, default: null },

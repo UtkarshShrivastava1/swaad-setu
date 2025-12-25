@@ -27,11 +27,11 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { getOrder, type Order } from "../../../../api/admin/order.api";
 import { getTables, type ApiTable } from "../../../../api/admin/table.api";
 import { generateDailyBriefing } from "../../../../api/gemini.api";
 import { useTenant } from "../../../../context/TenantContext";
 import RecentActivity from "./RecentActivity";
+import { getBillHistory, type Bill } from "../../../../api/admin/bill.api";
 
 function Dashboard() {
   const { rid } = useTenant();
@@ -55,7 +55,8 @@ function Dashboard() {
   const fetchAnalyticsData = useCallback(async (): Promise<any> => {
     if (!rid) return { todayRevenue: 0, todayCount: 0, yesterdayRevenue: 0, yesterdayCount: 0, monthlyRevenue: 0, monthlyCount: 0, monthlyChartData: [], peakHoursData: [], topItemsData: [] };
     try {
-      const orders = (await getOrder(rid)) as Order[];
+      const bills = (await getBillHistory(rid)) as Bill[];
+      console.log("Fetched bills:", bills);
       const now = new Date();
       const todayDate = now.getDate();
       const yesterdayDate = new Date(now.getTime() - 24 * 60 * 60 * 1000).getDate();
@@ -66,29 +67,30 @@ function Dashboard() {
       const monthlyChartData = Array.from({ length: daysInMonth }, (_, i) => ({ name: `${i + 1}`, value: 0 }));
       const peakHoursData = Array.from({ length: 24 }, (_, i) => ({ hour: `${i}`, orders: 0 }));
       const topItemsMap = new Map<string, number>();
-      orders?.forEach((order) => {
-        const rawDate = order.createdAt?.$date || order.createdAt || undefined;
+      bills.forEach((bill) => {
+        if (bill.status !== "paid") return;
+        const rawDate = bill.paidAt?.$date || bill.paidAt || undefined;
         if (!rawDate) return;
         const created = new Date(typeof rawDate === "string" ? rawDate : rawDate.$date);
         if (isNaN(created.getTime())) return;
-        const orderDay = created.getDate();
-        const orderMonth = created.getMonth();
-        const orderYear = created.getFullYear();
-        if (orderYear === currentYear && orderMonth === currentMonth) {
-          monthlyRevenue += order.totalAmount ?? 0;
+        const billDay = created.getDate();
+        const billMonth = created.getMonth();
+        const billYear = created.getFullYear();
+        if (billYear === currentYear && billMonth === currentMonth) {
+          monthlyRevenue += bill.totalAmount ?? 0;
           monthlyCount += 1;
-          monthlyChartData[orderDay - 1].value += order.totalAmount ?? 0;
-          if (orderDay === todayDate) {
-            todayRevenue += order.totalAmount ?? 0;
+          monthlyChartData[billDay - 1].value += bill.totalAmount ?? 0;
+          if (billDay === todayDate) {
+            todayRevenue += bill.totalAmount ?? 0;
             todayCount += 1;
-            const orderHour = created.getHours();
-            peakHoursData[orderHour].orders += 1;
-            order.items.forEach((item) => {
+            const billHour = created.getHours();
+            peakHoursData[billHour].orders += 1;
+            bill.items.forEach((item) => {
               const count = topItemsMap.get(item.name) || 0;
-              topItemsMap.set(item.name, count + item.quantity);
+              topItemsMap.set(item.name, count + item.qty);
             });
-          } else if (orderDay === yesterdayDate) {
-            yesterdayRevenue += order.totalAmount ?? 0;
+          } else if (billDay === yesterdayDate) {
+            yesterdayRevenue += bill.totalAmount ?? 0;
             yesterdayCount += 1;
           }
         }

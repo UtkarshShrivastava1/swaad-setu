@@ -42,11 +42,15 @@ const LoadingScreen = () => (
   </div>
 );
 
+import { SocketProvider } from "./context/SocketContext";
+
 // Layout wrapper for tenant routes
 function TenantLayout() {
   return (
     <TenantGuard>
-      <Outlet />
+      <SocketProvider>
+        <Outlet />
+      </SocketProvider>
     </TenantGuard>
   );
 }

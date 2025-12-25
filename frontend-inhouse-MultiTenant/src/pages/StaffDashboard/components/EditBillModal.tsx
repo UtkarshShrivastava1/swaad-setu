@@ -432,7 +432,7 @@ export default function EditBillModal({
       setFinalizing(true);
 
       // 🧠 Get staff alias
-      let alias =
+      const alias =
         bill.staffAlias ||
         localStorage.getItem("staffAlias") ||
         window.prompt("Enter your staff alias to finalize:") ||

@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
-import { FiPlus, FiRefreshCw } from "react-icons/fi";
+import RefreshButton from "../../../../components/common/RefreshButton";
 import { getTables, resetTable, toggleTableActive, type ApiTable } from "../../../../api/admin/table.api";
 import { useTenant } from "../../../../context/TenantContext";
-import AddTableModal from "../modals/AddTableModal";
 import QRCodeModal from "../modals/QRCodeModal";
-import SuccessModal from "../modals/SuccessModal";
+import { toast } from "react-toastify";
 import { UtensilsCrossed, QrCode, ZapOff, Check, X } from "lucide-react";
 
 export default function TableManagementPage() {
@@ -12,9 +11,7 @@ export default function TableManagementPage() {
   const [tables, setTables] = useState<ApiTable[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
-  const [isSuccessModalOpen, setSuccessOpen] = useState(false);
   const [selectedTable, setSelectedTable] = useState<ApiTable | null>(null);
 
   async function loadTables(showRefresh = false) {
@@ -39,25 +36,20 @@ export default function TableManagementPage() {
     if (!rid) return;
     const updatedTable = await toggleTableActive(rid, tableId, isActive);
     setTables((prev) => prev.map((t) => (t._id === tableId ? updatedTable : t)));
-    setSuccessOpen(true);
+    toast.success("Table status updated successfully!", { autoClose: 2000 });
   }
 
   async function handleResetTable(tableId: string) {
     if (!rid) return;
     const updatedTable = await resetTable(rid, tableId);
     setTables((prev) => prev.map((t) => (t._id === tableId ? updatedTable : t)));
-    setSuccessOpen(true);
+    toast.success("Table status updated successfully!", { autoClose: 2000 });
   }
 
   const handleOpenQrModal = (table: ApiTable) => {
     setSelectedTable(table);
     setIsQrModalOpen(true);
   };
-  
-  const onAddSuccess = () => {
-    setIsAddModalOpen(false);
-    loadTables();
-  }
 
   const getStatusStyles = (table: ApiTable) => {
     if (!table.isActive) return { bg: "bg-zinc-800", text: "text-zinc-500", border: "border-zinc-700", dot: "bg-zinc-600" };
@@ -70,8 +62,6 @@ export default function TableManagementPage() {
 
   return (
     <div className="w-full">
-      <SuccessModal isOpen={isSuccessModalOpen} message="Table status updated successfully!" onClose={() => setSuccessOpen(false)} autoCloseDurationMs={1200} />
-      <AddTableModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onSuccess={onAddSuccess} />
       {selectedTable && <QRCodeModal isOpen={isQrModalOpen} onClose={() => setIsQrModalOpen(false)} table={selectedTable} restaurantId={rid} />}
 
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
@@ -80,8 +70,7 @@ export default function TableManagementPage() {
           <p className="text-sm text-zinc-400">Live status of your entire restaurant floor.</p>
         </div>
         <div className="flex items-center gap-2 mt-4 md:mt-0">
-          <button onClick={() => loadTables(true)} disabled={loading} className="p-2 rounded-lg bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-50"><FiRefreshCw className={`h-5 w-5 ${loading ? "animate-spin" : ""}`} /></button>
-          <button onClick={() => setIsAddModalOpen(true)} className="flex items-center gap-2 bg-yellow-400 text-black py-2 px-4 rounded-lg font-semibold text-sm hover:bg-yellow-500 active:scale-[0.97] transition-all"><FiPlus /> Add Table</button>
+          <RefreshButton onClick={() => loadTables(true)} loading={loading} label="" />
         </div>
       </div>
       

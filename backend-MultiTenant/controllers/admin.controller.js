@@ -646,9 +646,10 @@ async function updateMenu(req, res, next) {
     // ------------------------------
     // Publish Realtime Update Event
     // ------------------------------
-    safePublish(`restaurant:${rid}:staff`, {
-      event: "menuUpdated",
-      data: { timestamp: new Date() },
+    const fullMenuForEmit = await Menu.findOne({ _id: menuResult._id }).lean();
+    safePublish(`restaurant:${rid}`, {
+      event: "menu_update",
+      data: { menu: fullMenuForEmit },
     });
 
     // ------------------------------
@@ -864,6 +865,12 @@ async function addMenuItem(req, res, next) {
       },
     });
 
+    // Notify all customers
+    safePublish(`restaurant:${rid}`, {
+      event: "menu_update",
+      data: { menu: updatedMenuDoc },
+    });
+
     logger?.info?.("addMenuItem completed successfully", {
       rid,
       newItemId,
@@ -941,6 +948,12 @@ async function updateMenuItem(req, res, next) {
       data: { itemId, updates },
     });
 
+    // Notify all customers
+    safePublish(`restaurant:${rid}`, {
+      event: "menu_update",
+      data: { menu: menu },
+    });
+
     logger &&
       logger.info &&
       logger.info("updateMenuItem success", { restaurantId: rid, itemId });
@@ -973,16 +986,29 @@ async function deleteMenuItem(req, res, next) {
     const menu = await Menu.findOne({ restaurantId: rid, isActive: true });
     if (!menu) return res.status(404).json({ error: "Menu not found" });
 
-    const item = menu.items.find((i) => i.itemId === itemId);
-    if (!item) return res.status(404).json({ error: "Item not found" });
+    const itemIndex = menu.items.findIndex((i) => i.itemId === itemId);
+    if (itemIndex === -1) return res.status(404).json({ error: "Item not found" });
 
-    item.isActive = false;
+    // Remove item from the menu.items array
+    menu.items.splice(itemIndex, 1);
+
+    // Remove item from any categories it belongs to
+    menu.categories.forEach((category) => {
+      category.itemIds = category.itemIds.filter((id) => id !== itemId);
+    });
+
     menu.updatedAt = new Date();
     await menu.save();
 
     safePublish(`restaurant:${rid}:staff`, {
       event: "menuItemDeleted",
       data: { itemId },
+    });
+
+    // Notify all customers
+    safePublish(`restaurant:${rid}`, {
+      event: "menu_update",
+      data: { menu: menu },
     });
 
     logger &&
@@ -1059,6 +1085,12 @@ async function restoreMenuItem(req, res, next) {
       },
     });
 
+    // Notify all customers
+    safePublish(`restaurant:${rid}`, {
+      event: "menu_update",
+      data: { menu: menuDoc },
+    });
+
     logger &&
       logger.info &&
       logger.info("restoreMenuItem successful", { rid, itemId });
@@ -1123,6 +1155,12 @@ async function updateCategory(req, res, next) {
       data: { categoryId, updates },
     });
 
+    // Notify all customers
+    safePublish(`restaurant:${rid}`, {
+      event: "menu_update",
+      data: { menu: menu },
+    });
+
     logger &&
       logger.info &&
       logger.info("updateCategory success", { restaurantId: rid, categoryId });
@@ -1171,6 +1209,12 @@ async function deleteCategory(req, res, next) {
     safePublish(`restaurant:${rid}:staff`, {
       event: "menuCategoryDeleted",
       data: { categoryId },
+    });
+
+    // Notify all customers
+    safePublish(`restaurant:${rid}`, {
+      event: "menu_update",
+      data: { menu: menu },
     });
 
     logger &&
@@ -1314,6 +1358,12 @@ async function addCategory(req, res, next) {
         name: newCategory.name,
         timestamp: new Date(),
       },
+    });
+
+    // Notify all customers
+    safePublish(`restaurant:${rid}`, {
+      event: "menu_update",
+      data: { menu: updatedMenu },
     });
 
     logger?.info?.("addCategory completed successfully", {
@@ -1642,8 +1692,8 @@ async function updateTable(req, res, next) {
     }
 
     safePublish(`restaurant:${rid}:staff`, {
-      event: "tableStatusUpdated",
-      data: { tableId: id, isActive },
+      event: "table_update",
+      data: table,
     });
 
     logger &&
@@ -1879,8 +1929,8 @@ async function updateStaffAliases(req, res, next) {
     await admin.save();
 
     safePublish(`restaurant:${rid}:staff`, {
-      event: "staffAliasesUpdated",
-      data: { staffAliases },
+      event: "waiters_update",
+      data: { waiters: staffAliases },
     });
 
     logger &&
@@ -1974,7 +2024,56 @@ async function reopenBill(req, res, next) {
     return next(err);
   }
 }
-//======================================================================================================\
+
+/**
+ * Create and broadcast an announcement (admin)
+ * POST /api/:rid/admin/announcements
+ */
+async function createAnnouncement(req, res, next) {
+  logger?.info?.("Enter createAnnouncement", { params: req.params, body: req.body });
+  try {
+    const { rid } = req.params;
+    const { message, target = "all_customers", tableId } = req.body;
+
+    if (!message) {
+      return res.status(400).json({ error: "Message is required." });
+    }
+
+    let channel;
+    switch (target) {
+      case "all_customers":
+        channel = `restaurant:${rid}`;
+        break;
+      case "staff":
+        channel = `restaurant:${rid}:staff`;
+        break;
+      case "table":
+        if (!tableId) {
+          return res.status(400).json({ error: "tableId is required for target 'table'." });
+        }
+        channel = `restaurant:${rid}:tables:${tableId}`;
+        break;
+      default:
+        return res.status(400).json({ error: "Invalid target specified." });
+    }
+
+    const payload = {
+      event: "announcement",
+      data: { message },
+    };
+
+    safePublish(channel, payload);
+
+    logger?.info?.("Announcement published successfully", { rid, target, tableId });
+    return res.status(200).json({ success: true, message: "Announcement sent." });
+
+  } catch (err) {
+    logger?.error?.("Create announcement error:", err);
+    return next(err);
+  }
+}
+
+//======================================================================================================\\
 //Waiter Names Addition
 /**
  * Add a waiter name
@@ -2861,4 +2960,5 @@ module.exports = {
   // Subscription endpoints
   getSubscriptionStatus,
   upgradeSubscription,
+  createAnnouncement,
 };

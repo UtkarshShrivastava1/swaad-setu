@@ -18,6 +18,7 @@ export interface Restaurant {
   staffAliases: string[];
   waiterNames: string[];
   pricingConfigs: any[]; // Define this more strictly if you have the shape
+  globalDiscount?: { value: number; type: 'fixed' | 'percentage' };
   subscription: any; // Define this more strictly if you have the shape
   UPISettings: {
     UPI_ID: string;
@@ -33,3 +34,7 @@ export interface Restaurant {
 export async function getRestaurant(rid: string): Promise<Restaurant> {
   return api<Restaurant>(`/api/restaurants/${rid}`);
 }
+
+export const getActivePricingConfig = (rid: string) => {
+  return api(`/api/restaurants/${rid}/pricing`);
+};

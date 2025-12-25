@@ -1,7 +1,9 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { FileText, ShoppingCart, Utensils } from "lucide-react";
-import { useMemo } from "react";
+import { FileText, Loader, ShoppingCart, Utensils } from "lucide-react";
+import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { getActiveOrderByTableId } from "../../api/order.api";
+import { useTable } from "../../context/TableContext";
 import { useTenant } from "../../context/TenantContext";
 
 type FooterNavProps = {
@@ -14,6 +16,8 @@ export default function FooterNav({ cartCount = 0 }: FooterNavProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { rid } = useTenant();
+  const { tableId } = useTable();
+  const [isCheckingOrder, setIsCheckingOrder] = useState(false);
 
   const activeTab = useMemo<TabId>(() => {
     const path = location.pathname.split("/").pop();
@@ -31,28 +35,25 @@ export default function FooterNav({ cartCount = 0 }: FooterNavProps) {
     }
   }, [location.pathname]);
 
-  const handleMyOrderClick = () => {
-    const ongoingRaw = sessionStorage.getItem("ongoingOrders");
-
-    if (!ongoingRaw) {
-      alert("No active order found.");
-      return navigate(`/t/${rid}/menu`);
+  const handleMyOrderClick = async () => {
+    if (!tableId || !rid) {
+      alert("Table information is not available.");
+      return;
     }
 
+    setIsCheckingOrder(true);
     try {
-      const ongoing = JSON.parse(ongoingRaw);
-      const activeOrderId = ongoing?.[0]?.order?._id;
-
-      if (activeOrderId) {
-        navigate(`/t/${rid}/order/${activeOrderId}`);
+      const activeOrder = await getActiveOrderByTableId(rid, tableId);
+      if (activeOrder?._id) {
+        navigate(`/t/${rid}/order/${activeOrder._id}`);
       } else {
         alert("No active order found.");
-        navigate(`/t/${rid}/menu`);
       }
     } catch (err) {
-      console.error("Invalid ongoingOrders data", err);
-      alert("Order data corrupted.");
-      navigate(`/t/${rid}/menu`);
+      console.error("Failed to check for active order:", err);
+      alert("Could not check for an active order. Please try again.");
+    } finally {
+      setIsCheckingOrder(false);
     }
   };
 
@@ -77,7 +78,7 @@ export default function FooterNav({ cartCount = 0 }: FooterNavProps) {
     {
       id: "myorder",
       label: "My Order",
-      icon: FileText,
+      icon: isCheckingOrder ? Loader : FileText,
       action: handleMyOrderClick,
     },
   ];
@@ -104,6 +105,7 @@ export default function FooterNav({ cartCount = 0 }: FooterNavProps) {
             <button
               key={tab.id}
               onClick={tab.action}
+              disabled={isCheckingOrder && tab.id === "myorder"}
               className={`relative flex flex-col items-center justify-center
                 w-16 sm:w-20 md:w-24
                 h-12 sm:h-14 md:h-16
@@ -111,6 +113,7 @@ export default function FooterNav({ cartCount = 0 }: FooterNavProps) {
                 transition-all duration-300
                 z-10
                 ${isActive ? "" : "hover:bg-white/10 active:scale-95"}
+                disabled:opacity-50 disabled:cursor-wait
               `}
             >
               {/* ===== Sliding Active Pill ===== */}
@@ -136,6 +139,7 @@ export default function FooterNav({ cartCount = 0 }: FooterNavProps) {
                     transition-all duration-300
                     sm:w-7 sm:h-7
                     ${isActive ? "text-gray-900" : "text-gray-100"}
+                    ${isCheckingOrder && tab.id === 'myorder' ? 'animate-spin' : ''}
                   `}
                   strokeWidth={isActive ? 2.5 : 2}
                 />

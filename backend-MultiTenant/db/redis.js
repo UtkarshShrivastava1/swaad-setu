@@ -1,13 +1,22 @@
 // db/redis.js - in-memory dev stub (NOT for production)
 const EventEmitter = require("events");
-const emitter = new EventEmitter();
+
+// Create a single, shared event emitter for the entire application.
+// This prevents issues where different parts of the app might get separate instances
+// due to module caching complexities.
+if (!global.swaadSetuEmitter) {
+  global.swaadSetuEmitter = new EventEmitter();
+}
+
+const emitter = global.swaadSetuEmitter;
 
 const idempotencyStore = new Map(); // key -> { value, expiresAt }
 const locks = new Map(); // key -> token (simple)
 
 function publishEvent(channel, message) {
   // Asynchronous publish to emulate Redis pub/sub
-  setImmediate(() => emitter.emit(channel, message));
+  // The socket service bridge listens for the "event" event.
+  setImmediate(() => emitter.emit("event", channel, message));
   return Promise.resolve(true);
 }
 

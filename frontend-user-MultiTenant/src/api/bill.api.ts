@@ -1,4 +1,4 @@
-import {api} from "./client";
+import {api} from "@/api/client";
 
 export async function fetchBill(rid: string) {
   const res = await api(`/api/${rid}/bills/active `, { method: "GET" });

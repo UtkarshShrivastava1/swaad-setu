@@ -14,6 +14,7 @@ import { deleteOrderById } from "../../../api/staff/staff.operations.api";
 import { useTenant } from "../../../context/TenantContext";
 import { ConfirmModal } from "./ConfirmModal";
 import KOTPrintView from "./KOTPrintView";
+import type { ApiBill } from "../../../api/staff/staff.operations.api"; // Import ApiBill type
 
 // Type definitions remain the same
 export type OrderStatus =
@@ -55,10 +56,13 @@ type Props = {
     orderIdOrServerId: string | undefined,
     newStatus: OrderStatus
   ) => Promise<void> | void;
-  handleBillView: (orderId: string) => void;
+  handleBillView: (order: Order, billData?: ApiBill) => void; // Updated prop type
   isPending: (id?: string) => boolean;
   formatINR: (amount: number | undefined | null) => string;
   onOrderRejected?: (orderId: string) => void;
+  waiterNames: string[]; // Added prop
+  onUpdateStaffAlias: (orderId: string, newAlias: string) => Promise<void>; // Added prop
+  highlightedOrders?: Map<string, Set<string>>; // Prop for highlighting
 };
 
 const getOrderStatusDisplay = (status: string) => {
@@ -222,6 +226,9 @@ export default function OrdersComponent({
   isPending,
   formatINR,
   onOrderRejected,
+  waiterNames, // Destructure waiterNames
+  onUpdateStaffAlias, // Destructure onUpdateStaffAlias
+  highlightedOrders = new Map(), // Destructure and default prop
 }: Props) {
   const [loadingBillId, setLoadingBillId] = useState<string | null>(null);
   const [rejectingOrderId, setRejectingOrderId] = useState<string | null>(null);
@@ -236,6 +243,22 @@ export default function OrdersComponent({
   const [orderToPrint, setOrderToPrint] = useState<Order | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
   const { rid, tenant } = useTenant();
+
+  const sortedOrders = React.useMemo(() => {
+    if (!highlightedOrders.size) {
+      return filteredOrders;
+    }
+    const highlighted = [];
+    const rest = [];
+    for (const order of filteredOrders) {
+      if (highlightedOrders.has(order.id)) {
+        highlighted.push(order);
+      } else {
+        rest.push(order);
+      }
+    }
+    return [...highlighted, ...rest];
+  }, [filteredOrders, highlightedOrders]);
 
   const handlePrintKOT = (order: Order) => {
     setOrderToPrint(order);
@@ -261,95 +284,114 @@ export default function OrdersComponent({
   const handleBillViewWithGeneration = async (order: Order) => {
     const orderId = order.id;
     const restaurantId = rid;
+    const staffToken = localStorage
+      .getItem("staffToken")
+      ?.replace(/^"|"$/g, "");
+    const apiBase = import.meta.env.VITE_API_BASE_URL;
+
+    if (!staffToken) {
+      console.error("No staff token found");
+      setErrorMessage("Authentication error: No staff token found.");
+      return;
+    }
 
     try {
       setLoadingBillId(orderId);
+      let billData = null;
 
       // Try existing bill
       try {
         const { getBillByOrderId } = await import(
           "../../../api/staff/staff.operations.api"
         );
-        await getBillByOrderId(restaurantId, orderId);
-        handleBillView(orderId);
+        billData = await getBillByOrderId(restaurantId, orderId);
+        if (!billData || !billData._id) {
+          throw new Error("Existing bill found but is invalid or missing _id.");
+        }
+        handleBillView(order, billData); // Updated call
         return;
-      } catch {
-        console.log("Bill doesn't exist, creating new one");
-      }
+      } catch (err) {
+        console.log("No existing bill found or existing bill is invalid. Attempting to create new one.", err);
+        // Create bill
+        const staffAlias = order.staffAlias || "Waiter";
 
-      // Create bill
-      const staffToken = localStorage
-        .getItem("staffToken")
-        ?.replace(/^"|"$/g, "");
-      const apiBase = import.meta.env.VITE_API_BASE_URL;
+        const initialSubtotal =
+          order.items?.reduce(
+            (sum, item) => sum + (item.price || 0) * (item.qty || 1),
+            0
+          ) || 0;
 
-      if (!staffToken) {
-        throw new Error("No staff token found");
-      }
+        const calculateDiscountAmount = (
+          subtotal: number,
+          discountPercent: number
+        ) => (subtotal * discountPercent) / 100;
 
-      const staffAlias = order.staffAlias || "Waiter";
+        const calculateServiceChargeAmount = (
+          subtotal: number,
+          serviceChargePercent: number
+        ) => (subtotal * serviceChargePercent) / 100;
 
-      const initialSubtotal =
-        order.items?.reduce(
-          (sum, item) => sum + (item.price || 0) * (item.qty || 1),
+        const discountAmount = calculateDiscountAmount(initialSubtotal, 0);
+        const serviceChargeAmount = calculateServiceChargeAmount(
+          initialSubtotal,
           0
-        ) || 0;
+        );
 
-      const calculateDiscountAmount = (
-        subtotal: number,
-        discountPercent: number
-      ) => (subtotal * discountPercent) / 100;
+        const res = await fetch(
+          `${apiBase}/api/${restaurantId}/orders/${orderId}/bill`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${staffToken}`,
+            },
+            body: JSON.stringify({
+              staffAlias,
+              extras: [],
+              subtotal: initialSubtotal,
+              discountPercent: 0,
+              discountAmount,
+              serviceChargePercent: 0,
+              serviceChargeAmount,
+            }),
+          }
+        );
 
-      const calculateServiceChargeAmount = (
-        subtotal: number,
-        serviceChargePercent: number
-      ) => (subtotal * serviceChargePercent) / 100;
-
-      const discountAmount = calculateDiscountAmount(initialSubtotal, 0);
-      const serviceChargeAmount = calculateServiceChargeAmount(
-        initialSubtotal,
-        0
-      );
-
-      const res = await fetch(
-        `${apiBase}/api/${restaurantId}/orders/${orderId}/bill`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${staffToken}`,
-          },
-          body: JSON.stringify({
-            staffAlias,
-            extras: [],
-            subtotal: initialSubtotal,
-            discountPercent: 0,
-            discountAmount,
-            serviceChargePercent: 0,
-            serviceChargeAmount,
-          }),
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}));
+          if (res.status === 409) {
+            // If conflict (bill already exists), try to fetch it again
+            const { getBillByOrderId } = await import(
+              "../../../api/staff/staff.operations.api"
+            );
+            billData = await getBillByOrderId(restaurantId, orderId);
+            if (!billData || !billData._id) {
+              throw new Error("Bill conflict: existing bill invalid after retry.");
+            }
+          } else {
+            throw new Error(errorData.message || `Bill generation failed (${res.status})`);
+          }
+        } else {
+          const json = await res.json();
+          billData = json.bill || json;
+          if (!billData?._id) {
+            throw new Error("Bill creation succeeded but no bill ID returned.");
+          }
         }
-      );
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        if (res.status === 409) {
-          handleBillView(orderId);
-          return;
-        }
-        throw new Error(data.error || "Bill generation failed");
       }
 
-      handleBillView(orderId);
-    } catch (err) {
-      console.warn("⚠️ Bill creation failed:", err);
-      if (
-        err instanceof Error &&
-        (err.message.includes("Active bill exists") ||
-          err.message.includes("Conflict"))
-      ) {
-        handleBillView(orderId);
+      // Now ensure billData is available before passing
+      if (!billData) {
+        throw new Error("Failed to obtain bill data for viewing.");
       }
+
+      handleBillView(order, billData); // Pass the full order object and billData
+    } catch (err: any) {
+      console.warn("⚠️ Bill fetch/creation failed:", err);
+      const errorMsg = err.message || "Unable to fetch or create bill.";
+      setErrorMessage(errorMsg);
+      // If error, ensure handleBillView is still called to at least show the order
+      // handleBillView(order); // Potentially still navigate, but it will be empty
     } finally {
       setLoadingBillId(null);
     }
@@ -418,7 +460,7 @@ export default function OrdersComponent({
     setConfirmModalOpen(true);
   };
 
-  const visibleOrders = filteredOrders.filter(
+  const visibleOrders = sortedOrders.filter(
     (order) => !hiddenOrderIds.has(order.id)
   );
 
@@ -476,9 +518,9 @@ export default function OrdersComponent({
         </div>
       )}
 
-      {visibleOrders.length > 0 ? (
+      {sortedOrders.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {visibleOrders.map((order) => {
+          {sortedOrders.map((order) => {
             const statusDisplay = getOrderStatusDisplay(order.status);
             const StatusIcon = statusDisplay.icon;
             const serverId = order.serverId ?? order.id;
@@ -486,11 +528,17 @@ export default function OrdersComponent({
               order.tableNumber === "999"
                 ? "Take out"
                 : order.tableNumber || "—";
+            const isHighlighted = highlightedOrders.has(order.id);
+            const newItemIds = highlightedOrders.get(order.id) ?? new Set();
 
             return (
               <div
                 key={order.id}
-                className="bg-zinc-900 rounded-xl shadow-lg border border-zinc-700 hover:border-zinc-600 transition-all overflow-hidden flex flex-col"
+                className={`bg-zinc-900 rounded-xl shadow-lg border transition-all overflow-hidden flex flex-col ${
+                  isHighlighted
+                    ? "border-yellow-400 ring-2 ring-yellow-400/50"
+                    : "border-zinc-700 hover:border-zinc-600"
+                }`}
               >
                 <div className="flex flex-col p-4 sm:p-5 gap-4 flex-grow">
                   {/* Header */}
@@ -500,17 +548,34 @@ export default function OrdersComponent({
                         <Utensils className="h-6 w-6 text-yellow-400" />
                       </div>
                       <div>
-                        <div className="font-bold text-white text-lg">
+                        <div className="font-bold text-white text-lg flex items-center gap-2">
                           {tableNoDisplay === "Take out"
                             ? "Take out"
                             : `Table ${tableNoDisplay}`}
+                          {isHighlighted && (
+                            <span className="inline-block px-2 py-0.5 text-xs font-semibold bg-yellow-400 text-black rounded-full animate-pulse">
+                              New Item(s)
+                            </span>
+                          )}
                         </div>
                         <div className="text-sm text-zinc-300 truncate">
                           {order.customerName || "Guest"}
                         </div>
                         <div className="text-xs text-zinc-500 mt-1">
-                          #{order.OrderNumberForDay ?? "—"} • Waiter:{" "}
-                          {order.staffAlias || "N/A"}
+                          #{order.OrderNumberForDay ?? "—"}
+                        </div>
+                        {/* Waiter Select Dropdown */}
+                        <div className="mt-2">
+                          <select
+                            value={order.staffAlias || ""}
+                            onChange={(e) => onUpdateStaffAlias(order.id, e.target.value)}
+                            className="w-full px-2 py-1 rounded-md bg-zinc-700 border border-zinc-600 text-zinc-200 text-xs focus:ring-1 focus:ring-yellow-500 focus:border-yellow-500"
+                          >
+                            <option value="">Select Waiter</option>
+                            {waiterNames.map((name) => (
+                              <option key={name} value={name}>{name}</option>
+                            ))}
+                          </select>
                         </div>
                       </div>
                     </div>
@@ -684,40 +749,54 @@ export default function OrdersComponent({
                         Ordered Items
                       </h4>
                       <div className="space-y-3">
-                        {order.items.map((item, i) => (
-                          <div
-                            key={i}
-                            className="p-3 bg-zinc-800 rounded-lg border border-zinc-700"
-                          >
-                            <div className="flex items-center">
-                              {/* Item Name */}
-                              <div className="flex-1 pr-2">
-                                <span className="font-semibold text-white text-base">
-                                  {item.name}
-                                </span>
+                        {order.items.map((item: any) => {
+                          const isNew = newItemIds.has(item._id);
+                          return (
+                            <div
+                              key={item._id}
+                              className={`p-3 rounded-lg border transition-colors duration-300 ${
+                                isNew
+                                  ? "bg-yellow-500/10 border-yellow-500/30"
+                                  : "bg-zinc-800 border-zinc-700"
+                              }`}
+                            >
+                              <div className="flex items-center">
+                                {/* Item Name */}
+                                <div className="flex-1 pr-2">
+                                  <span className="font-semibold text-white text-base">
+                                    {item.name}
+                                  </span>
+                                  {isNew && (
+                                    <span className="ml-2 px-1.5 py-0.5 text-xs font-bold bg-yellow-400 text-black rounded-full">
+                                      New
+                                    </span>
+                                  )}
+                                </div>
+                                {/* Quantity */}
+                                <div className="w-52 text-center">
+                                  <span className="font-medium text-zinc-300">
+                                    ×{item.qty}
+                                  </span>
+                                </div>
+                                {/* Price */}
+                                <div className="w-25 text-left">
+                                  <span className="font-bold text-white">
+                                    {item.price * item.qty > 0
+                                      ? formatINR(item.price * item.qty)
+                                      : "N/A"}
+                                  </span>
+                                </div>
                               </div>
-                              {/* Quantity */}
-                              <div className="w-52 text-center">
-                                <span className="font-medium text-zinc-300">
-                                  ×{item.qty}
-                                </span>
-                              </div>
-                              {/* Price */}
-                              <div className="w-25 text-left">
-                                <span className="font-bold text-white">
-                                  {formatINR(item.price * item.qty)}
-                                </span>
-                              </div>
+                              {item.notes && (
+                                <div className="pt-1 pl-1">
+                                  <span className="text-xs text-yellow-500 italic">
+                                    Note: {item.notes}
+                                  </span>
+                                </div>
+                              )}
                             </div>
-                            {item.notes && (
-                              <div className="pt-1 pl-1">
-                                <span className="text-xs text-yellow-500 italic">
-                                  Note: {item.notes}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}

@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { Bell, FileText, Home, MoreHorizontal, Utensils, Package } from "lucide-react";
+import { Bell, FileText, Home, MoreHorizontal, Utensils } from "lucide-react";
 import React from "react";
 
 type TabId = "dashboard" | "menu" | "orders" | "tables" | "more" | "takeout";
@@ -15,7 +15,6 @@ const tabs = [
   { id: "dashboard", label: "Dashboard", icon: Home, href: "/dashboard" },
   { id: "menu", label: "Menu", icon: Utensils, href: "admin/menu" },
   { id: "orders", label: "Orders", icon: FileText, href: "/orders" },
-  { id: "takeout", label: "Takeout", icon: Package, href: "/takeout" },
   { id: "tables", label: "Tables", icon: Bell, href: "/tables" },
   { id: "more", label: "More", icon: MoreHorizontal, href: "/more" },
 ] as const;
@@ -46,7 +45,12 @@ export default function FooterNav({
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
-          const count = tab.id === "orders" ? ordersCount : tab.id === "takeout" ? takeoutCount : 0;
+          const count =
+            tab.id === "orders"
+              ? ordersCount
+              : tab.id === "takeout"
+              ? takeoutCount
+              : 0;
 
           return (
             <a

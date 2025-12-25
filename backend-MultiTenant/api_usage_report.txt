@@ -1,0 +1,8 @@
+API Usage Report
+==================
+
+GET /api/bliss-bay-4614/orders/active: 2 requests
+GET /api/bliss-bay-4614/tables: 2 requests
+GET /api/bliss-bay-4614/orders/history?tableId=693687446aec5102bf106fa4&sessionId=sess_syih9022gq: 1 requests
+GET /api/bliss-bay-4614/orders/6944e8ee778aae0bf1fe43c7?sessionId=sess_pk3fvxpocc: 1 requests
+GET /api/bliss-bay-4614/calls/active: 2 requests

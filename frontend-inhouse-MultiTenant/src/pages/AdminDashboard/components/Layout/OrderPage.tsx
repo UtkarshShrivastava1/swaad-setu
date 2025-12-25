@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   FiInbox,
   FiMail,
@@ -14,7 +14,11 @@ import {
   type Order,
   type OrderItem,
 } from "../../../../api/admin/order.api";
-import { getTables, resetTable, type ApiTable } from "../../../../api/admin/table.api";
+import {
+  getTables,
+  resetTable,
+  type ApiTable,
+} from "../../../../api/admin/table.api";
 import { useTenant } from "../../../../context/TenantContext";
 
 const mapBillToOrder = (bill: Bill): Order => {
@@ -32,7 +36,9 @@ const mapBillToOrder = (bill: Bill): Order => {
     getDateString(bill.finalizedAt) ||
     new Date().toISOString();
   const updatedAt =
-    getDateString(bill.updatedAt) || getDateString(bill.finalizedAt) || createdAt;
+    getDateString(bill.updatedAt) ||
+    getDateString(bill.finalizedAt) ||
+    createdAt;
 
   return {
     _id: { $oid: bill._id?.$oid || crypto.randomUUID() },
@@ -90,6 +96,25 @@ const FILTERS = [
   { label: "Ready", key: "ready" },
   { label: "Paid", key: "done" },
 ];
+
+const formatDateHeader = (dateString: string) => {
+  const date = new Date(dateString);
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+
+  if (date.toDateString() === today.toDateString()) {
+    return "Today";
+  }
+  if (date.toDateString() === yesterday.toDateString()) {
+    return "Yesterday";
+  }
+  return date.toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+};
 
 export default function OrdersManagement() {
   const { rid } = useTenant();
@@ -154,7 +179,11 @@ export default function OrdersManagement() {
   const handleResetTable = useCallback(
     async (tableId: string) => {
       if (!rid) return;
-      if (window.confirm("Are you sure you want to reset this table? This will cancel all active orders and clear the session.")) {
+      if (
+        window.confirm(
+          "Are you sure you want to reset this table? This will cancel all active orders and clear the session."
+        )
+      ) {
         try {
           await resetTable(rid, tableId);
           fetchData(); // Refresh data after successful reset
@@ -172,11 +201,36 @@ export default function OrdersManagement() {
     fetchData();
   }, [fetchData]);
 
-  const filteredOrders = orders.filter((order) => {
-    if (activeFilter === "all")
-      return order.status !== "done" && order.status !== "completed";
-    return order.status === activeFilter;
-  });
+  const filteredOrders = useMemo(() => {
+    const filtered = orders.filter((order) => {
+      if (activeFilter === "all")
+        return order.status !== "done" && order.status !== "completed";
+      return order.status === activeFilter;
+    });
+
+    if (activeFilter === "done") {
+      filtered.sort(
+        (a, b) =>
+          new Date(b.createdAt.$date).getTime() -
+          new Date(a.createdAt.$date).getTime()
+      );
+    }
+
+    return filtered;
+  }, [orders, activeFilter]);
+
+  const groupedPaidOrders = useMemo(() => {
+    if (activeFilter !== "done") return null;
+
+    return filteredOrders.reduce((acc, order) => {
+      const orderDate = new Date(order.createdAt.$date).toDateString();
+      if (!acc[orderDate]) {
+        acc[orderDate] = [];
+      }
+      acc[orderDate].push(order);
+      return acc;
+    }, {} as Record<string, Order[]>);
+  }, [filteredOrders, activeFilter]);
 
   const capitalize = (word: string) =>
     word ? word.charAt(0).toUpperCase() + word.slice(1) : "";
@@ -187,6 +241,159 @@ export default function OrdersManagement() {
       "noopener,noreferrer"
     );
   };
+
+  const renderOrderCard = (order: Order) => (
+    <div
+      key={order._id.$oid}
+      className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden"
+    >
+      <div className="bg-zinc-800/50 px-4 py-3 border-b border-zinc-800">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="px-2 py-0.5 rounded-full bg-yellow-400 text-black text-xs font-mono">
+              #{" "}
+              {order.orderNumberForDay ??
+                order._id?.$oid?.slice(-6) ??
+                "N/A"}
+            </span>
+            <span className="text-xs text-zinc-400">
+              {new Date(order.createdAt.$date).toLocaleString("en-GB", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: true,
+              })}
+            </span>
+          </div>
+          <div className="flex gap-2">
+            <span
+              className={`px-3 py-1 rounded-full font-semibold text-xs flex items-center gap-1.5 ${
+                STATUS_CLASSES[order.status] ?? "bg-zinc-700 text-zinc-300"
+              }`}
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-current" />
+              {capitalize(order.status)}
+            </span>
+            <span
+              className={`px-3 py-1 rounded-full font-semibold text-xs flex items-center gap-1.5 ${
+                order.paymentStatus === "paid"
+                  ? "bg-emerald-500/10 text-emerald-400"
+                  : "bg-red-500/10 text-red-400"
+              }`}
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-current" />
+              {order.paymentStatus === "paid" ? "Paid" : "Unpaid"}
+            </span>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3 text-xs text-zinc-400 items-center">
+          <span className="flex items-center gap-1.5">
+            <FiUser /> Customer:{" "}
+            <strong className="text-zinc-200">
+              {order.customerName || "Walk-in"}
+            </strong>
+          </span>
+          {order.customerContact && (
+            <span className="flex items-center gap-1.5">
+              <FiPhone />{" "}
+              <strong className="text-zinc-200">{order.customerContact}</strong>
+            </span>
+          )}
+          {order.customerEmail && (
+            <span className="flex items-center gap-1.5">
+              <FiMail />{" "}
+              <strong className="text-zinc-200">{order.customerEmail}</strong>
+            </span>
+          )}
+          <span className="flex items-center gap-1.5">
+            <MdTableRestaurant /> Table:{" "}
+            <strong className="text-zinc-200">
+              {tables.get(order.tableId) ?? "N/A"}
+            </strong>
+            {order.tableId &&
+              order.status !== "done" &&
+              order.status !== "completed" && (
+                <button
+                  onClick={() => handleResetTable(order.tableId)}
+                  className="ml-2 px-2 py-1 rounded-md bg-red-600 text-white text-xs hover:bg-red-700 transition-colors"
+                  title="Reset Table"
+                >
+                  Reset Table
+                </button>
+              )}
+          </span>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="min-w-full text-sm">
+          <thead className="text-zinc-400">
+            <tr className="border-b border-zinc-800">
+              <th className="p-2 text-left font-medium">Dish</th>
+              <th className="p-2 text-center font-medium w-16">Qty</th>
+              <th className="p-2 text-right font-medium w-24">Price</th>
+              <th className="p-2 pr-4 text-right font-medium w-28">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {order.items?.map((item: OrderItem, idx: number) => (
+              <tr key={idx} className="border-t border-zinc-800 text-zinc-300">
+                <td className="p-2">{item.name}</td>
+                <td className="p-2 text-center">{item.quantity}</td>
+                <td className="p-2 text-right">
+                  ₹{item.priceAtOrder || item.price}
+                </td>
+                <td className="p-2 pr-4 text-right font-medium">
+                  ₹{((item.priceAtOrder || item.price) * item.quantity).toFixed(2)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="px-4 py-3 border-t border-zinc-800 bg-zinc-800/50 flex justify-end">
+        <div className="flex flex-col items-end gap-0.5 text-xs text-zinc-400 w-full max-w-xs">
+          {(order.discountAmount ?? 0) > 0 && (
+            <>
+              <div className="flex justify-between w-full">
+                <span>Discount</span>
+                <span className="font-medium">
+                  - ₹{order.discountAmount.toFixed(2)}
+                </span>
+              </div>
+            </>
+          )}
+          {(order.serviceChargeAmount ?? 0) > 0 && (
+            <>
+              <div className="flex justify-between w-full">
+                <span>Service Charge</span>
+                <span className="font-medium">
+                  + ₹{order.serviceChargeAmount.toFixed(2)}
+                </span>
+              </div>
+            </>
+          )}
+          {order.appliedTaxes?.map((tax, idx) => (
+            <div key={idx} className="flex justify-between w-full">
+              <span>
+                {tax.name} ({tax.percent}%)
+              </span>
+              <span className="font-medium">+ ₹{tax.amount.toFixed(2)}</span>
+            </div>
+          ))}
+          <div className="flex justify-between w-full mt-2 pt-2 border-t border-zinc-700">
+            <span className="font-semibold text-zinc-200">Total</span>
+            <span className="font-extrabold text-base text-yellow-300">
+              ₹{order.totalAmount.toFixed(2)}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="w-full">
@@ -249,176 +456,22 @@ export default function OrdersManagement() {
               No orders in "{capitalize(activeFilter)}".
             </p>
           </div>
-        ) : (
-          <div className="grid gap-6">
-            {filteredOrders.map((order) => (
-              <div
-                key={order._id.$oid}
-                className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden"
-              >
-                <div className="bg-zinc-800/50 px-4 py-3 border-b border-zinc-800">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 rounded-full bg-yellow-400 text-black text-xs font-mono">
-                        #{" "}
-                        {order.orderNumberForDay ??
-                          order._id?.$oid?.slice(-6) ??
-                          "N/A"}
-                      </span>
-                      <span className="text-xs text-zinc-400">
-                        {new Date(order.createdAt.$date).toLocaleString([], {
-                          hour12: true,
-                          dateStyle: "short",
-                          timeStyle: "short",
-                        })}
-                      </span>
-                    </div>
-                    <div className="flex gap-2">
-                      <span
-                        className={`px-3 py-1 rounded-full font-semibold text-xs flex items-center gap-1.5 ${
-                          STATUS_CLASSES[order.status] ??
-                          "bg-zinc-700 text-zinc-300"
-                        }`}
-                      >
-                        <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                        {capitalize(order.status)}
-                      </span>
-                      <span
-                        className={`px-3 py-1 rounded-full font-semibold text-xs flex items-center gap-1.5 ${
-                          order.paymentStatus === "paid"
-                            ? "bg-emerald-500/10 text-emerald-400"
-                            : "bg-red-500/10 text-red-400"
-                        }`}
-                      >
-                        <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                        {order.paymentStatus === "paid" ? "Paid" : "Unpaid"}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3 text-xs text-zinc-400 items-center">
-                    <span className="flex items-center gap-1.5">
-                      <FiUser /> Customer:{" "}
-                      <strong className="text-zinc-200">
-                        {order.customerName || "Walk-in"}
-                      </strong>
-                    </span>
-                    {order.customerContact && (
-                      <span className="flex items-center gap-1.5">
-                        <FiPhone />{" "}
-                        <strong className="text-zinc-200">
-                          {order.customerContact}
-                        </strong>
-                      </span>
-                    )}
-                    {order.customerEmail && (
-                      <span className="flex items-center gap-1.5">
-                        <FiMail />{" "}
-                        <strong className="text-zinc-200">
-                          {order.customerEmail}
-                        </strong>
-                      </span>
-                    )}
-                    <span className="flex items-center gap-1.5">
-                      <MdTableRestaurant /> Table:{" "}
-                      <strong className="text-zinc-200">
-                        {tables.get(order.tableId) ?? "N/A"}
-                      </strong>
-                      {order.tableId &&
-                        order.status !== "done" &&
-                        order.status !== "completed" && (
-                          <button
-                            onClick={() => handleResetTable(order.tableId)}
-                            className="ml-2 px-2 py-1 rounded-md bg-red-600 text-white text-xs hover:bg-red-700 transition-colors"
-                            title="Reset Table"
-                          >
-                            Reset Table
-                          </button>
-                        )}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="overflow-x-auto">
-                  <table className="min-w-full text-sm">
-                    <thead className="text-zinc-400">
-                      <tr className="border-b border-zinc-800">
-                        <th className="p-2 text-left font-medium">Dish</th>
-                        <th className="p-2 text-center font-medium w-16">
-                          Qty
-                        </th>
-                        <th className="p-2 text-right font-medium w-24">
-                          Price
-                        </th>
-                        <th className="p-2 pr-4 text-right font-medium w-28">
-                          Amount
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {order.items?.map((item: OrderItem, idx: number) => (
-                        <tr
-                          key={idx}
-                          className="border-t border-zinc-800 text-zinc-300"
-                        >
-                          <td className="p-2">{item.name}</td>
-                          <td className="p-2 text-center">{item.quantity}</td>
-                          <td className="p-2 text-right">
-                            ₹{item.priceAtOrder || item.price}
-                          </td>
-                          <td className="p-2 pr-4 text-right font-medium">
-                            ₹
-                            {(
-                              (item.priceAtOrder || item.price) * item.quantity
-                            ).toFixed(2)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="px-4 py-3 border-t border-zinc-800 bg-zinc-800/50 flex justify-end">
-                  <div className="flex flex-col items-end gap-0.5 text-xs text-zinc-400 w-full max-w-xs">
-                    {(order.discountAmount ?? 0) > 0 && (
-                      <>
-                        <div className="flex justify-between w-full">
-                          <span>Discount</span>
-                          <span className="font-medium">
-                            - ₹{order.discountAmount.toFixed(2)}
-                          </span>
-                        </div>
-                      </>
-                    )}
-                    {(order.serviceChargeAmount ?? 0) > 0 && (
-                      <>
-                        <div className="flex justify-between w-full">
-                          <span>Service Charge</span>
-                          <span className="font-medium">
-                            + ₹{order.serviceChargeAmount.toFixed(2)}
-                          </span>
-                        </div>
-                      </>
-                    )}
-                    {order.appliedTaxes?.map((tax, idx) => (
-                      <div key={idx} className="flex justify-between w-full">
-                        <span>
-                          {tax.name} ({tax.percent}%)
-                        </span>
-                        <span className="font-medium">
-                          + ₹{tax.amount.toFixed(2)}
-                        </span>
-                      </div>
-                    ))}
-                    <div className="flex justify-between w-full mt-2 pt-2 border-t border-zinc-700">
-                      <span className="font-semibold text-zinc-200">Total</span>
-                      <span className="font-extrabold text-base text-yellow-300">
-                        ₹{order.totalAmount.toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
+        ) : activeFilter === "done" && groupedPaidOrders ? (
+          <div className="space-y-8">
+            {Object.entries(groupedPaidOrders).map(([date, dateOrders]) => (
+              <div key={date}>
+                <h2 className="text-base font-semibold text-zinc-400 mb-3 sticky top-0 bg-zinc-950 py-2 z-10 border-b border-zinc-800">
+                  {formatDateHeader(date)}
+                </h2>
+                <div className="grid gap-6">
+                  {dateOrders.map((order) => renderOrderCard(order))}
                 </div>
               </div>
             ))}
+          </div>
+        ) : (
+          <div className="grid gap-6">
+            {filteredOrders.map((order) => renderOrderCard(order))}
           </div>
         )}
       </div>

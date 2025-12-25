@@ -75,7 +75,6 @@ export default function TableDetailView({
   onBack,
   handleGenerateAndOpenBill,
   billLoadingId,
-  onTableReset,
   onOpenQrModal,
 }) {
   const { rid: ridFromUrl } = useParams();
@@ -131,11 +130,8 @@ export default function TableDetailView({
 
     setResettingTable(true);
     try {
+      // Backend will emit 'table_update' on success
       await resetTable(rid, table._id);
-      window.dispatchEvent(new CustomEvent("staff:refreshTables")); // Trigger refresh in parent
-      if (onTableReset) {
-        onTableReset(); // Notify parent component (e.g., TableView)
-      }
       console.log(`Table ${table.tableNumber} reset successfully.`);
     } catch (err: any) {
       console.error("❌ Failed to reset table:", err);

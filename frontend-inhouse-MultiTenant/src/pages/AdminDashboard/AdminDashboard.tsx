@@ -15,6 +15,7 @@ import TakeoutOrdersAdmin from "./components/Layout/TakeoutOrdersAdmin"; // Impo
 
 import { getOrder } from "../../../src/api/admin/order.api";
 import { getRestaurantByRid } from "../../api/restaurant.api";
+import { useSocket } from "../../context/SocketContext";
 import { useTenant } from "../../context/TenantContext";
 import { useCalls } from "./hooks/useCalls";
 import { useTables } from "../AdminDashboard/hooks/useTables";
@@ -24,6 +25,33 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
   const { rid: ridFromUrl } = useParams();
   const { rid, setRid, tenant, setTenant } = useTenant();
+  const socket = useSocket();
+
+  const { tables } = useTables(rid);
+  const { calls: waiterCalls } = useCalls(rid);
+  const [activeTab, setActiveTab] = useState<
+    | "dashboard"
+    | "menu"
+    | "categories"
+    | "orders"
+    | "tables"
+    | "more"
+    | "notifications"
+    | "takeout" // Add takeout to activeTab
+  >("dashboard");
+
+  const [view, setView] = useState<"list" | "edit" | "create">("list");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedMenuItem, setSelectedMenuItem] = useState<any | null>(null);
+  const [isMenuFullscreen, setIsMenuFullscreen] = useState(false);
+
+  const [ordersCount, setOrdersCount] = useState(0);
+  const [takeoutOrders, setTakeoutOrders] = useState<any[]>([]); // State for takeout orders
+
+  // State to hold all active orders for easier management
+  const [allActiveOrders, setAllActiveOrders] = useState<any[]>([]);
+
+  const tokenKey = `adminToken_${rid}`;
 
   useEffect(() => {
     if (ridFromUrl) {
@@ -42,37 +70,6 @@ export default function AdminDashboard() {
     }
   }, [rid, tenant, setTenant]);
 
-  if (!rid) {
-    return (
-      <div className="w-full h-screen flex items-center justify-center">
-        <p className="text-lg text-gray-600">Loading restaurant...</p>
-      </div>
-    );
-  }
-
-  const tokenKey = `adminToken_${rid}`;
-
-  const [activeTab, setActiveTab] = useState<
-    | "dashboard"
-    | "menu"
-    | "categories"
-    | "orders"
-    | "tables"
-    | "more"
-    | "notifications"
-    | "takeout" // Add takeout to activeTab
-  >("dashboard");
-
-  const [view, setView] = useState<"list" | "edit" | "create">("list");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedMenuItem, setSelectedMenuItem] = useState<any | null>(null);
-  const [isMenuFullscreen, setIsMenuFullscreen] = useState(false);
-
-  const { tables } = useTables(rid);
-  const { calls: waiterCalls } = useCalls();
-  const [ordersCount, setOrdersCount] = useState(0);
-  const [takeoutOrders, setTakeoutOrders] = useState([]); // State for takeout orders
-
   useEffect(() => {
     if (!rid) return;
     // Check token presence in localStorage or cookies
@@ -85,38 +82,110 @@ export default function AdminDashboard() {
     // Optionally, you could verify token validity by calling an API or decoding it here
   }, [navigate, rid, tokenKey]);
 
+  // ====== Socket.IO Listeners for Orders ======
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleNewOrder = (newOrder: any) => {
+      console.log("Admin: Received new_order event:", newOrder);
+      setAllActiveOrders(prev => [...prev, newOrder]);
+      setOrdersCount(prev => prev + 1);
+      if (String(newOrder.tableNumber) === "999") {
+        setTakeoutOrders(prev => [...prev, newOrder]);
+      }
+    };
+
+    const handleOrderUpdate = (updatedOrder: any) => {
+      console.log("Admin: Received order_update event:", updatedOrder);
+      setAllActiveOrders(prev => {
+        const existingOrderIndex = prev.findIndex(o => o._id === updatedOrder._id);
+        if (existingOrderIndex > -1) {
+          const newOrders = [...prev];
+          newOrders[existingOrderIndex] = updatedOrder;
+
+          // Handle status changes for ordersCount
+          if (
+            (updatedOrder.status === "completed" || updatedOrder.status === "cancelled") &&
+            (prev[existingOrderIndex].status !== "completed" && prev[existingOrderIndex].status !== "cancelled")
+          ) {
+            setOrdersCount(c => c - 1);
+          } else if (
+            (updatedOrder.status !== "completed" && updatedOrder.status !== "cancelled") &&
+            (prev[existingOrderIndex].status === "completed" || prev[existingOrderIndex].status === "cancelled")
+          ) {
+            setOrdersCount(c => c + 1);
+          }
+
+          // Handle takeout orders
+          if (String(updatedOrder.tableNumber) === "999") {
+            setTakeoutOrders(tPrev => {
+              const existingTakeoutIndex = tPrev.findIndex(o => o._id === updatedOrder._id);
+              if (existingTakeoutIndex > -1) {
+                if (updatedOrder.status === "completed" || updatedOrder.status === "cancelled") {
+                  return tPrev.filter(o => o._id !== updatedOrder._id);
+                }
+                const newTakeouts = [...tPrev];
+                newTakeouts[existingTakeoutIndex] = updatedOrder;
+                return newTakeouts;
+              } else if (updatedOrder.status !== "completed" && updatedOrder.status !== "cancelled") {
+                return [...tPrev, updatedOrder];
+              }
+              return tPrev;
+            });
+          } else {
+            setTakeoutOrders(tPrev => tPrev.filter(o => o._id !== updatedOrder._id));
+          }
+
+          return newOrders;
+        } else {
+          // If order not found, it might be a new order that somehow missed new_order event
+          // Or an order that became active from a non-active state
+          if (updatedOrder.status !== "completed" && updatedOrder.status !== "cancelled") {
+            setOrdersCount(c => c + 1);
+            if (String(updatedOrder.tableNumber) === "999") {
+              setTakeoutOrders(tPrev => [...tPrev, updatedOrder]);
+            }
+            return [...prev, updatedOrder];
+          }
+        }
+        return prev;
+      });
+    };
+
+    socket.on("new_order", handleNewOrder);
+    socket.on("order_update", handleOrderUpdate);
+
+    return () => {
+      socket.off("new_order", handleNewOrder);
+      socket.off("order_update", handleOrderUpdate);
+    };
+  }, [socket]);
+
+  // ====== Initial Fetch for Orders (non-polling) ======
+  useEffect(() => {
+    if (!rid) return;
+    async function fetchInitialOrders() {
+      try {
+        const orders = await getOrder(rid, "all"); // Fetch all orders
+        const active = orders.filter(
+          (o: any) => o.status !== "completed" && o.status !== "cancelled"
+        );
+        setAllActiveOrders(active);
+        setOrdersCount(active.length);
+        setTakeoutOrders(active.filter((o: any) => String(o.tableNumber) === "999"));
+      } catch (err) {
+        console.error("❌ Failed to fetch initial orders:", err);
+      }
+    }
+    fetchInitialOrders();
+  }, [rid]);
+
   // ====== Logout ======
   const handleLogout = () => {
     localStorage.removeItem("staffToken");
     localStorage.removeItem(tokenKey);
     navigate(`/t/${rid}/admin-login`);
   };
-
-  // ====== Fetch Active Orders ======
-  useEffect(() => {
-    if (!rid) return;
-    async function fetchOrdersCount() {
-      try {
-        const orders = await getOrder(rid, "all"); // Fetch all orders
-        const activeOrders = orders.filter(
-          (o) => o.status !== "completed" && o.status !== "cancelled"
-        );
-        setOrdersCount(activeOrders.length);
-        const takeout = activeOrders.filter(
-          (o) => String(o.tableNumber) === "999"
-        );
-        setTakeoutOrders(takeout);
-      } catch (err) {
-        console.error("❌ Failed to fetch active orders:", err);
-      }
-    }
-
-    fetchOrdersCount();
-
-    // Auto-refresh every 20 seconds
-    const interval = setInterval(fetchOrdersCount, 20000);
-    return () => clearInterval(interval);
-  }, [rid]);
 
   // ====== Render ======
   return (

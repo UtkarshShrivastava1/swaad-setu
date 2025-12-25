@@ -33,6 +33,17 @@ export function useOrders(
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [historyError, setHistoryError] = useState<string | null>(null);
+  const [highlightedOrders, setHighlightedOrders] = useState<Map<string, Set<string>>>(new Map());
+
+  // Effect to clear highlights after a delay
+  useEffect(() => {
+    if (highlightedOrders.size > 0) {
+      const timer = setTimeout(() => {
+        setHighlightedOrders(new Map());
+      }, 7000); // Highlight for 7 seconds
+      return () => clearTimeout(timer);
+    }
+  }, [highlightedOrders]);
 
   // Sync context
   useEffect(() => {
@@ -100,7 +111,7 @@ export function useOrders(
 
       // 2) Fetch raw orders
       const raw = await getActiveOrders(rid);
-      let ordersApi: ApiOrder[] = Array.isArray(raw)
+      const ordersApi: ApiOrder[] = Array.isArray(raw)
         ? raw
         : Array.isArray(raw?.data)
         ? raw.data
@@ -113,8 +124,39 @@ export function useOrders(
         .map((o) => normalizeWithTable(o, tableMap))
         .filter((o) => o.status.toLowerCase() !== "done");
 
-      // 4) Save
-      setActiveOrders(normalized);
+      // 4) Save and perform diffing logic for highlighting
+      setActiveOrders((prevActiveOrders) => {
+        // Create a map of old orders and their item IDs for efficient lookup
+        const prevItemMaps = new Map(
+          prevActiveOrders.map((o) => [
+            o.id,
+            new Set(o.items.map((item: any) => item._id)),
+          ])
+        );
+
+        const newHighlights = new Map<string, Set<string>>();
+
+        normalized.forEach((order) => {
+          const prevItemIds = prevItemMaps.get(order.id);
+          // If the order existed before
+          if (prevItemIds) {
+            const newItemIds = new Set<string>();
+            order.items.forEach((item: any) => {
+              if (!prevItemIds.has(item._id)) {
+                newItemIds.add(item._id);
+              }
+            });
+            if (newItemIds.size > 0) {
+              newHighlights.set(order.id, newItemIds);
+            }
+          }
+        });
+
+        if (newHighlights.size > 0) {
+          setHighlightedOrders(newHighlights);
+        }
+        return normalized;
+      });
 
       // 5) Merge orders into tables so UI shows occupied state
       setTables(mergeOrdersIntoTables(freshTables, normalized));
@@ -139,7 +181,7 @@ export function useOrders(
         setIsHistoryLoading(true);
 
         const rawResp = await getOrderHistory(rid, params || {});
-        let ordersApi: ApiOrder[] = Array.isArray(rawResp)
+        const ordersApi: ApiOrder[] = Array.isArray(rawResp)
           ? rawResp
           : Array.isArray(rawResp?.orders)
           ? rawResp.orders
@@ -195,5 +237,6 @@ export function useOrders(
     historyError,
     setActiveOrders,
     setOrderHistory,
+    highlightedOrders,
   };
 }

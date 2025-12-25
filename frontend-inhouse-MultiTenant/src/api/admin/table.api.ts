@@ -15,6 +15,11 @@ export interface ApiTable {
     updatedAt?: string;
 }
 
+function authHeaders(): Record<string, string> {
+  const token = localStorage.getItem("staffToken");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 export async function getTables(rid: string): Promise<ApiTable[]> {
   return client.get(`/api/${rid}/tables?includeInactive=true`);
 }
@@ -47,5 +52,10 @@ export async function resetTable(
   rid: string,
   tableId: string
 ): Promise<ApiTable> {
-  return client.patch(`/api/${rid}/tables/${tableId}/reset`);
+  return client.patch(`/api/${rid}/tables/${tableId}/reset`, {}, {
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(),
+    },
+  });
 }

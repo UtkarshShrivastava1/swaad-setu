@@ -20,7 +20,10 @@ export default function PricingSettings() {
   const [globalDiscountPercent, setGlobalDiscountPercent] = useState("0");
   const [serviceChargePercent, setServiceChargePercent] = useState("0");
   const [gstTax, setGstTax] = useState<Tax | null>(null);
+  const [cgstTax, setCgstTax] = useState<Tax | null>(null);
+  const [sgstTax, setSgstTax] = useState<Tax | null>(null);
   const [otherTaxes, setOtherTaxes] = useState<Tax[]>([]);
+  const [useCgstSgst, setUseCgstSgst] = useState(false); // New state to toggle between GST and CGST/SGST
 
   // State to hold initial values for cancellation
   const [initialGlobalDiscountPercent, setInitialGlobalDiscountPercent] =
@@ -28,7 +31,10 @@ export default function PricingSettings() {
   const [initialServiceChargePercent, setInitialServiceChargePercent] =
     useState("0");
   const [initialGstTax, setInitialGstTax] = useState<Tax | null>(null);
+  const [initialCgstTax, setInitialCgstTax] = useState<Tax | null>(null);
+  const [initialSgstTax, setInitialSgstTax] = useState<Tax | null>(null);
   const [initialOtherTaxes, setInitialOtherTaxes] = useState<Tax[]>([]);
+  const [initialUseCgstSgst, setInitialUseCgstSgst] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -51,39 +57,75 @@ export default function PricingSettings() {
 
         if (activeConfig) {
           const allTaxes = activeConfig.taxes || [];
-          const gst =
-            allTaxes.find((t: any) => t.name?.toLowerCase() === "gst") || null;
-          const others = allTaxes.filter(
-            (t: any) => t.name?.toLowerCase() !== "gst"
-          );
+          let gst: Tax | null = null;
+          let cgst: Tax | null = null;
+          let sgst: Tax | null = null;
+          const currentOtherTaxes: Tax[] = [];
+
+          allTaxes.forEach((t: any) => {
+            const taxName = t.name?.toLowerCase();
+            if (taxName === "gst") {
+              gst = { ...t, percent: String(t.percent ?? 0) };
+            } else if (taxName === "cgst") {
+              cgst = { ...t, percent: String(t.percent ?? 0) };
+            } else if (taxName === "sgst") {
+              sgst = { ...t, percent: String(t.percent ?? 0) };
+            } else {
+              currentOtherTaxes.push({ ...t, percent: String(t.percent ?? 0) });
+            }
+          });
+
+          // Determine which tax system is active
+          const isCgstSgstActive = cgst && sgst;
+
+          if (isCgstSgstActive) {
+            setCgstTax(cgst);
+            setSgstTax(sgst);
+            setGstTax(null); // Ensure single GST is null
+            setUseCgstSgst(true);
+          } else if (gst) {
+            setGstTax(gst);
+            setCgstTax(null); // Ensure CGST/SGST are null
+            setSgstTax(null);
+            setUseCgstSgst(false);
+          } else {
+            // No specific GST, CGST, SGST found, reset to defaults
+            setGstTax(null);
+            setCgstTax(null);
+            setSgstTax(null);
+            setUseCgstSgst(false);
+          }
 
           const discount = String(activeConfig.globalDiscountPercent ?? 0);
           const serviceCharge = String(activeConfig.serviceChargePercent ?? 0);
 
-          const normalizedGst = gst
-            ? { ...gst, percent: String(gst.percent ?? 0) }
-            : null;
-          const normalizedOthers = others.map((t: any) => ({ ...t, percent: String(t.percent ?? 0) }));
-
           setGlobalDiscountPercent(discount);
           setServiceChargePercent(serviceCharge);
-          setGstTax(normalizedGst);
-          setOtherTaxes(normalizedOthers);
+          setOtherTaxes(currentOtherTaxes);
 
           setInitialGlobalDiscountPercent(discount);
           setInitialServiceChargePercent(serviceCharge);
-          setInitialGstTax(normalizedGst);
-          setInitialOtherTaxes(normalizedOthers);
+          setInitialGstTax(gst); // Use local gst to set initial
+          setInitialCgstTax(cgst); // Use local cgst to set initial
+          setInitialSgstTax(sgst); // Use local sgst to set initial
+          setInitialOtherTaxes(currentOtherTaxes);
+          setInitialUseCgstSgst(isCgstSgstActive);
         } else {
           console.log("No active config found, using defaults");
           setGlobalDiscountPercent("0");
           setServiceChargePercent("0");
           setGstTax(null);
+          setCgstTax(null);
+          setSgstTax(null);
+          setUseCgstSgst(false);
           setOtherTaxes([]);
           setInitialGlobalDiscountPercent("0");
           setInitialServiceChargePercent("0");
           setInitialGstTax(null);
+          setInitialCgstTax(null);
+          setInitialSgstTax(null);
           setInitialOtherTaxes([]);
+          setInitialUseCgstSgst(false);
         }
       } catch (err) {
         console.error("Error fetching active pricing config:", err);
@@ -95,31 +137,44 @@ export default function PricingSettings() {
     fetchPricingConfig();
   }, [rid, refetchTrigger]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!rid) {
-      setError("Restaurant ID not found.");
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    setSuccess(null);
-
-    const payloadTaxes = [
-      ...(gstTax ? [{ ...gstTax, percent: Number(gstTax.percent) || 0 }] : []),
-      ...otherTaxes.map((t) => ({ ...t, percent: Number(t.percent) || 0 })),
-    ].filter((t) => t.name && t.code && t.percent > 0);
-
-    const newPayload: PricingConfigPayload = {
-      globalDiscountPercent: Number(globalDiscountPercent) || 0,
-      serviceChargePercent: Number(serviceChargePercent) || 0,
-      taxes: payloadTaxes,
-      activate: true,
-      reason: "Updated from admin dashboard",
-      effectiveFrom: new Date().toISOString(),
-    };
-
+      const handleSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!rid) {
+        setError("Restaurant ID not found.");
+        return;
+      }
+  
+      setLoading(true);
+      setError(null);
+      setSuccess(null);
+  
+      let payloadTaxes: Tax[] = [];
+  
+      if (useCgstSgst) {
+        if (cgstTax) { // Push if it exists, regardless of percent
+          payloadTaxes.push({ ...cgstTax, percent: Number(cgstTax.percent) || 0 });
+        }
+        if (sgstTax) { // Push if it exists, regardless of percent
+          payloadTaxes.push({ ...sgstTax, percent: Number(sgstTax.percent) || 0 });
+        }
+      } else {
+        if (gstTax) { // Push if it exists, regardless of percent
+          payloadTaxes.push({ ...gstTax, percent: Number(gstTax.percent) || 0 });
+        }
+      }
+  
+      payloadTaxes = payloadTaxes.concat(
+        otherTaxes.map((t) => ({ ...t, percent: Number(t.percent) || 0 }))
+      ).filter((t) => t.name && t.code && t.percent > 0);
+  
+      const newPayload: PricingConfigPayload = {
+        globalDiscountPercent: Number(globalDiscountPercent) || 0,
+        serviceChargePercent: Number(serviceChargePercent) || 0,
+        taxes: payloadTaxes,
+        activate: true,
+        reason: "Updated from admin dashboard",
+        effectiveFrom: new Date().toISOString(),
+      };
     console.log("Submitting payload:", newPayload);
 
     try {
@@ -136,22 +191,75 @@ export default function PricingSettings() {
   };
 
   const handleGstChange = (field: keyof Tax, value: any) => {
+    // When editing GST, disable CGST/SGST and clear their values
+    setCgstTax(null);
+    setSgstTax(null);
+    setUseCgstSgst(false);
+
     setGstTax((prev) => {
       const newGst = prev
         ? { ...prev }
         : { name: "GST", code: "GST", percent: "0", inclusive: false };
+
       if (field === "percent") {
         if (isNumericString(value)) {
-          // @ts-ignore
           newGst[field] = value;
         }
+      } else if (field === "inclusive") {
+        newGst[field] = value;
       } else {
-        // @ts-ignore
         newGst[field] = value;
       }
       return newGst;
     });
   };
+
+  const handleCgstChange = (field: keyof Tax, value: any) => {
+    // When editing CGST, ensure CGST/SGST mode is active and clear single GST
+    setGstTax(null);
+    setUseCgstSgst(true);
+
+    setCgstTax((prev) => {
+      const newCgst = prev
+        ? { ...prev }
+        : { name: "CGST", code: "CGST", percent: "0", inclusive: false };
+
+      if (field === "percent") {
+        if (isNumericString(value)) {
+          newCgst[field] = value;
+        }
+      } else if (field === "inclusive") {
+        newCgst[field] = value;
+      } else {
+        newCgst[field] = value;
+      }
+      return newCgst;
+    });
+  };
+
+  const handleSgstChange = (field: keyof Tax, value: any) => {
+    // When editing SGST, ensure CGST/SGST mode is active and clear single GST
+    setGstTax(null);
+    setUseCgstSgst(true);
+
+    setSgstTax((prev) => {
+      const newSgst = prev
+        ? { ...prev }
+        : { name: "SGST", code: "SGST", percent: "0", inclusive: false };
+
+      if (field === "percent") {
+        if (isNumericString(value)) {
+          newSgst[field] = value;
+        }
+      } else if (field === "inclusive") {
+        newSgst[field] = value;
+      } else {
+        newSgst[field] = value;
+      }
+      return newSgst;
+    });
+  };
+
 
   const handleTaxChange = (index: number, field: keyof Tax, value: any) => {
     const newTaxes = [...otherTaxes];
@@ -181,6 +289,9 @@ export default function PricingSettings() {
     setGlobalDiscountPercent(initialGlobalDiscountPercent);
     setServiceChargePercent(initialServiceChargePercent);
     setGstTax(initialGstTax);
+    setCgstTax(initialCgstTax);
+    setSgstTax(initialSgstTax);
+    setUseCgstSgst(initialUseCgstSgst);
     setOtherTaxes(initialOtherTaxes);
     setIsEditing(false);
     setError(null);
@@ -207,13 +318,15 @@ export default function PricingSettings() {
           {!loading && !isEditing && (
             <button
               onClick={() => {
-                if (!gstTax) {
+                // If no taxes are loaded and user starts editing, initialize a default single GST
+                if (!gstTax && !cgstTax && !sgstTax) {
                   setGstTax({
                     name: "GST",
                     code: "GST",
                     percent: "0",
                     inclusive: false,
                   });
+                  setUseCgstSgst(false); // Default to single GST
                 }
                 setIsEditing(true);
               }}
@@ -270,73 +383,274 @@ export default function PricingSettings() {
             </div>
 
             {isEditing ? (
-              <div className="space-y-2 p-3 border border-yellow-600 rounded-lg bg-yellow-900/20">
-                <h4 className="text-sm font-semibold text-yellow-400 mb-2">
-                  GST Configuration
-                </h4>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-xs text-yellow-400">Name</label>
-                    <input
-                      type="text"
-                      value={gstTax?.name || "GST"}
-                      disabled
-                      className="w-full h-8 rounded-md bg-zinc-800 border border-yellow-500/30 text-yellow-300 px-2 text-sm opacity-70 cursor-not-allowed"
-                    />
-                  </div>
+              <>
+                {/* Tax Type Selection Toggle */}
+                <div className="mb-4 flex items-center justify-center p-2 rounded-lg bg-zinc-800">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUseCgstSgst(false);
+                      setCgstTax(null);
+                      setSgstTax(null);
+                      if (!gstTax) {
+                        setGstTax({
+                          name: "GST",
+                          code: "GST",
+                          percent: "0",
+                          inclusive: false,
+                        });
+                      }
+                    }}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      !useCgstSgst
+                        ? "bg-yellow-500 text-black shadow-md"
+                        : "text-zinc-400 hover:bg-zinc-700"
+                    }`}
+                  >
+                    Single GST
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUseCgstSgst(true);
+                      setGstTax(null);
+                      if (!cgstTax) {
+                        setCgstTax({
+                          name: "CGST",
+                          code: "CGST",
+                          percent: "0",
+                          inclusive: false,
+                        });
+                      }
+                      if (!sgstTax) {
+                        setSgstTax({
+                          name: "SGST",
+                          code: "SGST",
+                          percent: "0",
+                          inclusive: false,
+                        });
+                      }
+                    }}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      useCgstSgst
+                        ? "bg-yellow-500 text-black shadow-md"
+                        : "text-zinc-400 hover:bg-zinc-700"
+                    }`}
+                  >
+                    CGST & SGST
+                  </button>
+                </div>
 
-                  <div>
-                    <label className="text-xs text-yellow-400">
-                      Percent (%)
-                    </label>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      value={gstTax?.percent || ""}
-                      onChange={(e) =>
-                        handleGstChange("percent", e.target.value)
-                      }
-                      className="w-full h-8 rounded-md bg-zinc-900 border border-yellow-500/30 text-yellow-400 px-2 text-sm"
-                      placeholder="0"
-                    />
+                {/* Conditional Tax Configuration */}
+                {!useCgstSgst ? (
+                  // Single GST Configuration
+                  <div className="space-y-2 p-3 border border-yellow-600 rounded-lg bg-yellow-900/20">
+                    <h4 className="text-sm font-semibold text-yellow-400 mb-2">
+                      GST Configuration
+                    </h4>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-xs text-yellow-400">Name</label>
+                        <input
+                          type="text"
+                          value={gstTax?.name || "GST"}
+                          disabled
+                          className="w-full h-8 rounded-md bg-zinc-800 border border-yellow-500/30 text-yellow-300 px-2 text-sm opacity-70 cursor-not-allowed"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs text-yellow-400">
+                          Percent (%)
+                        </label>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={gstTax?.percent || ""}
+                          onChange={(e) =>
+                            handleGstChange("percent", e.target.value)
+                          }
+                          className="w-full h-8 rounded-md bg-zinc-900 border border-yellow-500/30 text-yellow-400 px-2 text-sm"
+                          placeholder="0"
+                        />
+                      </div>
+                      <div className="flex items-center mt-4">
+                        <input
+                          type="checkbox"
+                          checked={gstTax?.inclusive || false}
+                          onChange={(e) =>
+                            handleGstChange("inclusive", e.target.checked)
+                          }
+                          id="inclusive-gst"
+                          className="h-4 w-4 text-yellow-400 bg-zinc-800 border-zinc-600 rounded focus:ring-yellow-500"
+                        />
+                        <label
+                          htmlFor="inclusive-gst"
+                          className="ml-2 text-sm text-zinc-400"
+                        >
+                          Inclusive
+                        </label>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-center mt-4">
-                    <input
-                      type="checkbox"
-                      checked={gstTax?.inclusive || false}
-                      onChange={(e) =>
-                        handleGstChange("inclusive", e.target.checked)
-                      }
-                      id="inclusive-gst"
-                      className="h-4 w-4 text-yellow-400 bg-zinc-800 border-zinc-600 rounded focus:ring-yellow-500"
-                    />
-                    <label
-                      htmlFor="inclusive-gst"
-                      className="ml-2 text-sm text-zinc-400"
-                    >
-                      Inclusive
-                    </label>
+                ) : (
+                  // CGST & SGST Configuration
+                  <div className="grid grid-cols-1 gap-4">
+                    <div className="space-y-2 p-3 border border-yellow-600 rounded-lg bg-yellow-900/20">
+                      <h4 className="text-sm font-semibold text-yellow-400 mb-2">
+                        CGST Configuration
+                      </h4>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-xs text-yellow-400">
+                            Name
+                          </label>
+                          <input
+                            type="text"
+                            value={cgstTax?.name || "CGST"}
+                            disabled
+                            className="w-full h-8 rounded-md bg-zinc-800 border border-yellow-500/30 text-yellow-300 px-2 text-sm opacity-70 cursor-not-allowed"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-xs text-yellow-400">
+                            Percent (%)
+                          </label>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={cgstTax?.percent || ""}
+                            onChange={(e) =>
+                              handleCgstChange("percent", e.target.value)
+                            }
+                            className="w-full h-8 rounded-md bg-zinc-900 border border-yellow-500/30 text-yellow-400 px-2 text-sm"
+                            placeholder="0"
+                          />
+                        </div>
+                        <div className="flex items-center mt-4">
+                          <input
+                            type="checkbox"
+                            checked={cgstTax?.inclusive || false}
+                            onChange={(e) =>
+                              handleCgstChange("inclusive", e.target.checked)
+                            }
+                            id="inclusive-cgst"
+                            className="h-4 w-4 text-yellow-400 bg-zinc-800 border-zinc-600 rounded focus:ring-yellow-500"
+                          />
+                          <label
+                            htmlFor="inclusive-cgst"
+                            className="ml-2 text-sm text-zinc-400"
+                          >
+                            Inclusive
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 p-3 border border-yellow-600 rounded-lg bg-yellow-900/20">
+                      <h4 className="text-sm font-semibold text-yellow-400 mb-2">
+                        SGST Configuration
+                      </h4>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-xs text-yellow-400">
+                            Name
+                          </label>
+                          <input
+                            type="text"
+                            value={sgstTax?.name || "SGST"}
+                            disabled
+                            className="w-full h-8 rounded-md bg-zinc-800 border border-yellow-500/30 text-yellow-300 px-2 text-sm opacity-70 cursor-not-allowed"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-xs text-yellow-400">
+                            Percent (%)
+                          </label>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={sgstTax?.percent || ""}
+                            onChange={(e) =>
+                              handleSgstChange("percent", e.target.value)
+                            }
+                            className="w-full h-8 rounded-md bg-zinc-900 border border-yellow-500/30 text-yellow-400 px-2 text-sm"
+                            placeholder="0"
+                          />
+                        </div>
+                        <div className="flex items-center mt-4">
+                          <input
+                            type="checkbox"
+                            checked={sgstTax?.inclusive || false}
+                            onChange={(e) =>
+                              handleSgstChange("inclusive", e.target.checked)
+                            }
+                            id="inclusive-sgst"
+                            className="h-4 w-4 text-yellow-400 bg-zinc-800 border-zinc-600 rounded focus:ring-yellow-500"
+                          />
+                          <label
+                            htmlFor="inclusive-sgst"
+                            className="ml-2 text-sm text-zinc-400"
+                          >
+                            Inclusive
+                          </label>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
+                )}
+              </>
             ) : (
-              gstTax &&
-              Number(gstTax.percent) > 0 && (
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-zinc-300">
-                    GST
-                  </label>
-                  <div className="flex items-center justify-between bg-zinc-800 p-2 rounded-lg">
-                    <p className="text-sm text-zinc-300">
-                      {gstTax.name}
-                    </p>
-                    <p className="text-sm text-zinc-300">
-                      {gstTax.percent}%{" "}
-                      {gstTax.inclusive ? "(Inclusive)" : "(Exclusive)"}
-                    </p>
+              // Display mode
+              <>
+                {!useCgstSgst && gstTax && Number(gstTax.percent) > 0 && (
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-zinc-300">
+                      GST
+                    </label>
+                    <div className="flex items-center justify-between bg-zinc-800 p-2 rounded-lg">
+                      <p className="text-sm text-zinc-300">{gstTax.name}</p>
+                      <p className="text-sm text-zinc-300">
+                        {gstTax.percent}%{" "}
+                        {gstTax.inclusive ? "(Inclusive)" : "(Exclusive)"}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              )
+                )}
+                {useCgstSgst &&
+                  cgstTax &&
+                  sgstTax &&
+                  (Number(cgstTax.percent) > 0 ||
+                    Number(sgstTax.percent) > 0) && (
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium text-zinc-300">
+                        CGST & SGST
+                      </label>
+                      <div className="flex flex-col gap-1 bg-zinc-800 p-2 rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm text-zinc-300">
+                            {cgstTax.name}
+                          </p>
+                          <p className="text-sm text-zinc-300">
+                            {cgstTax.percent}%{" "}
+                            {cgstTax.inclusive ? "(Inclusive)" : "(Exclusive)"}
+                          </p>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm text-zinc-300">
+                            {sgstTax.name}
+                          </p>
+                          <p className="text-sm text-zinc-300">
+                            {sgstTax.percent}%{" "}
+                            {sgstTax.inclusive ? "(Inclusive)" : "(Exclusive)"}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+              </>
             )}
 
             <div className="space-y-3">

@@ -25,7 +25,7 @@ type MenuAppProps = {
 export default function RestaurantMenuApp({ menuData }: MenuAppProps) {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [vegFilter, setVegFilter] = useState("all");
+  const [showOnlyVeg, setShowOnlyVeg] = useState(false);
   const [showComboOnly, setShowComboOnly] = useState(false);
   const [showChefSpecialOnly, setShowChefSpecialOnly] = useState(false);
   const [selectedCombo, setSelectedCombo] = useState<string | null>(null);
@@ -114,12 +114,7 @@ export default function RestaurantMenuApp({ menuData }: MenuAppProps) {
       .toLowerCase()
       .includes(searchQuery.toLowerCase());
 
-    const matchesVeg =
-      vegFilter === "all"
-        ? true
-        : vegFilter === "veg"
-          ? item.isVegetarian
-          : !item.isVegetarian;
+    const matchesVeg = showOnlyVeg ? item.isVegetarian : true;
 
     if (showChefSpecialOnly) {
       if (item.type !== "item") return false;
@@ -229,15 +224,18 @@ export default function RestaurantMenuApp({ menuData }: MenuAppProps) {
               </button>
             )}
 
-            <select
-              value={vegFilter}
-              onChange={(e) => setVegFilter(e.target.value)}
-              className="bg-black rounded-lg px-2 py-1 text-xs font-semibold text-yellow-400 border border-white/10"
-            >
-              <option value="all">All</option>
-              <option value="veg">Veg</option>
-              <option value="non-veg">Non-Veg</option>
-            </select>
+            <label className="inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showOnlyVeg}
+                onChange={() => setShowOnlyVeg(!showOnlyVeg)}
+                className="sr-only peer"
+              />
+              <div className="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 dark:peer-focus:ring-green-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-green-600"></div>
+              <span className="ms-3 text-sm font-medium text-gray-300">
+                Veg
+              </span>
+            </label>
           </div>
         </div>
 
@@ -327,7 +325,7 @@ export default function RestaurantMenuApp({ menuData }: MenuAppProps) {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {filteredItems.map((item) => {
               if (item.type === "combo") {
                 return (

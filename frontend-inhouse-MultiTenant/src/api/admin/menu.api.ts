@@ -14,6 +14,8 @@ export interface MenuItem {
   isActive?: boolean;
   isVegetarian?: boolean;
   preparationTime?: number;
+  isChefSpecial?: boolean;
+  isDeleted?: boolean;
 
   // ✅ IMPORTANT: Backend usually expects categoryId, not just "category"
   categoryId?: string;
@@ -133,9 +135,8 @@ export async function deleteMenuItem(rid: string, itemId: string, soft = true) {
   console.log("[deleteMenuItem] ITEM ID →", itemId);
   console.log("[deleteMenuItem] SOFT DELETE →", soft);
 
-  return client.delete(`/api/${rid}/admin/menu/items/${itemId}`, {
-    data: { soft },
-  });
+  const encodedItemId = encodeURIComponent(itemId);
+  return client.delete(`/api/${rid}/admin/menu/items/${encodedItemId}`);
 }
 
 /**

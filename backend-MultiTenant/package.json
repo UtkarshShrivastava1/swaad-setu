@@ -8,7 +8,8 @@
     "start": "node server.js",
     "build": "eslint .",
     "dev": "nodemon server.js",
-    "seed:admin": "node seeders/adminSeeder.js"
+    "seed:admin": "node seeders/adminSeeder.js",
+    "test:table-centric": "concurrently \"npm start\" \"node scripts/testTableCentricOrder.js\""
   },
   "keywords": [],
   "author": "",
@@ -20,7 +21,7 @@
     "bcrypt": "^6.0.0",
     "chalk": "^4.1.2",
     "cli-table3": "^0.6.5",
-    "cloudinary": "^1.41.3",
+    "cloudinary": "1.41.3",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",

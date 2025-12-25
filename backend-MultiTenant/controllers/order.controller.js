@@ -12,6 +12,7 @@
 const mongoose = require("mongoose");
 const Order = require("../models/order.model");
 const Bill = require("../models/bill.model");
+const chalk = require("chalk");
 
 const Table = (() => {
   try {
@@ -105,6 +106,62 @@ async function safeCheckIdempotency(key) {
   } catch (err) {
     logger && logger.error && logger.error("checkIdempotency error:", err);
     return null;
+  }
+}
+
+async function createBillForNewOrder(order) {
+  if (!order || !order._id) {
+    console.error(
+      chalk.red.bold(
+        "[createBillForNewOrder] Error: Order object or order._id is missing."
+      ),
+      { order: order ? `Order ID: ${order._id}` : "No order object" }
+    );
+    return;
+  }
+
+  console.log(
+    chalk.yellow.bold(
+      `[createBillForNewOrder] Attempting to create bill for order: ${order._id}`
+    )
+  );
+
+  try {
+    const bill = new Bill({
+      restaurantId: order.restaurantId,
+      orderId: order._id,
+      tableId: order.tableId,
+      items: order.items.map((item) => ({
+        itemId: item.menuItemId,
+        name: item.name,
+        qty: item.quantity,
+        price: item.priceAtOrder,
+        priceAtOrder: item.priceAtOrder,
+        modifiers: item.modifiers,
+        notes: item.notes,
+      })),
+      subtotal: order.subtotal,
+      taxes: order.appliedTaxes || [], // Add this line
+      taxAmount: order.taxAmount,
+      discountAmount: order.discountAmount,
+      serviceChargeAmount: order.serviceChargeAmount,
+      totalAmount: order.totalAmount,
+      status: "draft",
+    });
+
+    await bill.save();
+    console.log(
+      chalk.green.bold(
+        `[createBillForNewOrder] Bill created successfully for order ${order._id}`
+      )
+    );
+  } catch (error) {
+    console.error(
+      chalk.red.bold(
+        `[createBillForNewOrder] Error creating bill for order ${order._id}:`
+      ),
+      error
+    );
   }
 }
 
@@ -241,18 +298,23 @@ async function createOrder(req, res, next) {
       });
 
       if (!takeoutTable) {
-        return res.status(404).json({ error: "Takeout table not found for this restaurant." });
+        return res
+          .status(404)
+          .json({ error: "Takeout table not found for this restaurant." });
       }
 
       tableId = takeoutTable._id;
       // Generate a new session ID for takeout orders, as they don't use physical table sessions
       sessionId = `takeout-${rid}-${Date.now()}`;
-      console.log(`[createOrder] Assigned takeout table ${tableId} with session ${sessionId}`);
+      console.log(
+        `[createOrder] Assigned takeout table ${tableId} with session ${sessionId}`
+      );
     } else {
       // For dine-in orders, use the incoming tableId and sessionId
       if (!tableId || !sessionId) {
         return res.status(400).json({
-          error: "Missing required fields: tableId, sessionId, items, customerName",
+          error:
+            "Missing required fields: tableId, sessionId, items, customerName",
         });
       }
     }
@@ -273,28 +335,19 @@ async function createOrder(req, res, next) {
 
     // ------------------ CHECK EXISTING ORDER ------------------
     let existingOrder = null;
+    const table = await Table.findById(tableId);
 
-    if (orderId) {
+    if (table && table.CurrentOrderId) {
       // If orderId is provided, try to find that specific order
       existingOrder = await Order.findOne({
-        _id: orderId,
+        _id: table.CurrentOrderId,
         restaurantId: rid,
-        status: { $in: ["placed", "pending", "open"] },
+        status: { $nin: ["done", "completed", "cancelled", "paid"] },
       });
-      if (!existingOrder) {
-        return res.status(404).json({
-          error: `Order with ID ${orderId} not found or not in a mergeable status.`,
-        });
-      }
-    } else {
-      // Otherwise, find any existing, mergeable order for the table
-      existingOrder = await Order.findOne({
-        restaurantId: rid,
-        tableId, // Find by table, not session
-        status: { $nin: ["completed", "cancelled", "done", "paid"] }, // Only merge into active orders
-      });
-    }
 
+      // If an active order is found, it will be in existingOrder.
+      // If not, existingOrder will be null and we'll create a new order.
+    }
 
     // ✅ MERGE if existing active order exists
     if (existingOrder) {
@@ -376,7 +429,7 @@ async function createOrder(req, res, next) {
       if (customerName && !existingOrder.customerName)
         existingOrder.customerName = customerName;
       if (customerContact) existingOrder.customerContact = customerContact;
-      if (body.hasOwnProperty('customerEmail')) {
+      if (body.hasOwnProperty("customerEmail")) {
         existingOrder.customerEmail = body.customerEmail;
       }
 
@@ -466,9 +519,20 @@ async function createOrder(req, res, next) {
         console.error("[createOrder] failed to update existing bill", e);
       }
 
-      // ------------------ BROADCAST MERGE EVENT ------------------
-      safePublish(`restaurant:${rid}:orders`, {
-        event: "orderMerged",
+      // ------------------ BROADCAST ORDER UPDATE EVENT ------------------
+      console.log(
+        chalk.blue.bold(
+          `[Socket Event] Broadcasting 'order_update' for merged order ${existingOrder._id} to room: restaurant:${rid}:tables:${existingOrder.tableId}`
+        )
+      );
+      // Notify table-specific room for user UI update
+      safePublish(`restaurant:${rid}:tables:${existingOrder.tableId}`, {
+        event: "order_update",
+        data: existingOrder,
+      });
+      // Notify staff room for admin UI update
+      safePublish(`restaurant:${rid}:staff`, {
+        event: "order_update",
         data: existingOrder,
       });
 
@@ -504,7 +568,7 @@ async function createOrder(req, res, next) {
       const ids = [m._id, m.itemId].filter(Boolean).map(normalizeId);
       ids.forEach((id) => byId.set(id, m));
     }
-    console.log('[createOrder] byId map keys:', Array.from(byId.keys()));
+    console.log("[createOrder] byId map keys:", Array.from(byId.keys()));
 
     // Also map combos by their category ID
     for (const cat of menuDoc.categories || []) {
@@ -542,9 +606,11 @@ async function createOrder(req, res, next) {
       const providedId = it.menuItemId || it.itemId || it.id;
       const normalizedId = normalizeId(providedId);
       const menuItem = byId.get(normalizedId);
-      
-      console.log(`[createOrder] Item Loop ${idx}: providedId='${providedId}', normalizedId='${normalizedId}', foundMenuItem?=${!!menuItem}`);
-      
+
+      console.log(
+        `[createOrder] Item Loop ${idx}: providedId='${providedId}', normalizedId='${normalizedId}', foundMenuItem?=${!!menuItem}`
+      );
+
       if (!menuItem) continue;
       const qty = Math.max(1, Number(it.quantity ?? it.qty ?? 1));
       const authoritativePrice = Number(
@@ -655,12 +721,50 @@ async function createOrder(req, res, next) {
 
     await orderDoc.save();
 
+    // ------------------ UPDATE TABLE WITH CurrentOrderId ------------------
+    if (table) {
+      try {
+        table.CurrentOrderId = orderDoc._id;
+        await table.save();
+
+        // ------------------ CREATE BILL FOR NEW ORDER ------------------
+        await createBillForNewOrder(orderDoc);
+
+        // ------------------ BROADCAST ORDER CREATION EVENT ------------------
+        console.log(
+          chalk.blue.bold(
+            `[Socket Event] Broadcasting 'order_update' for new order ${orderDoc._id} to room: restaurant:${rid}:tables:${orderDoc.tableId}`
+          )
+        );
+        // Notify table-specific room for user UI update
+        safePublish(`restaurant:${rid}:tables:${orderDoc.tableId}`, {
+          event: "order_update",
+          data: orderDoc,
+        });
+        // Notify staff room for admin UI update
+        safePublish(`restaurant:${rid}:staff`, {
+          event: "order_update",
+          data: orderDoc,
+        });
+      } catch (error) {
+        console.error(`Failed to update table with CurrentOrderId: ${error}`);
+        // Decide if you want to throw the error or handle it gracefully
+      }
+    }
+
     // Update Table status for dine-in tables
     if (Table) {
       try {
         // Only update status for dine_in tables, and only if it's not a system table
-        const targetTable = await Table.findOne({ _id: tableId, restaurantId: rid });
-        if (targetTable && targetTable.tableType === "dine_in" && !targetTable.isSystem) {
+        const targetTable = await Table.findOne({
+          _id: tableId,
+          restaurantId: rid,
+        });
+        if (
+          targetTable &&
+          targetTable.tableType === "dine_in" &&
+          !targetTable.isSystem
+        ) {
           await Table.findOneAndUpdate(
             { _id: tableId, restaurantId: rid },
             {
@@ -672,7 +776,18 @@ async function createOrder(req, res, next) {
               },
             }
           );
-        } else if (targetTable && targetTable.tableType === "takeout" && targetTable.isSystem) {
+          const updatedTable = await Table.findById(tableId).lean();
+          if (updatedTable) {
+            safePublish(`restaurant:${rid}:staff`, {
+              event: "table_update",
+              data: updatedTable,
+            });
+          }
+        } else if (
+          targetTable &&
+          targetTable.tableType === "takeout" &&
+          targetTable.isSystem
+        ) {
           // For takeout tables, we don't set them to "occupied" as they can handle multiple orders.
           // We can still link the CurrentOrderId if needed for tracking, but not change status.
           await Table.findOneAndUpdate(
@@ -685,7 +800,9 @@ async function createOrder(req, res, next) {
               },
             }
           );
-          console.log(`[createOrder] Linked order ${orderDoc._id} to takeout table ${tableId}, status remains 'available'.`);
+          console.log(
+            `[createOrder] Linked order ${orderDoc._id} to takeout table ${tableId}, status remains 'available'.`
+          );
         }
       } catch (e) {
         logger?.warn?.("[createOrder] failed to update table status", e);
@@ -693,8 +810,19 @@ async function createOrder(req, res, next) {
     }
 
     // Notify subscribers
-    safePublish(`restaurant:${rid}:orders`, {
-      event: "orderCreated",
+    console.log(
+      chalk.green.bold(
+        `[Socket Event] Broadcasting 'order_update' for new order ${orderDoc._id} to room: restaurant:${rid}:tables:${orderDoc.tableId}`
+      )
+    );
+    // Notify table-specific room for user UI update
+    safePublish(`restaurant:${rid}:tables:${orderDoc.tableId}`, {
+      event: "order_update",
+      data: orderDoc,
+    });
+    // Notify staff room for admin UI update
+    safePublish(`restaurant:${rid}:staff`, {
+      event: "order_update",
       data: orderDoc,
     });
 
@@ -774,17 +902,38 @@ async function updateOrderStatus(req, res, next) {
     }
 
     // ====== Notify real-time subscribers ======
+    console.log(
+      chalk.magenta.bold(
+        `[Socket Event] Broadcasting 'order_update' for status change on order ${order._id} to room: restaurant:${rid}:tables:${order.tableId}`
+      )
+    );
+    // Notify table-specific room for user UI update
     safePublish(`restaurant:${rid}:tables:${order.tableId}`, {
-      event: "orderUpdated",
+      event: "order_update",
+      data: order,
+    });
+    // Notify staff room for admin UI update
+    safePublish(`restaurant:${rid}:staff`, {
+      event: "order_update",
       data: order,
     });
 
     // ====== Auto-reset dine-in tables if order is done/completed/cancelled ======
-    if (["done", "completed", "cancelled"].includes(order.status) && Table) {
+    if (
+      ["done", "completed", "cancelled", "paid"].includes(order.status) &&
+      Table
+    ) {
       try {
         // Only reset tables that are dine_in and not system tables
-        const targetTable = await Table.findOne({ _id: order.tableId, restaurantId: rid });
-        if (targetTable && targetTable.tableType === "dine_in" && !targetTable.isSystem) {
+        const targetTable = await Table.findOne({
+          _id: order.tableId,
+          restaurantId: rid,
+        });
+        if (
+          targetTable &&
+          targetTable.tableType === "dine_in" &&
+          !targetTable.isSystem
+        ) {
           await Table.findOneAndUpdate(
             { _id: order.tableId, restaurantId: rid },
             {
@@ -796,26 +945,43 @@ async function updateOrderStatus(req, res, next) {
               },
             }
           );
+          const updatedTable = await Table.findById(order.tableId).lean();
+          if (updatedTable) {
+            safePublish(`restaurant:${rid}:staff`, {
+              event: "table_update",
+              data: updatedTable,
+            });
+          }
           console.log(
             `[updateOrderStatus] Dine-in Table ${order.tableId} reset to 'available' ✅`
           );
-        } else if (targetTable && targetTable.tableType === "takeout" && targetTable.isSystem) {
+        } else if (
+          targetTable &&
+          targetTable.tableType === "takeout" &&
+          targetTable.isSystem
+        ) {
           // For takeout tables, we only clear the CurrentOrderId if there are no other active orders linked to it.
           // The table status remains "available" and currentSessionId is not relevant.
           const activeOrdersOnTakeoutTable = await Order.countDocuments({
             restaurantId: rid,
             tableId: order.tableId,
-            status: { $nin: ["done", "completed", "cancelled"] }
+            status: {
+              $nin: ["done", "completed", "cancelled", "billed", "paid"],
+            },
           });
 
           if (activeOrdersOnTakeoutTable === 0) {
-             await Table.findOneAndUpdate(
+            await Table.findOneAndUpdate(
               { _id: order.tableId, restaurantId: rid },
               { $set: { CurrentOrderId: null, updatedAt: new Date() } }
             );
-             console.log(`[updateOrderStatus] Takeout Table ${order.tableId} CurrentOrderId cleared as no other active orders.`);
+            console.log(
+              `[updateOrderStatus] Takeout Table ${order.tableId} CurrentOrderId cleared as no other active orders.`
+            );
           } else {
-             console.log(`[updateOrderStatus] Takeout Table ${order.tableId} still has ${activeOrdersOnTakeoutTable} active orders. CurrentOrderId not cleared.`);
+            console.log(
+              `[updateOrderStatus] Takeout Table ${order.tableId} still has ${activeOrdersOnTakeoutTable} active orders. CurrentOrderId not cleared.`
+            );
           }
         }
       } catch (e) {
@@ -882,10 +1048,10 @@ async function getActiveOrders(req, res, next) {
       }
       // Explicitly format createdAt and updatedAt to { $date: "ISOString" } for frontend consumption
       if (out.createdAt instanceof Date) {
-        out.createdAt = { "$date": out.createdAt.toISOString() };
+        out.createdAt = { $date: out.createdAt.toISOString() };
       }
       if (out.updatedAt instanceof Date) {
-        out.updatedAt = { "$date": out.updatedAt.toISOString() };
+        out.updatedAt = { $date: out.updatedAt.toISOString() };
       }
       return out;
     });
@@ -1000,7 +1166,11 @@ async function getOrderHistory(req, res, next) {
       statusesToQuery = ["done"]; // Default to 'done' if no status is provided
     }
 
-    const baseQuery = { restaurantId: rid, status: { $in: statusesToQuery }, ...dateFilter };
+    const baseQuery = {
+      restaurantId: rid,
+      status: { $in: statusesToQuery },
+      ...dateFilter,
+    };
     if (!isStaff) baseQuery.sessionId = querySessionId;
     else if (querySessionId) baseQuery.sessionId = querySessionId;
 
@@ -1094,9 +1264,16 @@ async function deleteOrderById(req, res, next) {
     if (tableId) {
       console.log("[deleteOrderById] Checking table occupancy…");
 
-      const targetTable = await Table.findOne({ _id: tableId, restaurantId: rid });
+      const targetTable = await Table.findOne({
+        _id: tableId,
+        restaurantId: rid,
+      });
 
-      if (targetTable && targetTable.tableType === "dine_in" && !targetTable.isSystem) {
+      if (
+        targetTable &&
+        targetTable.tableType === "dine_in" &&
+        !targetTable.isSystem
+      ) {
         const activeOrders = await Order.countDocuments({
           restaurantId: rid,
           tableId,
@@ -1123,11 +1300,15 @@ async function deleteOrderById(req, res, next) {
             `[deleteOrderById] Dine-in Table: still has ${activeOrders} active orders → not changing status`
           );
         }
-      } else if (targetTable && targetTable.tableType === "takeout" && targetTable.isSystem) {
+      } else if (
+        targetTable &&
+        targetTable.tableType === "takeout" &&
+        targetTable.isSystem
+      ) {
         const activeOrdersOnTakeoutTable = await Order.countDocuments({
           restaurantId: rid,
           tableId,
-          status: { $nin: ["done", "completed", "cancelled"] }
+          status: { $nin: ["done", "completed", "cancelled"] },
         });
 
         if (activeOrdersOnTakeoutTable === 0) {
@@ -1135,9 +1316,13 @@ async function deleteOrderById(req, res, next) {
             { _id: tableId, restaurantId: rid },
             { $set: { CurrentOrderId: null, updatedAt: new Date() } }
           );
-          console.log(`[deleteOrderById] Takeout Table ${tableId} CurrentOrderId cleared as no other active orders.`);
+          console.log(
+            `[deleteOrderById] Takeout Table ${tableId} CurrentOrderId cleared as no other active orders.`
+          );
         } else {
-          console.log(`[deleteOrderById] Takeout Table ${tableId} still has ${activeOrdersOnTakeoutTable} active orders. CurrentOrderId not cleared.`);
+          console.log(
+            `[deleteOrderById] Takeout Table ${tableId} still has ${activeOrdersOnTakeoutTable} active orders. CurrentOrderId not cleared.`
+          );
         }
       }
     }
@@ -1382,6 +1567,33 @@ async function getBillByOrderId(req, res, next) {
       .lean();
 
     if (!bill) {
+      // Fallback: If order exists, return provisional bill data
+      const order = await Order.findOne({
+        _id: new mongoose.Types.ObjectId(orderId),
+        restaurantId: rid,
+      }).lean();
+
+      if (order) {
+        return res.json({
+          _id: null, // No bill ID yet
+          restaurantId: rid,
+          orderId: order._id,
+          tableId: order.tableId,
+          status: "provisional",
+          items: order.items || [],
+          subtotal: order.subtotal || 0,
+          discountAmount: order.discountAmount || 0,
+          serviceChargeAmount: order.serviceChargeAmount || 0,
+          taxAmount: order.taxAmount || 0,
+          extrasTotal: order.extrasTotal || 0,
+          totalAmount: order.totalAmount || 0,
+          taxes: order.appliedTaxes || [],
+          extras: [], // Order doesn't persist extras array
+          appliedDiscountPercent: order.appliedDiscountPercent || 0,
+          appliedServiceChargePercent: order.appliedServiceChargePercent || 0,
+        });
+      }
+
       return res
         .status(404)
         .json({ error: `No bill found for orderId ${orderId}` });
@@ -1611,6 +1823,43 @@ async function updateOrderFromBill(req, res) {
   }
 }
 
+/**
+ * getActiveOrderByTable - GET /api/:rid/tables/:tableId/active-order
+ *
+ * Fetches the single active (non-closed) order for a given tableId.
+ * Returns 404 if no active order is found.
+ */
+async function getActiveOrderByTable(req, res, next) {
+  try {
+    const { rid, id: tableId } = req.params; // Note: tableId is coming as 'id' from the route
+
+    // Multi-tenant guard
+    if (!rid || !tableId) {
+      return res.status(400).json({ error: "Missing rid or tableId" });
+    }
+
+    // Fetch the most recent active order
+    const order = await Order.findOne({
+      restaurantId: rid,
+      tableId,
+      status: { $nin: ["done", "completed", "cancelled", "billed", "paid"] },
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (!order) {
+      return res
+        .status(404)
+        .json({ message: "No active order found for this table." });
+    }
+
+    return res.json(order);
+  } catch (err) {
+    console.error("[getActiveOrderByTable] error:", err);
+    return res.status(500).json({ error: "Failed to fetch active order" });
+  }
+}
+
 module.exports = {
   createOrder,
   updateOrderStatus,
@@ -1623,4 +1872,5 @@ module.exports = {
   getBillByOrderId,
   getBillByOrderIdPublic,
   updateOrderFromBill,
+  getActiveOrderByTable,
 };

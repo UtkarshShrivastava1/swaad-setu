@@ -79,8 +79,16 @@ async function seedMenu(rid) {
 
 exports.registerRestaurant = async (req, res, next) => {
   try {
-    const { restaurantName, ownerName, phone, email, adminPin, staffPin } =
-      req.body;
+    const {
+      restaurantName,
+      ownerName,
+      phone,
+      email,
+      adminPin,
+      staffPin,
+      fssaiNumber,
+      gstNumber,
+    } = req.body;
 
     // ---------------------------
     //  Basic Validation
@@ -119,6 +127,8 @@ exports.registerRestaurant = async (req, res, next) => {
       ownerName,
       phone,
       email,
+      fssaiNumber,
+      gstNumber,
 
       hashedPin: await bcrypt.hash(adminPin, 10),
       staffHashedPin: await bcrypt.hash(staffPin, 10),
