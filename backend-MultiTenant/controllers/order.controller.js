@@ -519,7 +519,10 @@ async function createOrder(req, res, next) {
 
           console.log("[createOrder] bill updated successfully");
         } else {
-          console.warn("[createOrder] no active bill found to update");
+          console.warn(
+            "[createOrder] no active bill found to update, creating one."
+          );
+          await createBillForNewOrder(existingOrder);
         }
       } catch (e) {
         console.error("[createOrder] failed to update existing bill", e);
