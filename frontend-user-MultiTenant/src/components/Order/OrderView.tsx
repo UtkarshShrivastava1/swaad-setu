@@ -27,7 +27,7 @@ export default function OrderView({ orderId }: { orderId: string }) {
   const [isDownloading, setIsDownloading] = useState(false);
   const navigate = useNavigate();
   const { rid, tenant } = useTenant();
-  const { socket } = useSocket();
+
   const { tableId } = useTable();
   const sessionId = sessionStorage.getItem("resto_session_id");
 
@@ -49,8 +49,12 @@ export default function OrderView({ orderId }: { orderId: string }) {
   const logoutAndRedirect = useCallback(() => {
     console.log("Order paid. Logging out session...");
     sessionStorage.removeItem("resto_session_id");
+    // Clear customer info associated with this table
+    if (tableId) { // Ensure tableId is available
+      sessionStorage.removeItem(`customerInfo_${tableId}`);
+    }
     navigate(`/t/${rid}`);
-  }, [rid, navigate]);
+  }, [rid, navigate, tableId]);
 
   const fetchOrder = useCallback(async () => {
     if (!orderId || !rid) return;
@@ -180,8 +184,7 @@ export default function OrderView({ orderId }: { orderId: string }) {
     );
   }
 
-  const taxPercent =
-    order.appliedTaxes?.find((t: any) => t.code === "GST")?.percent ?? 0;
+
   const servicePercent = order.appliedServiceChargePercent ?? 0;
   const discountPercent = order.appliedDiscountPercent ?? 0;
 
@@ -203,13 +206,16 @@ export default function OrderView({ orderId }: { orderId: string }) {
       <RefreshButton onRefresh={fetchOrder} positionClassName="top-6 right-4" />
 
       {/* ===== Main Content ===== */}
-      <div
-        className="max-w-2xl w-full mx-auto p-4 space-y-8"
-      >
-        <div className="text-center">
-          <p className="text-gray-400">Order Status</p>
-          <h2 className="text-3xl sm:text-4xl font-bold text-white mt-1">
-            #{order._id.slice(-6).toUpperCase()}
+      <div className="max-w-2xl w-full mx-auto p-4 space-y-8">
+        <div className="relative text-center">
+          <div className="absolute left-0 top-1/2 -translate-y-1/2">
+            <p className="text-gray-400 text-sm">Order ID</p>
+            <p className="text-lg font-bold text-white">
+              #{order._id.slice(-6).toUpperCase()}
+            </p>
+          </div>
+          <h2 className="text-3xl sm:text-4xl font-bold text-white">
+            Order Status
           </h2>
         </div>
 
@@ -285,10 +291,21 @@ export default function OrderView({ orderId }: { orderId: string }) {
               <span>-₹{order.discountAmount?.toFixed(2)}</span>
             </div>
           )}
-          <div className="flex justify-between text-gray-400">
-            <span>GST ({taxPercent}%)</span>
-            <span>+ ₹{order.taxAmount?.toFixed(2)}</span>
-          </div>
+          {order.appliedTaxes && order.appliedTaxes.length > 0 ? (
+            order.appliedTaxes.map((tax, index) => (
+              <div key={index} className="flex justify-between text-gray-400">
+                <span>
+                  {tax.name} ({tax.percent}%)
+                </span>
+                <span>+ ₹{tax.amount?.toFixed(2)}</span>
+              </div>
+            ))
+          ) : (
+            <div className="flex justify-between text-gray-400">
+              <span>Tax</span>
+              <span>+ ₹{order.taxAmount?.toFixed(2)}</span>
+            </div>
+          )}
           <div className="flex justify-between text-gray-400">
             <span>Service Charge ({servicePercent}%)</span>
             <span>+ ₹{order.serviceChargeAmount?.toFixed(2)}</span>
@@ -383,9 +400,7 @@ export default function OrderView({ orderId }: { orderId: string }) {
           <h2 style={{ fontSize: "16px", fontWeight: "bold", margin: "0" }}>
             {tenant?.restaurantName}
           </h2>
-          <p style={{ margin: "4px 0 0" }}>
-            Order #{order?._id.slice(-6)}
-          </p>
+          <p style={{ margin: "4px 0 0" }}>Order #{order?._id.slice(-6)}</p>
           <p style={{ margin: "2px 0 0", fontSize: "10px" }}>
             {new Date().toLocaleString()}
           </p>
@@ -394,8 +409,24 @@ export default function OrderView({ orderId }: { orderId: string }) {
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr>
-              <th style={{ textAlign: "left", padding: "4px 0", borderBottom: "1px dashed #000" }}>Item</th>
-              <th style={{ textAlign: "right", padding: "4px 0", borderBottom: "1px dashed #000" }}>Price</th>
+              <th
+                style={{
+                  textAlign: "left",
+                  padding: "4px 0",
+                  borderBottom: "1px dashed #000",
+                }}
+              >
+                Item
+              </th>
+              <th
+                style={{
+                  textAlign: "right",
+                  padding: "4px 0",
+                  borderBottom: "1px dashed #000",
+                }}
+              >
+                Price
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -405,11 +436,22 @@ export default function OrderView({ orderId }: { orderId: string }) {
                   {item.name}
                   <br />
                   <span style={{ fontSize: "10px" }}>
-                    ({item.quantity} x ₹{(item.priceAtOrder || item.price || 0).toFixed(2)})
+                    ({item.quantity} x ₹
+                    {(item.priceAtOrder || item.price || 0).toFixed(2)})
                   </span>
                 </td>
-                <td style={{ textAlign: "right", verticalAlign: "top", padding: "4px 0" }}>
-                  ₹{((item.priceAtOrder || (item.price as number)) * item.quantity).toFixed(2)}
+                <td
+                  style={{
+                    textAlign: "right",
+                    verticalAlign: "top",
+                    padding: "4px 0",
+                  }}
+                >
+                  ₹
+                  {(
+                    (item.priceAtOrder || (item.price as number)) *
+                    item.quantity
+                  ).toFixed(2)}
                 </td>
               </tr>
             ))}
@@ -422,21 +464,42 @@ export default function OrderView({ orderId }: { orderId: string }) {
           <tbody>
             <tr>
               <td style={{ padding: "2px 0" }}>Subtotal</td>
-              <td style={{ textAlign: "right", padding: "2px 0" }}>₹{order?.subtotal?.toFixed(2)}</td>
+              <td style={{ textAlign: "right", padding: "2px 0" }}>
+                ₹{order?.subtotal?.toFixed(2)}
+              </td>
             </tr>
             {order?.discountAmount && order.discountAmount > 0 && (
               <tr>
                 <td style={{ padding: "2px 0" }}>Discount</td>
-                <td style={{ textAlign: "right", padding: "2px 0" }}>-₹{order.discountAmount.toFixed(2)}</td>
+                <td style={{ textAlign: "right", padding: "2px 0" }}>
+                  -₹{order.discountAmount.toFixed(2)}
+                </td>
+              </tr>
+            )}
+            {order?.appliedTaxes && order.appliedTaxes.length > 0 ? (
+              order.appliedTaxes.map((tax, index) => (
+                <tr key={index}>
+                  <td style={{ padding: "2px 0" }}>
+                    {tax.name} ({tax.percent}%)
+                  </td>
+                  <td style={{ textAlign: "right", padding: "2px 0" }}>
+                    +₹{tax.amount?.toFixed(2)}
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td style={{ padding: "2px 0" }}>Tax</td>
+                <td style={{ textAlign: "right", padding: "2px 0" }}>
+                  +₹{order?.taxAmount?.toFixed(2)}
+                </td>
               </tr>
             )}
             <tr>
-              <td style={{ padding: "2px 0" }}>GST</td>
-              <td style={{ textAlign: "right", padding: "2px 0" }}>+₹{order?.taxAmount?.toFixed(2)}</td>
-            </tr>
-            <tr>
               <td style={{ padding: "2px 0" }}>Service Charge</td>
-              <td style={{ textAlign: "right", padding: "2px 0" }}>+₹{order?.serviceChargeAmount?.toFixed(2)}</td>
+              <td style={{ textAlign: "right", padding: "2px 0" }}>
+                +₹{order?.serviceChargeAmount?.toFixed(2)}
+              </td>
             </tr>
           </tbody>
         </table>
@@ -447,12 +510,21 @@ export default function OrderView({ orderId }: { orderId: string }) {
           <tbody>
             <tr style={{ fontWeight: "bold", fontSize: "14px" }}>
               <td style={{ padding: "4px 0" }}>Total</td>
-              <td style={{ textAlign: "right", padding: "4px 0" }}>₹{order?.totalAmount?.toFixed(2)}</td>
+              <td style={{ textAlign: "right", padding: "4px 0" }}>
+                ₹{order?.totalAmount?.toFixed(2)}
+              </td>
             </tr>
           </tbody>
         </table>
 
-        <p style={{ textAlign: "center", marginTop: "16px", borderTop: "1px dashed #000", paddingTop: "8px" }}>
+        <p
+          style={{
+            textAlign: "center",
+            marginTop: "16px",
+            borderTop: "1px dashed #000",
+            paddingTop: "8px",
+          }}
+        >
           Thank you for your order!
         </p>
       </div>

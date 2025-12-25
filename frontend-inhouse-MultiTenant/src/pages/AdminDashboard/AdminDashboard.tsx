@@ -86,77 +86,83 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (!socket) return;
 
-    const handleNewOrder = (newOrder: any) => {
-      console.log("Admin: Received new_order event:", newOrder);
-      setAllActiveOrders(prev => [...prev, newOrder]);
-      setOrdersCount(prev => prev + 1);
-      if (String(newOrder.tableNumber) === "999") {
-        setTakeoutOrders(prev => [...prev, newOrder]);
-      }
-    };
-
     const handleOrderUpdate = (updatedOrder: any) => {
       console.log("Admin: Received order_update event:", updatedOrder);
-      setAllActiveOrders(prev => {
-        const existingOrderIndex = prev.findIndex(o => o._id === updatedOrder._id);
+      setAllActiveOrders((prev) => {
+        const existingOrderIndex = prev.findIndex(
+          (o) => o._id === updatedOrder._id
+        );
+
+        let newOrders = [...prev];
+        let orderCountChange = 0;
+
+
+        const isNewOrderActive =
+          updatedOrder.status !== "completed" &&
+          updatedOrder.status !== "cancelled";
+
         if (existingOrderIndex > -1) {
-          const newOrders = [...prev];
+          const oldOrder = prev[existingOrderIndex];
           newOrders[existingOrderIndex] = updatedOrder;
 
-          // Handle status changes for ordersCount
-          if (
-            (updatedOrder.status === "completed" || updatedOrder.status === "cancelled") &&
-            (prev[existingOrderIndex].status !== "completed" && prev[existingOrderIndex].status !== "cancelled")
-          ) {
-            setOrdersCount(c => c - 1);
-          } else if (
-            (updatedOrder.status !== "completed" && updatedOrder.status !== "cancelled") &&
-            (prev[existingOrderIndex].status === "completed" || prev[existingOrderIndex].status === "cancelled")
-          ) {
-            setOrdersCount(c => c + 1);
-          }
+          const wasOldOrderActive =
+            oldOrder.status !== "completed" && oldOrder.status !== "cancelled";
 
-          // Handle takeout orders
-          if (String(updatedOrder.tableNumber) === "999") {
-            setTakeoutOrders(tPrev => {
-              const existingTakeoutIndex = tPrev.findIndex(o => o._id === updatedOrder._id);
+          // Adjust ordersCount based on status change
+          if (wasOldOrderActive && !isNewOrderActive) {
+            orderCountChange = -1;
+          } else if (!wasOldOrderActive && isNewOrderActive) {
+            orderCountChange = 1;
+          }
+        } else {
+          // This is a genuinely new order (not an update to an existing one)
+          if (isNewOrderActive) {
+            newOrders.push(updatedOrder);
+            orderCountChange = 1;
+          }
+        }
+
+        // Handle takeout orders
+        if (String(updatedOrder.tableNumber) === "999") {
+          setTakeoutOrders((tPrev) => {
+            const existingTakeoutIndex = tPrev.findIndex(
+              (o) => o._id === updatedOrder._id
+            );
+            if (isNewOrderActive) {
               if (existingTakeoutIndex > -1) {
-                if (updatedOrder.status === "completed" || updatedOrder.status === "cancelled") {
-                  return tPrev.filter(o => o._id !== updatedOrder._id);
-                }
+                // Update existing takeout order
                 const newTakeouts = [...tPrev];
                 newTakeouts[existingTakeoutIndex] = updatedOrder;
                 return newTakeouts;
-              } else if (updatedOrder.status !== "completed" && updatedOrder.status !== "cancelled") {
+              } else {
+                // Add new takeout order
+                takeoutOrdersChange = 1; // Increment for `ordersCount` for `takeoutOrders`
                 return [...tPrev, updatedOrder];
               }
-              return tPrev;
-            });
-          } else {
-            setTakeoutOrders(tPrev => tPrev.filter(o => o._id !== updatedOrder._id));
-          }
-
-          return newOrders;
-        } else {
-          // If order not found, it might be a new order that somehow missed new_order event
-          // Or an order that became active from a non-active state
-          if (updatedOrder.status !== "completed" && updatedOrder.status !== "cancelled") {
-            setOrdersCount(c => c + 1);
-            if (String(updatedOrder.tableNumber) === "999") {
-              setTakeoutOrders(tPrev => [...tPrev, updatedOrder]);
+            } else {
+              // Remove if no longer active
+              if (existingTakeoutIndex > -1) {
+                takeoutOrdersChange = -1; // Decrement for `ordersCount` for `takeoutOrders`
+                return tPrev.filter((o) => o._id !== updatedOrder._id);
+              }
             }
-            return [...prev, updatedOrder];
-          }
+            return tPrev;
+          });
+        } else {
+          // If it was a takeout order and now it's not (e.g., tableNumber changed or cleared)
+          setTakeoutOrders((tPrev) =>
+            tPrev.filter((o) => o._id !== updatedOrder._id)
+          );
         }
-        return prev;
+
+        setOrdersCount((c) => c + orderCountChange);
+        return newOrders;
       });
     };
 
-    socket.on("new_order", handleNewOrder);
     socket.on("order_update", handleOrderUpdate);
 
     return () => {
-      socket.off("new_order", handleNewOrder);
       socket.off("order_update", handleOrderUpdate);
     };
   }, [socket]);
