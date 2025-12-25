@@ -3,125 +3,137 @@ const { Server } = require("socket.io");
 const { createClient } = require("redis");
 const { createAdapter } = require("@socket.io/redis-adapter");
 const logger = require("../common/libs/logger");
-const config = require("../config"); // Import config to access CORS origins
+const config = require("../config");
 
-require("../db/redis"); // This ensures global.swaadSetuEmitter is set up
+// Ensure local redis emitter (dev/in-memory) is loaded
+require("../db/redis");
 const redisEmitter = global.swaadSetuEmitter;
 
 /**
  * Initialize Socket.IO and wire up Redis pub/sub bridge.
- * @param {http.Server} server - Node HTTP server instance
- * @returns {Server} io - Socket.IO server
+ * @param {http.Server} server
+ * @returns {Server}
  */
 function initializeSocket(server) {
-  logger.info("[SocketService] Initializing Socket.IO server.");
   const isProd = process.env.NODE_ENV === "production";
-  const corsOrigins = isProd
-    ? config.CORS_ALLOWED_ORIGINS // Assuming CORS_ALLOWED_ORIGINS is configured in config/index.js
-    : "*";
 
-  logger.info(`[SocketService] CORS Origin configured: ${JSON.stringify(corsOrigins)}`);
+  // 🚫 NEVER use "*" with credentials
+  const corsOrigins = isProd
+    ? config.CORS_ALLOWED_ORIGINS
+    : ["http://localhost:3000", "http://localhost:5173"];
+
+  logger.info("[SocketService] Initializing Socket.IO", {
+    isProd,
+    corsOrigins,
+  });
 
   const io = new Server(server, {
     cors: {
       origin: corsOrigins,
+      credentials: true,
       methods: ["GET", "POST"],
-      credentials: true, // Important for cookies/auth headers
     },
-    // Optional: add pingInterval and pingTimeout for more robust connection health checks
-    pingInterval: 10000, // 10 seconds
-    pingTimeout: 5000,   // 5 seconds
+    pingInterval: 10000,
+    pingTimeout: 5000,
   });
 
-  // 🔴 PROD ONLY: Socket.IO Redis Adapter
+  // --------------------------------------------------
+  // ✅ PROD ONLY: Socket.IO Redis Adapter
+  // --------------------------------------------------
   if (isProd && process.env.REDIS_URL) {
-    logger.info("[SocketService] Production environment with REDIS_URL found. Attempting to set up Redis adapter.");
     (async () => {
       try {
         const pubClient = createClient({ url: process.env.REDIS_URL });
         const subClient = pubClient.duplicate();
 
-        pubClient.on("error", (err) => logger.error(`[SocketService] Redis Publisher Error: ${err.message}`));
-        subClient.on("error", (err) => logger.error(`[SocketService] Redis Subscriber Error: ${err.message}`));
+        pubClient.on("error", (err) =>
+          logger.error("[SocketService] Redis pub error", err)
+        );
+        subClient.on("error", (err) =>
+          logger.error("[SocketService] Redis sub error", err)
+        );
 
         await pubClient.connect();
         await subClient.connect();
-        logger.info("[SocketService] Redis pub/sub clients connected successfully.");
 
         io.adapter(createAdapter(pubClient, subClient));
-        logger.info("✅ [SocketService] Socket.IO Redis adapter attached (PROD)");
+        logger.info("✅ [SocketService] Redis adapter attached (PROD)");
       } catch (err) {
-        logger.error(`❌ [SocketService] Redis adapter failed to attach: ${err.message}`, err);
-        logger.warn("[SocketService] Continuing without Redis adapter. This will limit scalability.");
+        logger.error("❌ [SocketService] Redis adapter failed", err);
+        logger.warn("[SocketService] Continuing without Redis adapter");
       }
     })();
-  } else if (isProd && !process.env.REDIS_URL) {
-    logger.warn("[SocketService] Production environment detected, but REDIS_URL is NOT set. Socket.IO will NOT be scalable across multiple instances.");
-  } else {
-    logger.info("[SocketService] Development environment. Using in-memory adapter (no Redis adapter).");
   }
 
-
+  // --------------------------------------------------
+  // 🔌 SOCKET CONNECTION HANDLER
+  // --------------------------------------------------
   io.on("connection", (socket) => {
-    const { rid, tableId } = socket.handshake.query;
+    // ✅ SUPPORT BOTH React (auth) AND legacy (query)
+    const rid = socket.handshake.auth?.rid || socket.handshake.query?.rid;
 
-    logger.info(`[SocketService] Incoming connection from client: ${socket.id}`, { rid, tableId, ip: socket.handshake.address });
+    const tableId =
+      socket.handshake.auth?.tableId || socket.handshake.query?.tableId;
+
+    logger.info("[SocketService] Client connected", {
+      socketId: socket.id,
+      rid,
+      tableId,
+      ip: socket.handshake.address,
+    });
 
     if (!rid) {
-      logger.warn(`[SocketService] Client ${socket.id} disconnected due to missing RID.`);
+      logger.warn("[SocketService] Missing RID, disconnecting", {
+        socketId: socket.id,
+      });
       socket.disconnect(true);
       return;
     }
 
-    // Join a general room for the restaurant for broadcast events
-    const restaurantRoom = `restaurant:${rid}`;
-    socket.join(restaurantRoom);
-    logger.info(`[SocketService] Client ${socket.id} joined room: ${restaurantRoom}`);
+    // Restaurant-wide room
+    socket.join(`restaurant:${rid}`);
 
-    // Join staff room for restaurant
-    const staffRoom = `restaurant:${rid}:staff`;
-    socket.join(staffRoom);
-    logger.info(`[SocketService] Client ${socket.id} joined room: ${staffRoom}`);
+    // Staff room
+    socket.join(`restaurant:${rid}:staff`);
 
-
-    // Join table-specific room if provided
+    // Table room (optional)
     if (tableId) {
-      const tableRoom = `restaurant:${rid}:tables:${tableId}`;
-      socket.join(tableRoom);
-      logger.info(`[SocketService] Client ${socket.id} joined room: ${tableRoom}`);
+      socket.join(`restaurant:${rid}:tables:${tableId}`);
     }
 
     socket.on("disconnect", (reason) => {
-      logger.info(`[SocketService] Client disconnected: ${socket.id}`, { reason, rid, tableId });
+      logger.info("[SocketService] Client disconnected", {
+        socketId: socket.id,
+        reason,
+        rid,
+        tableId,
+      });
     });
 
-    socket.on("error", (error) => {
-      logger.error(`[SocketService] Socket error for client ${socket.id}: ${error.message}`, error);
+    socket.on("error", (err) => {
+      logger.error("[SocketService] Socket error", {
+        socketId: socket.id,
+        err,
+      });
     });
   });
 
-  // 🟢 KEEP YOUR EXISTING REDIS EMITTER (LOCAL / DEV SAFE) - This bridges events from the local Redis stub to Socket.IO
+  // --------------------------------------------------
+  // 🟢 DEV / LOCAL Redis-Emitter Bridge (unchanged)
+  // --------------------------------------------------
   if (redisEmitter && typeof redisEmitter.on === "function") {
-    logger.info("[SocketService] Local redisEmitter (in-memory stub) found. Setting up bridge to Socket.IO.");
     redisEmitter.onAny
       ? redisEmitter.onAny((channel, message) => {
-          // in case emitter supports onAny (like ioredis)
-          logger.info(`[SocketService] Bridging event from Redis emitter [onAny] to Socket.IO. Channel: ${channel}, Event: ${message.event}`);
           io.to(channel).emit(message.event, message.data);
         })
       : redisEmitter.on("event", (channel, message) => {
-          // fallback stub
-          logger.info(`[SocketService] Bridging event from Redis emitter [on] to Socket.IO. Channel: ${channel}, Event: ${message.event}`);
           io.to(channel).emit(message.event, message.data);
         });
 
-    logger.info("📡 [SocketService] Redis emitter → Socket.IO bridge active.");
-  } else {
-    logger.warn("⚠️ [SocketService] Local redisEmitter (in-memory stub) NOT found or not an EventEmitter. Redis bridging will not occur in dev.");
+    logger.info("📡 [SocketService] Local Redis emitter bridge active");
   }
 
   return io;
 }
 
 module.exports = { initializeSocket };
-

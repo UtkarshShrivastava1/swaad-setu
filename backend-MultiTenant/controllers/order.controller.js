@@ -131,6 +131,7 @@ async function createBillForNewOrder(order) {
       restaurantId: order.restaurantId,
       orderId: order._id,
       tableId: order.tableId,
+      sessionId: order.sessionId, // <--- ADD THIS LINE
       items: order.items.map((item) => ({
         itemId: item.menuItemId,
         name: item.name,
